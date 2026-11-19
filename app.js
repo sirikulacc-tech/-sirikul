@@ -211,6 +211,7 @@ function askConfirm(msg, okText, withReason) {
 function render() {
   var h = '';
   document.body.classList.toggle('admin', !!ADMIN_MODE);
+  document.body.classList.toggle('noscroll', !ADMIN_MODE && S.tab === 'car' && !!S.sub);
   $('#nav').classList.toggle('hide', !!ADMIN_MODE || !S.cars);
   if (ADMIN_MODE) h = viewAdmin();
   else if (S.tab === 'car') h = viewCar();
@@ -322,15 +323,40 @@ function viewCar() {
   h += '<div class="menu">' +
     menuBtn('trip', t ? 'คืนรถ' : 'เบิกรถ') + menuBtn('history', 'ประวัติการใช้งาน') +
     menuBtn('info', 'ข้อมูลรถ') + menuBtn('maint', 'ประวัติการซ่อมบำรุง') + '</div>';
-  if (S.sub === 'history') h += viewHistory(car);
-  else if (S.sub === 'maint') h += viewMaint(car);
-  else if (S.sub === 'info') h += viewInfo(car);
-  else h += viewTrip(car, t);
+  h += '<div class="mute center-hint">แตะเมนูเพื่อเปิดข้อมูล</div>';
   h += '<select id="pickCar" class="pick" aria-label="เปลี่ยนรถ">' + S.cars.map(function (c) {
     return '<option value="' + esc(c.plate) + '"' + (c.plate === car.plate ? ' selected' : '') + '>เปลี่ยนรถ: ' + esc(c.plate) + ' ' + esc(c.model) + '</option>';
   }).join('') + '</select>';
+  // เนื้อหาของเมนูเปิดเป็นป๊อปอัพ (แผ่นเลื่อนขึ้นจากด้านล่าง)
+  var body = S.sub === 'trip' ? viewTrip(car, t) : S.sub === 'history' ? viewHistory(car) : S.sub === 'info' ? viewInfo(car) : S.sub === 'maint' ? viewMaint(car) : '';
+  if (body) {
+    var title = { trip: t ? 'คืนรถ' : 'เบิกรถ', history: 'ประวัติการใช้งาน', info: 'ข้อมูลรถ', maint: 'ประวัติการซ่อมบำรุง' }[S.sub];
+    h += sheetHtml(title + ' · ' + esc(car.plate), body);
+  }
   return h;
 }
+
+/* ---------- ป๊อปอัพ (แผ่นเลื่อนขึ้น) ---------- */
+function sheetHtml(title, body) {
+  var anim = S.lastSheet === S.sub ? ' noanim' : ''; S.lastSheet = S.sub;
+  return '<div class="sheet-bg' + anim + '" data-act="closesheet"></div>' +
+    '<div class="sheet' + anim + '" role="dialog" aria-modal="true" aria-label="' + title + '">' +
+    '<div class="sheet-head"><span class="grab" aria-hidden="true"></span><h2>' + title + '</h2>' +
+    '<button class="sheet-x" data-act="closesheet" aria-label="ปิด">✕</button></div>' +
+    '<div class="sheet-body">' + body + '</div></div>';
+}
+function openSheet(k) {
+  S.sub = k; S.mopen = false; S.mdef = '';
+  try { if (!(history.state && history.state.sheet)) history.pushState({ sheet: 1 }, ''); } catch (e) {}
+  render();
+}
+function closeSheet() {
+  if (!S.sub) return;
+  try { if (history.state && history.state.sheet) { history.back(); return; } } catch (e) {}
+  S.sub = ''; S.lastSheet = ''; render();
+}
+window.addEventListener('popstate', function () { if (S.sub) { S.sub = ''; S.lastSheet = ''; render(); } });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && S.sub && !ADMIN_MODE) closeSheet(); });
 var MENU_IC = { trip:'car', history:'clock', info:'info', maint:'wrench' };
 function menuBtn(k, label) { return '<button data-act="sub" data-s="' + k + '" class="' + (S.sub === k ? 'on' : '') + '"><span class="mi">' + ic(MENU_IC[k], 24) + '</span><span>' + label + '</span></button>'; }
 
@@ -464,7 +490,7 @@ function viewMaint(car) {
 function viewInfo(car) {
   function kv(k, v) { return '<div class="kv"><span>' + k + '</span><span>' + (v === '' || v == null ? '-' : esc(v)) + '</span></div>'; }
   function exp(k, d) { return '<div class="kv"><span>' + k + '</span><span class="' + expClass(d) + '">' + thDate(d) + '</span></div>'; }
-  return '<div class="card"><h2>ข้อมูลรถ</h2>' + kv('ทะเบียน', car.plate) + kv('จังหวัด', car.province) + kv('ยี่ห้อ/รุ่น', car.model) + kv('ปี', car.year) +
+  return '<div class="card info-main"><h2>ข้อมูลรถ</h2>' + kv('ทะเบียน', car.plate) + kv('จังหวัด', car.province) + kv('ยี่ห้อ/รุ่น', car.model) + kv('ปี', car.year) +
     kv('สี', car.color) + kv('เชื้อเพลิง', car.fuel) + kv('เลขตัวถัง', car.vin) + kv('เลขเครื่อง', car.engineNo) +
     kv('เลขไมล์ล่าสุด', car.lastOdo === '' ? '' : Number(car.lastOdo).toLocaleString('th-TH') + ' กม.') + '</div>' +
     '<div class="card"><h2>วันหมดอายุ</h2>' + exp('พ.ร.บ.', car.actExp) + exp('ภาษีรถ', car.taxExp) + exp('ประกันภัย', car.insExp) + kv('บริษัทประกันภัย', car.insurer) + '</div>' +
@@ -519,7 +545,8 @@ function adminCount(k) {
 function ensureDlist() {
   if (S.dlist || S.dlist === false) return;
   S.dlist = false;
-  call('listDrivers', { pin: S.pin }).then(function (d) { S.dlist = d; render(); }).catch(function (e) { S.dlist = null; toast(e.message, 'err'); });
+  // วาดหน้าใหม่เฉพาะหน้าที่ใช้รายชื่อนี้ ไม่ให้ฟอร์มที่กำลังกรอกอยู่หน้าอื่นถูกล้าง
+  call('listDrivers', { pin: S.pin }).then(function (d) { S.dlist = d; if (ADMIN_MODE && (S.asub === 'overview' || S.asub === 'drivers')) render(); }).catch(function (e) { S.dlist = null; toast(e.message, 'err'); });
 }
 function kpi(label, value, sub, cls) { return '<div class="kpi ' + (cls || '') + '"><div class="l">' + label + '</div><div class="v">' + value + '</div><div class="s">' + (sub || '&nbsp;') + '</div></div>'; }
 function dt(head, rows, numCols, foot, rowCls) {
@@ -721,24 +748,25 @@ function bindForms() {
   var of = $('#ocrFile');
   if (of) of.addEventListener('change', async function () {
     var file = of.files[0]; if (!file) return;
-    var msg = $('#ocrMsg'), E = $('#fCar').elements;
-    msg.innerHTML = '<span class="mute">กำลังอ่านสำเนาทะเบียน อาจใช้เวลา 10-20 วินาที...</span>';
+    var setMsg = function (h) { var m = $('#ocrMsg'); if (m) m.innerHTML = h; }; // หาจากหน้าปัจจุบันทุกครั้ง
+    setMsg('<span class="mute">กำลังอ่านสำเนาทะเบียน อาจใช้เวลา 10-20 วินาที...</span>');
     try {
       var data = file.type === 'application/pdf' ? await readDataUrl(file) : await shrinkTo(file, 2200, 0.9);
       if (file.type === 'application/pdf' && file.size > 4 * 1024 * 1024) throw new Error('ไฟล์ PDF ใหญ่เกิน 4 MB');
       pendingReg = data; // เก็บเป็นสำเนาทะเบียนเมื่อกดบันทึก
       var r = await call('ocrRegDoc', { file: data, pin: S.pin });
       r.fields = parseRegText(r.text);
-      var editing = !!E['id'].value, got = [];
+      var form = $('#fCar'); if (!form) return;
+      var E = form.elements, editing = !!E['id'].value, got = [];
       Object.keys(OCR_LABELS).forEach(function (k) {
         var v = r.fields[k];
         if (!v || (editing && E[k].value)) return;
         E[k].value = v; E[k].classList.add('filled'); got.push(OCR_LABELS[k]);
       });
-      msg.innerHTML = got.length
+      setMsg(got.length
         ? '<span class="cd-ok">กรอกให้ ' + got.length + ' ช่อง (' + got.join(', ') + ') ช่องสีเขียวคือค่าที่อ่านได้ กรุณาตรวจก่อนบันทึก</span>'
-        : '<span class="cd-warn">อ่านข้อมูลไม่ได้ ลองถ่ายให้ตรง ชัด และไม่มีแสงสะท้อน หรือพิมพ์เอง</span>';
-    } catch (e) { msg.innerHTML = '<span class="cd-bad">' + esc(e.message) + '</span>'; }
+        : '<span class="cd-warn">อ่านข้อมูลไม่ได้ ลองถ่ายให้ตรง ชัด และไม่มีแสงสะท้อน หรือพิมพ์เอง</span>');
+    } catch (e) { setMsg('<span class="cd-bad">' + esc(e.message) + '</span>'); }
   });
   var rf = $('#regFile');
   if (rf) rf.addEventListener('change', async function () {
@@ -750,7 +778,7 @@ function bindForms() {
       } else pendingReg = await shrink(f);
     } catch (e) { toast(e.message, 'err'); }
   });
-  var after = function (tab, sub) { return function () { S.hist = {}; S.tab = tab; if (sub) S.sub = sub; }; };
+  var after = function (tab, sub) { return function () { S.hist = {}; S.tab = tab; S.sub = sub || ''; S.lastSheet = ''; try { if (history.state && history.state.sheet) history.replaceState(null, ''); } catch (e) {} }; };
   hook('#fCheckout', 'checkout', function (d) { return { name: d.name, phone: d.phone, licenseExp: d.licenseExp, plate: d.plate, odoStart: d.odoStart, purpose: d.purpose, images: pendingImages }; }, 'เบิกรถเรียบร้อย', after('home'), function (d) {
     var w = [], car = curCar(), last = car.lastOdo, v = Number(d.odoStart);
     var ln = daysLeft(d.licenseExp);
@@ -808,7 +836,8 @@ function bindForms() {
   document.querySelectorAll('[data-act]').forEach(function (b) {
     b.addEventListener('click', function () {
       var a = b.dataset.act;
-      if (a === 'sub') { S.sub = b.dataset.s; S.mopen = false; S.mdef = ''; render(); }
+      if (a === 'sub') openSheet(b.dataset.s);
+      else if (a === 'closesheet') closeSheet();
       else if (a === 'reg') showReg();
       else if (a === 'asub') { S.asub = b.dataset.s; if (S.asub === 'drivers') S.dlist = null; render(); window.scrollTo(0, 0); }
       else if (a === 'print') window.print();
@@ -824,7 +853,7 @@ function bindForms() {
       else if (a === 'runreport') runReport(b);
       else if (a === 'export') exportReport(b);
       else if (a === 'logout') { S.pin = ''; S.edit = ''; S.dlist = null; sset('sessionStorage', 'adminPin', ''); showWho(); render(); }
-      else if (a === 'opencar') { S.plate = b.dataset.p; S.sub = 'trip'; S.tab = 'car'; render(); window.scrollTo(0, 0); }
+      else if (a === 'opencar') { S.plate = b.dataset.p; S.sub = ''; S.tab = 'car'; render(); window.scrollTo(0, 0); }
       else if (a === 'editcar') { S.edit = b.dataset.id; S.carForm = true; render(); focusCarForm(); }
       else if (a === 'newcar') { S.edit = ''; S.carForm = true; S.asub = 'cars'; render(); focusCarForm(); }
       else if (a === 'closecar') { S.edit = ''; S.carForm = false; render(); }
@@ -1030,12 +1059,12 @@ paintIcons();
 setTheme(document.documentElement.getAttribute('data-theme'), false);
 $('#modalClose').addEventListener('click', function () { $('#modal').style.display = 'none'; });
 document.querySelectorAll('nav button').forEach(function (b) {
-  b.addEventListener('click', function () { S.tab = b.dataset.t; render(); window.scrollTo(0, 0); });
+  b.addEventListener('click', function () { S.tab = b.dataset.t; S.sub = ''; S.lastSheet = ''; render(); window.scrollTo(0, 0); });
 });
 load().then(function () {
   var hit = ADMIN_MODE ? null : S.cars.filter(function (c) { return (INITIAL_CAR && c.id === INITIAL_CAR) || (!INITIAL_CAR && INITIAL_PLATE && c.plate === INITIAL_PLATE); })[0];
   if (ADMIN_MODE) {}
-  else if (hit) { S.plate = hit.plate; S.tab = 'car'; S.sub = 'trip'; }
+  else if (hit) { S.plate = hit.plate; S.tab = 'car'; S.sub = ''; }
   else if (INITIAL_CAR || INITIAL_PLATE) toast('ไม่พบรถคันนี้ในระบบ (อาจถูกนำออกแล้ว) เลือกรถจากหน้าแรกได้', 'err');
   render();
 }).catch(function (e) {

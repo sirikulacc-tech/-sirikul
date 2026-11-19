@@ -293,3 +293,28 @@
   .plate.sm::before { left:5px; } .plate.sm::after { right:5px; }
   .plate.sm .no { font-size:19px; letter-spacing:1px; }
   .plate.sm .pv { font-size:10.5px; margin:1px 3px 0; padding-top:0; min-height:13px; }
+
+  /* ===================== ป๊อปอัพเมนู (แผ่นเลื่อนขึ้น) ===================== */
+  body.noscroll { overflow:hidden; }
+  .center-hint { text-align:center; font-size:13.5px; margin:-4px 0 14px; }
+  .sheet-bg { position:fixed; inset:0; background:rgba(8,24,12,.45); z-index:17; animation:fade .2s ease both; }
+  .sheet { position:fixed; left:0; right:0; bottom:0; z-index:18; max-height:88vh; display:flex; flex-direction:column;
+    background:var(--bg); border-radius:24px 24px 0 0; box-shadow:0 -20px 40px -20px rgba(0,0,0,.45); animation:sheetup .28s cubic-bezier(.2,.8,.2,1) both;
+    padding-bottom:env(safe-area-inset-bottom); }
+  .sheet-head { position:relative; display:flex; align-items:center; gap:10px; padding:18px 16px 12px; border-bottom:1px solid var(--line); background:var(--card); border-radius:24px 24px 0 0; }
+  .sheet-head h2 { margin:0; flex:1; font-size:17px; }
+  .sheet-head .grab { position:absolute; top:7px; left:50%; width:44px; height:5px; margin-left:-22px; border-radius:99px; background:var(--line); }
+  .sheet-x { width:36px; height:36px; margin:0; padding:0; border-radius:50%; background:var(--pri-soft); color:var(--pri); font-size:16px; display:grid; place-items:center; flex:none; }
+  .sheet-body { overflow:auto; padding:14px 16px 20px; -webkit-overflow-scrolling:touch; }
+  .sheet-body > .card:last-child, .sheet-body > details:last-child { margin-bottom:0; }
+  .sheet #fCheckout > h2:first-child, .sheet #fReturn > h2:first-child, .sheet .info-main > h2:first-child { display:none; }
+  .sheet.noanim, .sheet-bg.noanim, .sheet .card { animation:none; }
+  @keyframes sheetup { from { transform:translateY(100%); } to { transform:none; } }
+  @keyframes fade { from { opacity:0; } to { opacity:1; } }
+  @media (min-width: 700px) {
+    .sheet { left:50%; right:auto; bottom:auto; top:50%; width:min(600px, calc(100vw - 48px)); max-height:84vh; transform:translate(-50%,-50%); border-radius:22px; animation:pop .22s ease both; }
+    .sheet.noanim { transform:translate(-50%,-50%); }
+    .sheet-head { border-radius:22px 22px 0 0; } .sheet-head .grab { display:none; }
+    @keyframes pop { from { opacity:0; transform:translate(-50%,-46%); } to { opacity:1; transform:translate(-50%,-50%); } }
+  }
+  @media (prefers-reduced-motion: reduce) { .sheet, .sheet-bg { animation:none; } }
