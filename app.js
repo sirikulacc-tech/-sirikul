@@ -240,14 +240,18 @@ function headerLeft() {
     var car = curCar(), t = openTripOf(car.plate);
     return '<div class="hcar"><div class="hplate"><div class="plate"><div class="no">' + esc(car.plate) + '</div><div class="pv">' + esc(car.province) + '</div></div>' +
       (t ? '<span class="hchip busy">ถูกเบิกอยู่</span>' : '<span class="hchip free">ว่าง</span>') + '</div>' +
-      '<div class="hexp">' + hexpRow('พ.ร.บ.', car.actExp) + hexpRow('ภาษีรถ', car.taxExp) + hexpRow('ประกันภัย', car.insExp, car.insurer) + '</div></div>';
+      '<div class="hexp">' + hexpRow('พ.ร.บ.', car.actExp) + hexpRow('ภาษี', car.taxExp) + hexpRow('ประกัน', car.insExp, car.insurer) + '</div></div>';
   }
   return '<div class="htitle">' + (S.tab === 'expense' ? 'บันทึกค่าใช้จ่าย' : S.tab === 'car' ? 'รถ' : 'หน้าแรก') + '</div>';
 }
+// แถวเดียวต่อรายการ: ชื่อ · วันหมดอายุ (ปีย่อ) · บริษัทประกัน · จำนวนวันที่เหลือ
 function hexpRow(label, d, sub) {
   var n = daysLeft(d), cls = n === null ? 'na' : n < 0 ? 'bad' : n <= 30 ? 'warn' : 'ok';
-  return '<div class="hx"><div class="hx-t"><span>' + label + '</span><b class="' + cls + '">' + cdText(n) + '</b></div>' +
-    '<div class="hx-d">' + (d ? thDate(d) : '') + (sub ? ' · ' + esc(sub) : '') + '</div></div>';
+  var txt = n === null ? 'ไม่ระบุ' : n < 0 ? 'เกิน ' + (-n) + ' วัน' : n === 0 ? 'วันนี้' : n + ' วัน';
+  var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || ''), short = m ? m[3] + '/' + m[2] + '/' + String(Number(m[1]) + 543).slice(2) : '';
+  var co = sub ? String(sub).replace(/\s*ประกันภัย\s*/, ' ').trim() : ''; // แถบด้านบนย่อชื่อบริษัท เช่น "วิริยะประกันภัย" -> "วิริยะ"
+  var full = label + (d ? ' หมดอายุ ' + thDate(d) : '') + (sub ? ' · ' + sub : '') + (n === null ? '' : n < 0 ? ' · เกินกำหนด ' + (-n) + ' วัน' : ' · เหลือ ' + n + ' วัน');
+  return '<div class="hx" title="' + esc(full) + '"><span class="hx-l">' + label + '</span><span class="hx-d">' + short + (co ? ' · ' + esc(co) : '') + '</span><b class="' + cls + '">' + txt + '</b></div>';
 }
 
 /* ---------- เฟรมหลัก ---------- */
