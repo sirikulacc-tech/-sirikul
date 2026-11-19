@@ -331,7 +331,7 @@ function viewCar() {
   return h;
 }
 var MENU_IC = { trip:'car', history:'clock', info:'info', maint:'wrench' };
-function menuBtn(k, label) { return '<button data-act="sub" data-s="' + k + '" class="' + (S.sub === k ? 'on' : '') + '">' + ic(MENU_IC[k], 24) + '<span>' + label + '</span></button>'; }
+function menuBtn(k, label) { return '<button data-act="sub" data-s="' + k + '" class="' + (S.sub === k ? 'on' : '') + '"><span class="mi">' + ic(MENU_IC[k], 24) + '</span><span>' + label + '</span></button>'; }
 
 function viewTrip(car, t) {
   if (!t) {
