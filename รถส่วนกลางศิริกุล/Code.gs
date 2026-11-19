@@ -151,6 +151,7 @@ function api(action, payload) {
       case 'saveCar': requirePin_(payload.pin); return ok_(saveCar_(payload));
       case 'setCarActive': requirePin_(payload.pin); return ok_(setCarActive_(payload));
       case 'ocrRegDoc': requirePin_(payload.pin); return ok_(ocrRegDoc_(payload));
+      case 'saveSettings': requirePin_(payload.pin); return ok_(saveSettings_(payload));
       case 'cancelTrip': requirePin_(payload.pin); return ok_(cancelTrip_(payload));
       case 'report': requirePin_(payload.pin); return ok_(report_(payload));
       case 'exportReport': requirePin_(payload.pin); return ok_(exportReport_(payload));
@@ -205,6 +206,7 @@ function bootstrap_() {
     pinRequired: !!PropertiesService.getScriptProperties().getProperty('ADMIN_PIN'),
     cars: cars,
     removedCars: removed,
+    settings: settings_(),
     openTrips: open,
     appUrl: ScriptApp.getService().getUrl(),
     expenseTypes: EXPENSE_TYPES,
@@ -411,6 +413,56 @@ function setCarActive_(p) {
     writeRow_(sheet_('cars'), car._row, 'cars', car);
     return { id: car.id };
   });
+}
+
+/* ---------- ตั้งค่า: โลโก้และชื่อบริษัท (เก็บโลโก้ใน Drive โฟลเดอร์ "โลโก้") ---------- */
+const DEFAULT_COMPANY = 'ศิริกุล การบัญชี';
+
+function settings_() {
+  const pr = PropertiesService.getScriptProperties();
+  return { company: pr.getProperty('COMPANY_NAME') || DEFAULT_COMPANY, logo: logoData_() };
+}
+
+function logoData_() {
+  const id = PropertiesService.getScriptProperties().getProperty('LOGO_ID');
+  if (!id) return '';
+  const cache = CacheService.getScriptCache();
+  const hit = cache.get('logo_' + id);
+  if (hit) return hit;
+  try {
+    const f = DriveApp.getFileById(id);
+    const d = 'data:' + f.getMimeType() + ';base64,' + Utilities.base64Encode(f.getBlob().getBytes());
+    if (d.length < 95000) cache.put('logo_' + id, d, 21600);
+    return d;
+  } catch (e) {
+    return '';
+  }
+}
+
+function saveSettings_(p) {
+  const pr = PropertiesService.getScriptProperties();
+  if (p.company !== undefined) {
+    const c = str_(p.company, 60);
+    if (!c) throw new Error('กรุณากรอกชื่อบริษัท');
+    pr.setProperty('COMPANY_NAME', c);
+  }
+  const oldId = pr.getProperty('LOGO_ID');
+  const trashOld = function () { if (oldId) { try { DriveApp.getFileById(oldId).setTrashed(true); } catch (e) { /* ไฟล์เดิมอาจถูกลบแล้ว */ } } };
+  if (p.removeLogo) {
+    trashOld();
+    pr.deleteProperty('LOGO_ID');
+  } else if (p.logo) {
+    const m = /^data:image\/(png|jpeg|webp);base64,(.+)$/.exec(String(p.logo));
+    if (!m) throw new Error('โลโก้ต้องเป็นรูปภาพ PNG, JPG หรือ WEBP');
+    const bytes = Utilities.base64Decode(m[2]);
+    if (bytes.length > 500 * 1024) throw new Error('ไฟล์โลโก้ใหญ่เกิน 500 KB');
+    const main = DriveApp.getFolderById(pr.getProperty('MAIN_FOLDER_ID'));
+    const ext = m[1] === 'jpeg' ? 'jpg' : m[1];
+    const file = getOrCreateFolder_(main, 'โลโก้').createFile(Utilities.newBlob(bytes, 'image/' + m[1], 'โลโก้.' + ext));
+    trashOld();
+    pr.setProperty('LOGO_ID', file.getId());
+  }
+  return settings_();
 }
 
 /* ---------- อ่านสำเนาทะเบียนด้วย OCR ของ Google Drive (ฟรี) ---------- */
