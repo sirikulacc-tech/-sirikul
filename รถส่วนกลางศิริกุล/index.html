@@ -123,6 +123,16 @@
   .tbl th:first-child, .tbl td:first-child { text-align:left; }
   .tbl thead th { color:var(--mute); font-weight:700; }
   .tbl tfoot td { font-weight:800; border-bottom:0; }
+  /* หน้าแอดมินบนคอมพิวเตอร์: ขยายเต็มจอ แบ่งสองคอลัมน์ (หน้าคนขับคงขนาดมือถือ) */
+  @media (min-width: 900px) {
+    body.wide main { max-width: 1180px; padding:20px 24px; }
+    body.wide .menu { grid-template-columns: repeat(5, 1fr); }
+    body.wide .admin-cols { display:grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap:16px; align-items:start; margin-bottom:14px; }
+    body.wide .admin-cols > .card { margin-bottom:0; }
+    body.wide .qrgrid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+    body.wide nav { justify-content:center; }
+    body.wide nav button { flex:0 1 160px; }
+  }
   details > summary { cursor:pointer; font-weight:700; color:var(--pri); }
   /* QR (พื้นขาวเสมอเพื่อให้สแกนได้) */
   .qrgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
@@ -301,6 +311,7 @@ function render() {
   else if (S.tab === 'car') h = viewCar();
   else if (S.tab === 'expense') h = viewExpense();
   else if (S.tab === 'cars') h = viewAdmin();
+  document.body.classList.toggle('wide', S.tab === 'cars');
   $('#app').innerHTML = h;
   document.querySelectorAll('nav button').forEach(function (b) { b.classList.toggle('on', b.dataset.t === S.tab); });
   bindForms();
@@ -558,7 +569,7 @@ function viewAdmin() {
 }
 
 function viewCarsAdmin() {
-  var h = '<div class="card"><h2>รถทั้งหมด</h2>' + (S.cars.length ? S.cars.map(function (c) {
+  var h = '<div class="admin-cols"><div class="card"><h2>รถทั้งหมด</h2>' + (S.cars.length ? S.cars.map(function (c) {
     return '<div class="row"><b>' + esc(c.plate) + '</b> ' + esc(c.model) + ' ' + esc(c.year) +
       '<br><span class="mute">พ.ร.บ. ' + thDate(c.actExp) + ' · ภาษี ' + thDate(c.taxExp) + ' · ประกัน ' + thDate(c.insExp) + '</span>' +
       (c.regDocId ? '' : '<br><span class="exp-warn">ยังไม่มีสำเนาทะเบียน</span>') +
@@ -586,6 +597,7 @@ function viewCarsAdmin() {
       '<input type="file" id="regFile" accept="image/*,application/pdf">' +
       '<button type="submit">บันทึกรถ</button>' + (e.plate ? '<button type="button" class="ghost" data-act="newcar">ยกเลิกการแก้ไข</button>' : '') + '</form>';
   }
+  h += '</div>';
   return h;
 }
 
@@ -633,16 +645,17 @@ function viewReport() {
   if (!r) return h;
   var t = r.totals;
   function kv(k, v) { return '<div class="kv"><span>' + k + '</span><span><b>' + v + '</b></span></div>'; }
-  h += '<div class="card"><h2>สรุป ' + monthTh(r.month) + '</h2>' + kv('จำนวนเที่ยว', km(t.trips)) + kv('ระยะทางรวม', km(t.km) + ' กม.') +
+  h += '<div class="admin-cols"><div class="card"><h2>สรุป ' + monthTh(r.month) + '</h2>' + kv('จำนวนเที่ยว', km(t.trips)) + kv('ระยะทางรวม', km(t.km) + ' กม.') +
     kv('ค่าน้ำมัน', baht(t.fuel) + ' บาท') + kv('ค่าใช้จ่ายอื่น', baht(t.other) + ' บาท') + kv('ค่าซ่อมบำรุง', baht(t.maint) + ' บาท') +
     kv('รวมทั้งหมด', baht(t.total) + ' บาท') + kv('ต้นทุนเฉลี่ยต่อ กม.', t.perKm == null ? '-' : baht(t.perKm) + ' บาท') + '</div>';
-  h += '<div class="card"><h2>ต่อคัน</h2>' + (r.byCar.length ? '<div class="tblwrap"><table class="tbl"><thead><tr><th>ทะเบียน</th><th>เที่ยว</th><th>กม.</th><th>น้ำมัน</th><th>อื่นๆ</th><th>ซ่อม</th><th>รวม</th><th>บาท/กม.</th></tr></thead><tbody>' +
+  var carCard = '<div class="card"><h2>ต่อคัน</h2>' + (r.byCar.length ? '<div class="tblwrap"><table class="tbl"><thead><tr><th>ทะเบียน</th><th>เที่ยว</th><th>กม.</th><th>น้ำมัน</th><th>อื่นๆ</th><th>ซ่อม</th><th>รวม</th><th>บาท/กม.</th></tr></thead><tbody>' +
     r.byCar.map(function (c) {
       return '<tr><td>' + esc(c.plate) + '</td><td>' + c.trips + '</td><td>' + km(c.km) + '</td><td>' + baht(c.fuel) + '</td><td>' + baht(c.other) + '</td><td>' + baht(c.maint) + '</td><td>' + baht(c.total) + '</td><td>' + (c.perKm == null ? '-' : baht(c.perKm)) + '</td></tr>';
     }).join('') + '</tbody></table></div>' : '<div class="mute">ไม่มีข้อมูลในเดือนนี้</div>') + '</div>';
   h += '<div class="card"><h2>ต่อคนขับ</h2>' + (r.byDriver.length ? '<div class="tblwrap"><table class="tbl"><thead><tr><th>ชื่อ</th><th>เที่ยว</th><th>กม.</th><th>ยังไม่คืน</th></tr></thead><tbody>' +
     r.byDriver.map(function (x) { return '<tr><td>' + esc(x.name) + '</td><td>' + x.trips + '</td><td>' + km(x.km) + '</td><td>' + (x.open || '-') + '</td></tr>'; }).join('') +
     '</tbody></table></div>' : '<div class="mute">ไม่มีการใช้รถในเดือนนี้</div>') + '</div>';
+  h += '</div>' + carCard;
   h += '<div class="card noprint"><h2>ไฟล์รายงาน</h2><div class="mute" style="font-size:14px">สร้างเป็น Google Sheet ในโฟลเดอร์ "รถส่วนกลางศิริกุล/รายงาน" มีแท็บสรุปต่อคัน ต่อคนขับ รายการใช้รถ ค่าใช้จ่าย และซ่อมบำรุง เปิดแล้วดาวน์โหลดเป็น Excel ได้</div>' +
     '<button class="ghost" data-act="export">สร้างไฟล์ Google Sheet</button>' +
     (S.exportUrl ? '<div style="margin-top:10px"><a href="' + esc(S.exportUrl) + '" target="_blank" rel="noopener">เปิดไฟล์ ' + esc(S.exportName) + '</a><div class="mute" style="font-size:13px">ต้องล็อกอินบัญชี Google ที่เป็นเจ้าของ Drive จึงจะเปิดได้</div></div>' : '') + '</div>';

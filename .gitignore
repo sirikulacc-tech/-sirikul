@@ -1,0 +1,16 @@
+# รีโพนี้เก็บเฉพาะตัวระบบ (โค้ด) เท่านั้น
+# ข้อมูลการใช้งานจริงอยู่ใน Google Sheets / Google Drive ของศิริกุล ห้ามนำขึ้น GitHub
+*.xlsx
+*.xls
+*.csv
+*.ods
+*.pdf
+*.jpg
+*.jpeg
+*.png
+*.heic
+*.webp
+*.zip
+.env
+.clasp.json
+.clasprc.json
