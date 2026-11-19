@@ -49,6 +49,19 @@
   .qrcell div.q { display:flex; justify-content:center; margin-bottom:6px; }
   .qrcell b { font-size:18px; display:block; }
   .qrcell small { color:var(--mute); }
+  .hd { display:grid; grid-template-columns:auto 1fr; gap:12px; align-items:center; }
+  .hdl { text-align:center; }
+  .plate { display:inline-block; min-width:140px; background:#fff; border:3px solid #111; border-radius:10px; padding:3px 12px 5px; box-shadow:0 0 0 2px #fff, 0 0 0 3px #9ca3af; }
+  .plate .no { font-size:29px; font-weight:800; letter-spacing:1px; line-height:1.15; color:#111; white-space:nowrap; }
+  .plate .pv { font-size:13px; font-weight:700; color:#374151; min-height:17px; }
+  .hdl .badge { margin-top:8px; }
+  .hdl button { margin-top:8px; padding:6px 8px; font-size:13px; }
+  .cdrow { padding:5px 0; border-bottom:1px solid var(--line); }
+  .cdrow:last-child { border:0; }
+  .cdrow .t { display:flex; justify-content:space-between; gap:6px; font-size:14px; flex-wrap:wrap; }
+  .cdrow .d { font-size:12px; color:var(--mute); text-align:right; }
+  .cd-ok { color:#047857; font-weight:700; } .cd-warn { color:var(--warn); font-weight:700; } .cd-bad { color:var(--bad); font-weight:700; } .cd-na { color:var(--mute); }
+  .pick { font-size:14px; padding:8px; margin-bottom:12px; }
   .badge { display:inline-block; padding:2px 8px; border-radius:99px; font-size:13px; background:#fee2e2; color:var(--bad); }
   .badge.free { background:#d1fae5; color:#047857; }
   .exp-bad { color:var(--bad); font-weight:700; }
@@ -80,7 +93,7 @@
 <script>
 var INITIAL_PLATE = <?!= JSON.stringify(initialPlate) ?>;
 var S = { me:null, cars:[], types:[], mtypes:[], alerts:[], usage:[], expenses:[], open:[], appUrl:'',
-          plate:'', sub:'trip', tab:'home', edit:'', hist:{}, busy:false };
+          plate:'', sub:'trip', tab:'home', edit:'', hist:{}, mopen:false, mdef:'', busy:false };
 var $ = function (s) { return document.querySelector(s); };
 
 function esc(v) {
@@ -195,23 +208,38 @@ function viewHome() {
 /* ---------- หน้ารถ (ปลายทางของ QR) ---------- */
 function openTripOf(plate) { return S.open.filter(function (t) { return t.plate === plate; })[0]; }
 
+function daysLeft(d) {
+  if (!d) return null;
+  var a = d.split('-'), t = today().split('-');
+  return Math.round((Date.UTC(+a[0], a[1] - 1, +a[2]) - Date.UTC(+t[0], t[1] - 1, +t[2])) / 86400000);
+}
+function cdText(n) { return n === null ? 'ยังไม่ระบุ' : n < 0 ? 'เกินกำหนด ' + (-n) + ' วัน' : n === 0 ? 'หมดอายุวันนี้' : 'เหลือ ' + n + ' วัน'; }
+function cdClass(n) { return n === null ? 'cd-na' : n < 0 ? 'cd-bad' : n <= 30 ? 'cd-warn' : 'cd-ok'; }
+function cdRow(label, d) {
+  var n = daysLeft(d);
+  return '<div class="cdrow"><div class="t"><span>' + label + '</span><span class="' + cdClass(n) + '">' + cdText(n) + '</span></div>' +
+    '<div class="d">' + (d ? 'หมดอายุ ' + thDate(d) : '') + '</div></div>';
+}
+
 function viewCar() {
   if (!S.cars.length) return '<div class="card">ยังไม่มีรถในระบบ ให้แอดมินเพิ่มในแท็บ "จัดการ"</div>';
   var car = curCar(); S.plate = car.plate;
   var t = openTripOf(car.plate);
-  var h = '<div class="card"><select id="pickCar">' + S.cars.map(function (c) {
-    return '<option value="' + esc(c.plate) + '"' + (c.plate === car.plate ? ' selected' : '') + '>' + esc(c.plate) + ' ' + esc(c.model) + '</option>';
-  }).join('') + '</select>' +
-    '<div style="margin-top:10px;font-size:18px"><b>' + esc(car.plate) + '</b> ' + esc(car.model) + ' ' +
-    (t ? '<span class="badge">ถูกเบิกอยู่</span>' : '<span class="badge free">ว่าง</span>') + '</div>' +
-    '<button class="line" data-act="reg">ดูสำเนาทะเบียนรถ</button></div>';
+  var h = '<div class="card hd"><div class="hdl">' +
+    '<div class="plate"><div class="no">' + esc(car.plate) + '</div><div class="pv">' + esc(car.province) + '</div></div><br>' +
+    (t ? '<span class="badge">ถูกเบิกอยู่</span>' : '<span class="badge free">ว่าง</span>') +
+    '<button class="line" data-act="reg">ดูสำเนาทะเบียน</button></div>' +
+    '<div class="hdr">' + cdRow('พ.ร.บ.', car.actExp) + cdRow('ภาษีรถ', car.taxExp) + cdRow('ประกันภัย', car.insExp) + '</div></div>';
   h += '<div class="menu">' +
-    menuBtn('trip', t ? 'คืนรถ' : 'เบิกรถ') + menuBtn('history', 'ประวัติการใช้') +
-    menuBtn('maint', 'ซ่อมบำรุง') + menuBtn('info', 'ข้อมูลรถ') + '</div>';
+    menuBtn('trip', t ? 'คืนรถ' : 'เบิกรถ') + menuBtn('history', 'ประวัติการใช้งาน') +
+    menuBtn('info', 'ข้อมูลรถ') + menuBtn('maint', 'ประวัติการซ่อมบำรุง') + '</div>';
   if (S.sub === 'history') h += viewHistory(car);
   else if (S.sub === 'maint') h += viewMaint(car);
   else if (S.sub === 'info') h += viewInfo(car);
   else h += viewTrip(car, t);
+  h += '<select id="pickCar" class="pick" aria-label="เปลี่ยนรถ">' + S.cars.map(function (c) {
+    return '<option value="' + esc(c.plate) + '"' + (c.plate === car.plate ? ' selected' : '') + '>เปลี่ยนรถ: ' + esc(c.plate) + ' ' + esc(c.model) + '</option>';
+  }).join('') + '</select>';
   return h;
 }
 function menuBtn(k, label) { return '<button data-act="sub" data-s="' + k + '" class="' + (S.sub === k ? 'on' : '') + '">' + label + '</button>'; }
@@ -254,17 +282,38 @@ function viewHistory(car) {
   }).join('') : '<div class="mute">ยังไม่มีประวัติการใช้</div>') + '</div>';
 }
 
+var SERVICE = 'ตรวจเช็คตามระยะ';
+
+function serviceCard(car, d) {
+  var h = '<div class="card"><h2>เช็คระยะ</h2>';
+  var last = d && d.maint.filter(function (m) { return m.type === SERVICE; })[0];
+  if (!d) return h + '<div class="mute">กำลังโหลด...</div></div>';
+  if (!last) return h + '<div class="mute">ยังไม่มีบันทึกการเช็คระยะ</div><button data-act="addservice">บันทึกการเช็คระยะ</button></div>';
+  var ago = -daysLeft(last.date);
+  h += '<div class="kv"><span>เช็คระยะล่าสุด</span><span>' + thDate(last.date) + '<br><span class="mute">' +
+    (ago > 0 ? 'ผ่านมา ' + ago + ' วัน' : 'วันนี้') + (last.odo !== '' ? ' · ไมล์ ' + Number(last.odo).toLocaleString('th-TH') : '') + '</span></span></div>';
+  var n = daysLeft(last.nextDate);
+  h += '<div class="kv"><span>เช็คครั้งต่อไป (วันที่)</span><span>' + (last.nextDate ? thDate(last.nextDate) + '<br><span class="' + cdClass(n) + '">' + cdText(n) + '</span>' : '-') + '</span></div>';
+  var left = last.nextOdo !== '' && car.lastOdo !== '' ? Number(last.nextOdo) - Number(car.lastOdo) : null;
+  h += '<div class="kv"><span>เช็คครั้งต่อไป (ไมล์)</span><span>' + (last.nextOdo !== '' ? Number(last.nextOdo).toLocaleString('th-TH') + ' กม.' : '-') +
+    (left === null ? '' : '<br><span class="' + (left <= 0 ? 'cd-bad' : left <= 1000 ? 'cd-warn' : 'cd-ok') + '">' +
+      (left <= 0 ? 'เกินกำหนด ' + Number(-left).toLocaleString('th-TH') + ' กม.' : 'เหลืออีก ' + left.toLocaleString('th-TH') + ' กม.') + '</span>') + '</span></div>';
+  return h + '<button class="line" data-act="addservice">บันทึกการเช็คระยะครั้งใหม่</button></div>';
+}
+
 function viewMaint(car) {
   var d = histOf(car.plate);
-  var h = '<details class="card"><summary>+ เพิ่มประวัติซ่อมบำรุง</summary><form id="fMaint">' +
+  var h = serviceCard(car, d);
+  h += '<details class="card"' + (S.mopen ? ' open' : '') + '><summary>+ เพิ่มประวัติซ่อมบำรุง</summary><form id="fMaint">' +
     '<label>วันที่</label><input name="date" type="date" value="' + today() + '" required>' +
-    '<label>ประเภท</label><select name="type">' + S.mtypes.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('') + '</select>' +
+    '<label>ประเภท</label><select name="type">' + S.mtypes.map(function (t) { return '<option' + (t === S.mdef ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('') + '</select>' +
     '<label>รายละเอียด</label><textarea name="detail" rows="2" maxlength="300" required></textarea>' +
     '<label>เลขไมล์ขณะซ่อม (ถ้ามี)</label><input name="odo" type="number" inputmode="numeric" min="0" value="' + esc(car.lastOdo) + '">' +
     '<label>อู่/ร้าน</label><input name="shop" maxlength="100">' +
     '<label>ค่าใช้จ่าย (บาท)</label><input name="cost" type="number" inputmode="decimal" min="0" step="0.01">' +
     '<label>ครบกำหนดครั้งต่อไป วันที่ (ถ้ามี)</label><input name="nextDate" type="date">' +
     '<label>ครบกำหนดครั้งต่อไป ไมล์ (ถ้ามี)</label><input name="nextOdo" type="number" inputmode="numeric" min="0">' +
+    '<div class="mute" style="font-size:13px;margin-top:6px">ถ้าเลือก "ตรวจเช็คตามระยะ" ระบบเติมครั้งต่อไปให้ที่ +10,000 กม. / +6 เดือน แก้ได้</div>' +
     imageField('แนบรูปใบเสร็จ/หน้างาน') + '<button type="submit">บันทึก</button></form></details>';
   if (!d) return h + '<div class="card center mute">กำลังโหลดประวัติ...</div>';
   h += '<div class="card"><h2>ประวัติซ่อมบำรุง (' + d.maint.length + ' รายการ)</h2>' + (d.maint.length ? d.maint.map(function (m) {
@@ -279,7 +328,7 @@ function viewMaint(car) {
 function viewInfo(car) {
   function kv(k, v) { return '<div class="kv"><span>' + k + '</span><span>' + (v === '' || v == null ? '-' : esc(v)) + '</span></div>'; }
   function exp(k, d) { return '<div class="kv"><span>' + k + '</span><span class="' + expClass(d) + '">' + thDate(d) + '</span></div>'; }
-  return '<div class="card"><h2>ข้อมูลรถ</h2>' + kv('ทะเบียน', car.plate) + kv('ยี่ห้อ/รุ่น', car.model) + kv('ปี', car.year) +
+  return '<div class="card"><h2>ข้อมูลรถ</h2>' + kv('ทะเบียน', car.plate) + kv('จังหวัด', car.province) + kv('ยี่ห้อ/รุ่น', car.model) + kv('ปี', car.year) +
     kv('สี', car.color) + kv('เชื้อเพลิง', car.fuel) + kv('เลขตัวถัง', car.vin) + kv('เลขเครื่อง', car.engineNo) +
     kv('เลขไมล์ล่าสุด', car.lastOdo === '' ? '' : Number(car.lastOdo).toLocaleString('th-TH') + ' กม.') + '</div>' +
     '<div class="card"><h2>วันหมดอายุ</h2>' + exp('พ.ร.บ.', car.actExp) + exp('ภาษีรถ', car.taxExp) + exp('ประกันภัย', car.insExp) + '</div>' +
@@ -330,6 +379,7 @@ function viewManage() {
     var v = function (k) { return esc(e[k]); };
     h += '<form class="card noprint" id="fCar"><h2>' + (e.plate ? 'แก้ไขรถ ' + esc(e.plate) : 'เพิ่มรถใหม่ (ทะเบียนซ้ำ = แก้ไข)') + '</h2>' +
       '<label>ทะเบียน</label><input name="plate" required maxlength="20" value="' + v('plate') + '"' + (e.plate ? ' readonly' : '') + '>' +
+      '<label>จังหวัดที่จดทะเบียน (แสดงบนป้ายทะเบียน)</label><input name="province" maxlength="40" value="' + v('province') + '" placeholder="เช่น กรุงเทพมหานคร">' +
       '<label>ยี่ห้อ/รุ่น</label><input name="model" maxlength="80" value="' + v('model') + '">' +
       '<label>ปี (ค.ศ.)</label><input name="year" inputmode="numeric" maxlength="4" value="' + v('year') + '">' +
       '<label>สี</label><input name="color" maxlength="30" value="' + v('color') + '">' +
@@ -375,22 +425,39 @@ function bindForms() {
   hook('#fReturn', 'returnCar', function (d) { return { id: d.id, odoEnd: d.odoEnd, images: pendingImages }; }, 'คืนรถเรียบร้อย', after('home'));
   hook('#fMaint', 'addMaintenance', function (d) {
     return { plate: S.plate, date: d.date, type: d.type, detail: d.detail, odo: d.odo, shop: d.shop, cost: d.cost, nextDate: d.nextDate, nextOdo: d.nextOdo, images: pendingImages };
-  }, 'บันทึกประวัติซ่อมบำรุงแล้ว', after('car', 'maint'));
+  }, 'บันทึกประวัติซ่อมบำรุงแล้ว', function () { S.hist = {}; S.tab = 'car'; S.sub = 'maint'; S.mopen = false; S.mdef = ''; });
   hook('#fExpense', 'addExpense', function (d) { return { plate: d.plate, date: d.date, type: d.type, amount: d.amount, note: d.note, images: pendingImages }; }, null, after('home'));
   hook('#fCar', 'saveCar', function (d) {
-    var o = {}; ['plate','model','year','color','fuel','vin','engineNo','actExp','taxExp','insExp','active'].forEach(function (k) { o[k] = d[k]; });
+    var o = {}; ['plate','province','model','year','color','fuel','vin','engineNo','actExp','taxExp','insExp','active'].forEach(function (k) { o[k] = d[k]; });
     if (pendingReg) o.regDoc = pendingReg; return o;
   }, null, function () { S.edit = ''; S.tab = 'cars'; });
 
+  var fm = $('#fMaint');
+  if (fm) {
+    var touched = false, E = fm.elements;
+    ['nextDate', 'nextOdo'].forEach(function (n) { E[n].addEventListener('input', function () { touched = true; }); });
+    var fill = function () {
+      if (touched || E['type'].value !== SERVICE) return;
+      var o = Number(E['odo'].value); if (o) E['nextOdo'].value = o + 10000;
+      if (E['date'].value) {
+        var x = new Date(E['date'].value + 'T00:00:00'); x.setMonth(x.getMonth() + 6);
+        var p2 = function (n) { return (n < 10 ? '0' : '') + n; };
+        E['nextDate'].value = x.getFullYear() + '-' + p2(x.getMonth() + 1) + '-' + p2(x.getDate());
+      }
+    };
+    ['type', 'odo', 'date'].forEach(function (n) { E[n].addEventListener('change', fill); });
+    fill();
+  }
   var pc = $('#pickCar'); if (pc) pc.addEventListener('change', function () { S.plate = pc.value; render(); });
   document.querySelectorAll('[data-act]').forEach(function (b) {
     b.addEventListener('click', function () {
       var a = b.dataset.act;
-      if (a === 'sub') { S.sub = b.dataset.s; render(); }
+      if (a === 'sub') { S.sub = b.dataset.s; S.mopen = false; S.mdef = ''; render(); }
       else if (a === 'reg') showReg();
       else if (a === 'edit') { S.edit = S.plate; S.tab = 'cars'; render(); window.scrollTo(0, 99999); }
       else if (a === 'editcar') { S.edit = b.dataset.p; render(); window.scrollTo(0, 99999); }
       else if (a === 'newcar') { S.edit = ''; render(); }
+      else if (a === 'addservice') { S.mopen = true; S.mdef = SERVICE; render(); var f = $('#fMaint'); if (f) f.scrollIntoView(); }
     });
   });
 }
