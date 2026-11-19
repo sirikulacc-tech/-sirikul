@@ -135,7 +135,20 @@ function doGet(e) {
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
-// จุดเรียกเดียวจากหน้าเว็บ: google.script.run.api(action, payload)
+// หน้าเว็บบน GitHub Pages เรียกผ่าน POST (ส่งแบบ text/plain ไม่ต้องใช้บัญชี Google)
+// body: {"action": "...", "payload": {...}}  ตอบกลับเป็น JSON {ok, data|error}
+function doPost(e) {
+  let out;
+  try {
+    const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    out = api(String(req.action || ''), req.payload || {});
+  } catch (err) {
+    out = { ok: false, error: 'คำขอไม่ถูกต้อง' };
+  }
+  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// จุดเรียกเดียวจากหน้าเว็บ: google.script.run.api(action, payload) หรือ doPost
 function api(action, payload) {
   try {
     payload = payload || {};

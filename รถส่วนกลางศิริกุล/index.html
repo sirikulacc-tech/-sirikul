@@ -246,11 +246,23 @@
   <button data-t="expense"><i data-i="receipt"></i><span>ค่าใช้จ่าย</span></button>
 </nav>
 
+<script type="application/json" id="boot"><?!= JSON.stringify({ car: initialCar, plate: initialPlate, admin: adminMode }) ?></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
-var INITIAL_PLATE = <?!= JSON.stringify(initialPlate) ?>;
-var INITIAL_CAR = <?!= JSON.stringify(initialCar) ?>;
-var ADMIN_MODE = <?!= JSON.stringify(adminMode) ?>; // หน้าแอดมิน = ลิงก์แอป + ?admin=1
+/* ===== ที่อยู่ของระบบ =====
+   หน้าเว็บนี้ใช้ได้ 2 แบบ: (1) เปิดผ่าน Apps Script โดยตรง (2) เปิดจาก GitHub Pages แล้วเรียก Apps Script ผ่าน API
+   ถ้าสร้าง deployment ใหม่ใน Apps Script จนลิงก์เปลี่ยน ให้แก้ API_URL ตรงนี้ */
+var API_URL = 'https://script.google.com/macros/s/AKfycbwzROKf1b1TM17Gr4dtmhMWgJ_DL5V5xPrOKWj29mIYMp3e-oif8mOkeDYN-Hd-4xKJ/exec';
+var PUBLIC_URL = 'https://sirikulacc-tech.github.io/-sirikul/'; // ลิงก์ที่ใส่ใน QR
+var IN_GAS = !!(window.google && google.script && google.script.run);
+var QS = new URLSearchParams(location.search);
+var INITIAL_CAR = (QS.get('car') || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 40);
+var INITIAL_PLATE = (QS.get('plate') || '').replace(/[^\wก-๙\- ]/g, '').slice(0, 20);
+var ADMIN_MODE = QS.get('admin') === '1'; // หน้าแอดมิน = ลิงก์ + ?admin=1
+try { // ค่าที่ Apps Script ส่งมา (เมื่อเปิดผ่าน Apps Script ซึ่งอ่าน location.search ของแอปไม่ได้)
+  var BOOT = JSON.parse(document.getElementById('boot').textContent);
+  INITIAL_CAR = BOOT.car || INITIAL_CAR; INITIAL_PLATE = BOOT.plate || INITIAL_PLATE; ADMIN_MODE = !!BOOT.admin || ADMIN_MODE;
+} catch (e) { /* เปิดจาก GitHub Pages: ใช้ค่าจากลิงก์ */ }
 var S = { company:'', logo:'', removed:[], name:'', profiles:{}, dlist:null, pin:'', pinRequired:false, asub:'overview', carForm:false, rmonth:'', report:null, exportUrl:'', exportName:'', drivers:[], cars:[], types:[], mtypes:[], alerts:[], usage:[], expenses:[], open:[], appUrl:'',
           plate:'', sub:'trip', tab:'home', edit:'', hist:{}, mopen:false, mdef:'', busy:false };
 var $ = function (s) { return document.querySelector(s); };
@@ -272,6 +284,13 @@ function toast(text, kind) {
   setTimeout(function () { m.style.display = 'none'; }, 3500);
 }
 function call(action, payload) {
+  if (!IN_GAS) {
+    // GitHub Pages: ส่งเป็น text/plain เพื่อไม่ให้เบราว์เซอร์ต้องขออนุญาต CORS ล่วงหน้า และไม่ส่งคุกกี้ Google
+    return fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: action, payload: payload || {} }), credentials: 'omit', redirect: 'follow' })
+      .then(function (r) { if (!r.ok) throw new Error('เชื่อมต่อระบบไม่ได้ (' + r.status + ')'); return r.json(); })
+      .catch(function (e) { throw new Error(/Failed to fetch|NetworkError|Load failed/.test(e.message) ? 'เชื่อมต่ออินเทอร์เน็ตไม่ได้ ลองใหม่อีกครั้ง' : e.message); })
+      .then(function (r) { if (r && r.ok) return r.data; throw new Error(r ? r.error : 'ไม่มีการตอบกลับ'); });
+  }
   return new Promise(function (resolve, reject) {
     google.script.run
       .withSuccessHandler(function (r) { r && r.ok ? resolve(r.data) : reject(new Error(r ? r.error : 'ไม่มีการตอบกลับ')); })
@@ -1056,7 +1075,7 @@ function hook(sel, action, build, okMsg, after, check) {
   });
 }
 
-function carUrl(c) { return S.appUrl + '?car=' + encodeURIComponent(c.id); }
+function carUrl(c) { return (PUBLIC_URL || S.appUrl) + '?car=' + encodeURIComponent(c.id); }
 function drawQr() {
   var g = $('#qrgrid'); if (!g || !window.QRCode || !S.appUrl) return;
   S.cars.forEach(function (c) {
@@ -1078,7 +1097,7 @@ async function load() {
   var d = await call('bootstrap');
   S.company = (d.settings && d.settings.company) || ''; S.logo = (d.settings && d.settings.logo) || '';
   S.removed = d.removedCars || []; S.drivers = d.drivers || []; S.pinRequired = !!d.pinRequired; if (!S.pinRequired) S.pin = ''; S.cars = d.cars; S.types = d.expenseTypes; S.mtypes = d.maintTypes; S.alerts = d.alerts;
-  S.usage = d.recentUsage; S.expenses = d.recentExpenses; S.open = d.openTrips; S.appUrl = d.appUrl;
+  S.usage = d.recentUsage; S.expenses = d.recentExpenses; S.open = d.openTrips; S.appUrl = PUBLIC_URL || d.appUrl;
   showWho();
   $('#nav').classList.remove('hide');
 }

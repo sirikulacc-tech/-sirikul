@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>รถส่วนกลางศิริกุล</title>
+<style>
+  body { margin:0; font-family:"Sarabun","Noto Sans Thai",system-ui,sans-serif; background:#f3f6f1; color:#151d14; display:grid; place-items:center; min-height:100vh; }
+  @media (prefers-color-scheme: dark) { body { background:#0c110b; color:#e7eee4; } }
+  p { font-size:16px; }
+</style>
+</head>
+<body>
+<p id="m">กำลังโหลดระบบรถส่วนกลาง...</p>
+<script>
+  // หน้าเปิดของ GitHub Pages: โหลดแอปตัวเดียวกับที่ใช้ใน Apps Script (โค้ดหน้าเว็บมีชุดเดียว)
+  // ข้อมูลทั้งหมดอยู่ใน Google Sheets / Drive ของศิริกุล ไม่ได้อยู่บน GitHub
+  fetch('./' + encodeURIComponent('รถส่วนกลางศิริกุล') + '/index.html', { cache: 'no-cache' })
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+    .then(function (html) { document.open(); document.write(html); document.close(); })
+    .catch(function () { document.getElementById('m').textContent = 'โหลดระบบไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วรีเฟรชอีกครั้ง'; });
+</script>
+</body>
+</html>
