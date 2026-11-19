@@ -55,8 +55,8 @@ const SCHEMA = {
   },
   drivers: {
     title: 'รายชื่อคนขับ',
-    cols: [['name', 'ชื่อ'], ['active', 'ใช้งาน (Y/N)']],
-    textCols: []
+    cols: [['name', 'ชื่อ'], ['active', 'ใช้งาน (Y/N)'], ['phone', 'เบอร์โทร'], ['licenseExp', 'ใบขับขี่หมดอายุ'], ['updated', 'อัปเดตล่าสุด']],
+    textCols: ['phone', 'licenseExp', 'updated']
   }
 };
 
@@ -149,6 +149,7 @@ function api(action, payload) {
       case 'cancelTrip': requirePin_(payload.pin); return ok_(cancelTrip_(payload));
       case 'report': requirePin_(payload.pin); return ok_(report_(payload));
       case 'exportReport': requirePin_(payload.pin); return ok_(exportReport_(payload));
+      case 'listDrivers': requirePin_(payload.pin); return ok_(listDrivers_());
       default: throw new Error('ไม่รู้จักคำสั่ง');
     }
   } catch (e) {
@@ -246,6 +247,9 @@ function buildAlerts_(cars, maint) {
 function checkout_(p) {
   const car = findCar_(p.plate);
   const name = name_(p.name);
+  const phone = String(p.phone || '').replace(/[^\d]/g, '');
+  if (phone.length < 9 || phone.length > 10) throw new Error('กรุณากรอกเบอร์โทร 9-10 หลัก');
+  const licenseExp = dateStr_(p.licenseExp);
   const odoStart = num_(p.odoStart, 'ไมล์ก่อน');
   const purpose = str_(p.purpose, 200);
   if (!purpose) throw new Error('กรุณากรอกปลายทาง/วัตถุประสงค์');
@@ -259,8 +263,23 @@ function checkout_(p) {
       returnTs: '', returnImages: '', status: 'open', returnName: ''
     };
     appendRow_('usage', row);
+    upsertDriver_(name, phone, licenseExp);
     return { id: row.id };
   });
+}
+
+// เก็บ/อัปเดตเบอร์โทรและวันหมดอายุใบขับขี่ในแท็บ "รายชื่อคนขับ" (เรียกภายใน lock)
+function upsertDriver_(name, phone, licenseExp) {
+  const d = readRows_('drivers').filter(function (r) { return String(r.name) === name; })[0];
+  const rec = { name: name, active: d && d.active === 'N' ? 'N' : 'Y', phone: phone, licenseExp: licenseExp, updated: now_() };
+  if (d) writeRow_(sheet_('drivers'), d._row, 'drivers', rec); else appendRow_('drivers', rec);
+}
+
+// สำหรับหน้าแอดมินเท่านั้น (มีเบอร์โทร)
+function listDrivers_() {
+  return readRows_('drivers').map(function (d) {
+    return { name: d.name, phone: d.phone, licenseExp: d.licenseExp, active: d.active, updated: d.updated };
+  }).sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'th'); });
 }
 
 function returnCar_(p) {
