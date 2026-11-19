@@ -150,13 +150,13 @@
   <button data-t="home" class="on"><i data-i="home"></i><span>หน้าแรก</span></button>
   <button data-t="car"><i data-i="car"></i><span>รถ</span></button>
   <button data-t="expense"><i data-i="receipt"></i><span>ค่าใช้จ่าย</span></button>
-  <button data-t="cars" id="navCars" class="hide"><i data-i="sliders"></i><span>จัดการ</span></button>
+  <button data-t="cars" id="navCars"><i data-i="sliders"></i><span>จัดการ</span></button>
 </nav>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 var INITIAL_PLATE = <?!= JSON.stringify(initialPlate) ?>;
-var S = { me:null, cars:[], types:[], mtypes:[], alerts:[], usage:[], expenses:[], open:[], appUrl:'',
+var S = { name:'', pin:'', drivers:[], cars:[], types:[], mtypes:[], alerts:[], usage:[], expenses:[], open:[], appUrl:'',
           plate:'', sub:'trip', tab:'home', edit:'', hist:{}, mopen:false, mdef:'', busy:false };
 var $ = function (s) { return document.querySelector(s); };
 
@@ -184,8 +184,15 @@ function call(action, payload) {
       .api(action, payload);
   });
 }
-function isMgr() { return S.me && (S.me.role === 'manager' || S.me.role === 'admin'); }
-function isAdmin() { return S.me && S.me.role === 'admin'; }
+// ที่เก็บในเครื่อง (อาจถูกบล็อกในบางเบราว์เซอร์ จึงครอบ try ไว้ทุกครั้ง)
+function sget(store, k) { try { return window[store].getItem(k) || ''; } catch (e) { return ''; } }
+function sset(store, k, v) { try { v ? window[store].setItem(k, v) : window[store].removeItem(k); } catch (e) {} }
+function isAdmin() { return !!S.pin; }
+function showWho() { $('#who').textContent = S.name ? 'คุณ' + S.name + (S.pin ? ' · แอดมิน' : '') : (S.pin ? 'โหมดแอดมิน' : 'ใช้งานได้ทันที ไม่ต้องล็อกอิน'); }
+function nameField(label) {
+  return '<label>' + label + '</label><input name="name" list="drivers" maxlength="60" required autocomplete="name" value="' + esc(S.name) + '" placeholder="พิมพ์หรือเลือกชื่อ">' +
+    '<datalist id="drivers">' + S.drivers.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>';
+}
 function curCar() { return S.cars.filter(function (c) { return c.plate === S.plate; })[0] || S.cars[0]; }
 
 /* ย่อรูปบนมือถือก่อนอัปโหลด */
@@ -280,7 +287,7 @@ function soonest(c) {
   return best;
 }
 function viewHome() {
-  var h = '<div class="hello"><b>สวัสดี ' + esc(S.me.name) + '</b><span>' + (S.cars.length ? 'เลือกรถที่ต้องการ หรือสแกน QR ที่รถ' : 'ยังไม่มีรถในระบบ') + '</span></div>';
+  var h = '<div class="hello"><b>สวัสดี' + (S.name ? ' คุณ' + esc(S.name) : '') + '</b><span>' + (S.cars.length ? 'เลือกรถที่ต้องการ หรือสแกน QR ที่รถ' : 'ยังไม่มีรถในระบบ') + '</span></div>';
   if (S.cars.length) {
     h += '<div class="tiles" style="margin-bottom:14px">' + S.cars.map(function (c) {
       var t = openTripOf(c.plate), sn = soonest(c);
@@ -292,7 +299,7 @@ function viewHome() {
         (sn && sn.n <= 30 ? '<span class="chip ' + cls + '">' + sn.what + ' ' + cdText(sn.n) + '</span>' : '') + '</button>';
     }).join('') + '</div>';
   }
-  if (isMgr() && S.alerts.length) {
+  if (S.alerts.length) {
     h += '<div class="card"><h2>แจ้งเตือนวันครบกำหนด</h2>' + S.alerts.map(function (a) {
       return '<div class="alert ' + (a.expired ? 'bad' : '') + '">' + esc(a.plate) + ' · ' + esc(a.what) + ' ' +
         (a.expired ? 'เลยกำหนดแล้ว ' : 'ครบกำหนด ') + thDate(a.date) + '</div>';
@@ -303,7 +310,7 @@ function viewHome() {
       return '<div class="row"><b>' + esc(t.plate) + '</b> · ' + esc(t.name) + '<br><span class="mute">' + thTime(t.ts) + ' · ' + esc(t.purpose) + '</span></div>';
     }).join('') + '</div>';
   }
-  h += '<div class="card"><h2>การใช้รถล่าสุด' + (isMgr() ? '' : ' (ของฉัน)') + '</h2>' + (S.usage.length ? S.usage.map(function (u) {
+  h += '<div class="card"><h2>การใช้รถล่าสุด</h2>' + (S.usage.length ? S.usage.map(function (u) {
     var km = u.status === 'open' ? 'ยังไม่คืนรถ' : (u.odoEnd - u.odoStart) + ' กม.';
     return '<div class="row"><b>' + esc(u.plate) + '</b> · ' + esc(u.name) + '<br>' + esc(u.purpose) +
       '<br><span class="mute">' + thTime(u.ts) + ' · ' + km + '</span>' + links(u.images) + links(u.returnImages) + '</div>';
@@ -359,18 +366,19 @@ function viewTrip(car, t) {
   if (!t) {
     return '<form class="card" id="fCheckout"><h2>เบิกรถ</h2>' +
       '<input type="hidden" name="plate" value="' + esc(car.plate) + '">' +
+      nameField('ชื่อผู้ใช้รถ') +
       '<label>เลขไมล์ก่อนออกเดินทาง</label><input name="odoStart" type="number" inputmode="numeric" min="0" value="' + esc(car.lastOdo) + '" required>' +
       '<label>ไปที่ไหน / ไปทำอะไร</label><textarea name="purpose" rows="2" maxlength="200" required placeholder="เช่น ส่งเอกสารที่สรรพากร"></textarea>' +
       imageField('ถ่ายรูปหน้าปัดไมล์/สภาพรถ (ถ้ามี)') + '<button type="submit">เบิกรถ</button></form>';
   }
-  if (t.email === S.me.email || isMgr()) {
+  {
     return '<form class="card" id="fReturn"><h2>คืนรถ</h2>' +
       '<div>เบิกโดย <b>' + esc(t.name) + '</b><br><span class="mute">' + thTime(t.ts) + ' · ไมล์ก่อน ' + esc(t.odoStart) + '<br>' + esc(t.purpose) + '</span></div>' +
       '<input type="hidden" name="id" value="' + esc(t.id) + '">' +
+      nameField('ชื่อผู้คืนรถ') +
       '<label>เลขไมล์หลังกลับ</label><input name="odoEnd" type="number" inputmode="numeric" min="' + esc(t.odoStart) + '" required>' +
       imageField('ถ่ายรูปหน้าปัดไมล์ตอนคืน (ถ้ามี)') + '<button type="submit">คืนรถ</button></form>';
   }
-  return '<div class="card"><h2>รถคันนี้ถูกเบิกอยู่</h2>เบิกโดย <b>' + esc(t.name) + '</b><br><span class="mute">' + thTime(t.ts) + ' · ' + esc(t.purpose) + '</span></div>';
 }
 
 function histOf(plate) { var x = S.hist[plate]; return x && x !== 'loading' ? x : null; }
@@ -386,7 +394,7 @@ function viewHistory(car) {
   var d = histOf(car.plate);
   if (!d) return '<div class="card center mute">กำลังโหลดประวัติ...</div>';
   return '<div class="card"><h2>ประวัติการใช้รถ (ล่าสุด ' + d.usage.length + ' รายการ)</h2>' + (d.usage.length ? d.usage.map(function (u) {
-    var km = u.status === 'open' ? '<span class="badge">ยังไม่คืนรถ</span>' : (u.odoEnd - u.odoStart) + ' กม. · คืน ' + thTime(u.returnTs);
+    var km = u.status === 'open' ? '<span class="badge">ยังไม่คืนรถ</span>' : (u.odoEnd - u.odoStart) + ' กม. · คืน ' + thTime(u.returnTs) + (u.returnName && u.returnName !== u.name ? ' โดย ' + esc(u.returnName) : '');
     return '<div class="row"><b>' + esc(u.name) + '</b> · ' + thTime(u.ts) + '<br>ไปที่: ' + esc(u.purpose) +
       '<br><span class="mute">ไมล์ ' + esc(u.odoStart) + (u.odoEnd !== '' ? ' → ' + esc(u.odoEnd) : '') + ' · ' + km + '</span>' +
       links(u.images) + links(u.returnImages) + '</div>';
@@ -426,7 +434,7 @@ function viewMaint(car) {
     '<label>ครบกำหนดครั้งต่อไป วันที่ (ถ้ามี)</label><input name="nextDate" type="date">' +
     '<label>ครบกำหนดครั้งต่อไป ไมล์ (ถ้ามี)</label><input name="nextOdo" type="number" inputmode="numeric" min="0">' +
     '<div class="mute" style="font-size:13px;margin-top:6px">ถ้าเลือก "ตรวจเช็คตามระยะ" ระบบเติมครั้งต่อไปให้ที่ +10,000 กม. / +6 เดือน แก้ได้</div>' +
-    imageField('แนบรูปใบเสร็จ/หน้างาน') + '<button type="submit">บันทึก</button></form></details>';
+    nameField('ผู้บันทึก') + imageField('แนบรูปใบเสร็จ/หน้างาน') + '<button type="submit">บันทึก</button></form></details>';
   if (!d) return h + '<div class="card center mute">กำลังโหลดประวัติ...</div>';
   h += '<div class="card"><h2>ประวัติซ่อมบำรุง (' + d.maint.length + ' รายการ)</h2>' + (d.maint.length ? d.maint.map(function (m) {
     return '<div class="row"><b>' + esc(m.type) + '</b> · ' + thDate(m.date) + (m.cost !== '' ? ' · ' + baht(m.cost) + ' บาท' : '') +
@@ -471,11 +479,16 @@ function viewExpense() {
     '<label>ประเภท</label><select name="type">' + S.types.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('') + '</select>' +
     '<label>จำนวนเงิน (บาท)</label><input name="amount" type="number" inputmode="decimal" min="0.01" step="0.01" required>' +
     '<label>หมายเหตุ</label><input name="note" maxlength="300">' +
-    imageField('แนบรูปใบเสร็จ') + '<button type="submit">บันทึก</button></form>';
+    nameField('ผู้บันทึก') + imageField('แนบรูปใบเสร็จ') + '<button type="submit">บันทึก</button></form>';
 }
 
 /* ---------- จัดการรถ (ผู้จัดการ/แอดมิน) ---------- */
 function viewManage() {
+  if (!S.pin) {
+    return '<form class="card" id="fPin"><h2>โหมดแอดมิน</h2><div class="mute" style="font-size:14px">ใส่ PIN แอดมินเพื่อแก้ข้อมูลรถ อัปโหลดสำเนาทะเบียน และพิมพ์ QR (การเบิก/คืนรถทั่วไปไม่ต้องใช้ PIN)</div>' +
+      '<label>PIN แอดมิน</label><input name="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" required>' +
+      '<button type="submit">เข้าโหมดแอดมิน</button></form>';
+  }
   var h = '<div class="card"><h2>รถทั้งหมด</h2>' + (S.cars.length ? S.cars.map(function (c) {
     return '<div class="row"><b>' + esc(c.plate) + '</b> ' + esc(c.model) + ' ' + esc(c.year) +
       '<br><span class="mute">พ.ร.บ. ' + thDate(c.actExp) + ' · ภาษี ' + thDate(c.taxExp) + ' · ประกัน ' + thDate(c.insExp) + '</span>' +
@@ -486,6 +499,7 @@ function viewManage() {
     h += '<div class="card"><h2>QR Code ติดรถ</h2><div class="mute noprint" style="font-size:14px;margin-bottom:8px">พิมพ์แล้วติดไว้ในรถแต่ละคัน คนขับสแกนเพื่อเบิก/คืนรถ ดูประวัติ และดูสำเนาทะเบียน</div>' +
       '<div class="qrgrid" id="qrgrid"></div><button class="noprint ghost" onclick="window.print()">พิมพ์ QR ทั้งหมด</button></div>';
   }
+  h += '<button class="line noprint" data-act="logout" style="margin:0 0 14px">ออกจากโหมดแอดมิน</button>';
   if (isAdmin()) {
     var e = S.cars.filter(function (c) { return c.plate === S.edit; })[0] || {};
     var v = function (k) { return esc(e[k]); };
@@ -535,16 +549,19 @@ function bindForms() {
     } catch (e) { toast(e.message, 'err'); }
   });
   var after = function (tab, sub) { return function () { S.hist = {}; S.tab = tab; if (sub) S.sub = sub; }; };
-  hook('#fCheckout', 'checkout', function (d) { return { plate: d.plate, odoStart: d.odoStart, purpose: d.purpose, images: pendingImages }; }, 'เบิกรถเรียบร้อย', after('home'));
-  hook('#fReturn', 'returnCar', function (d) { return { id: d.id, odoEnd: d.odoEnd, images: pendingImages }; }, 'คืนรถเรียบร้อย', after('home'));
+  hook('#fCheckout', 'checkout', function (d) { return { name: d.name, plate: d.plate, odoStart: d.odoStart, purpose: d.purpose, images: pendingImages }; }, 'เบิกรถเรียบร้อย', after('home'));
+  hook('#fReturn', 'returnCar', function (d) { return { name: d.name, id: d.id, odoEnd: d.odoEnd, images: pendingImages }; }, 'คืนรถเรียบร้อย', after('home'));
   hook('#fMaint', 'addMaintenance', function (d) {
-    return { plate: S.plate, date: d.date, type: d.type, detail: d.detail, odo: d.odo, shop: d.shop, cost: d.cost, nextDate: d.nextDate, nextOdo: d.nextOdo, images: pendingImages };
+    return { name: d.name, plate: S.plate, date: d.date, type: d.type, detail: d.detail, odo: d.odo, shop: d.shop, cost: d.cost, nextDate: d.nextDate, nextOdo: d.nextOdo, images: pendingImages };
   }, 'บันทึกประวัติซ่อมบำรุงแล้ว', function () { S.hist = {}; S.tab = 'car'; S.sub = 'maint'; S.mopen = false; S.mdef = ''; });
-  hook('#fExpense', 'addExpense', function (d) { return { plate: d.plate, date: d.date, type: d.type, amount: d.amount, note: d.note, images: pendingImages }; }, null, after('home'));
+  hook('#fExpense', 'addExpense', function (d) { return { name: d.name, plate: d.plate, date: d.date, type: d.type, amount: d.amount, note: d.note, images: pendingImages }; }, null, after('home'));
   hook('#fCar', 'saveCar', function (d) {
     var o = {}; ['plate','province','model','year','color','fuel','vin','engineNo','actExp','taxExp','insExp','insurer','active'].forEach(function (k) { o[k] = d[k]; });
-    if (pendingReg) o.regDoc = pendingReg; return o;
+    o.pin = S.pin; if (pendingReg) o.regDoc = pendingReg; return o;
   }, null, function () { S.edit = ''; S.tab = 'cars'; });
+  var pinTry = '';
+  hook('#fPin', 'checkPin', function (d) { pinTry = d.pin; return { pin: d.pin }; }, 'เข้าโหมดแอดมินแล้ว',
+    function () { S.pin = pinTry; sset('sessionStorage', 'adminPin', pinTry); S.tab = 'cars'; });
 
   var fm = $('#fMaint');
   if (fm) {
@@ -568,6 +585,7 @@ function bindForms() {
       var a = b.dataset.act;
       if (a === 'sub') { S.sub = b.dataset.s; S.mopen = false; S.mdef = ''; render(); }
       else if (a === 'reg') showReg();
+      else if (a === 'logout') { S.pin = ''; S.edit = ''; sset('sessionStorage', 'adminPin', ''); showWho(); render(); }
       else if (a === 'opencar') { S.plate = b.dataset.p; S.sub = 'trip'; S.tab = 'car'; render(); window.scrollTo(0, 0); }
       else if (a === 'edit') { S.edit = S.plate; S.tab = 'cars'; render(); window.scrollTo(0, 99999); }
       else if (a === 'editcar') { S.edit = b.dataset.p; render(); window.scrollTo(0, 99999); }
@@ -585,9 +603,13 @@ function hook(sel, action, build, okMsg, after) {
     try {
       var d = {}; new FormData(f).forEach(function (v, k) { if (typeof v === 'string') d[k] = v; });
       await call(action, build(d));
+      if (d.name) { S.name = d.name.trim(); sset('localStorage', 'driverName', S.name); }
       toast(okMsg || 'บันทึกเรียบร้อย', 'ok');
       after(); await load(); render(); window.scrollTo(0, 0);
-    } catch (e) { toast(e.message, 'err'); btn.disabled = false; btn.textContent = 'ลองอีกครั้ง'; }
+    } catch (e) {
+      if (action === 'saveCar' && /PIN/.test(e.message)) { S.pin = ''; sset('sessionStorage', 'adminPin', ''); }
+      toast(e.message, 'err'); btn.disabled = false; btn.textContent = 'ลองอีกครั้ง';
+    }
     S.busy = false;
   });
 }
@@ -606,16 +628,17 @@ function drawQr() {
 
 async function load() {
   var d = await call('bootstrap');
-  S.me = d.me; S.cars = d.cars; S.types = d.expenseTypes; S.mtypes = d.maintTypes; S.alerts = d.alerts;
+  S.drivers = d.drivers || []; S.cars = d.cars; S.types = d.expenseTypes; S.mtypes = d.maintTypes; S.alerts = d.alerts;
   S.usage = d.recentUsage; S.expenses = d.recentExpenses; S.open = d.openTrips; S.appUrl = d.appUrl;
-  $('#who').textContent = S.me.name + ' (' + S.me.role + ')';
+  showWho();
   $('#nav').classList.remove('hide');
-  $('#navCars').classList.toggle('hide', !isMgr());
 }
 
 document.querySelectorAll('.seg button').forEach(function (b) {
   b.addEventListener('click', function () { setTheme(b.dataset.th, true); });
 });
+S.name = sget('localStorage', 'driverName');
+S.pin = sget('sessionStorage', 'adminPin');
 paintIcons();
 setTheme(document.documentElement.getAttribute('data-theme'), false);
 $('#modalClose').addEventListener('click', function () { $('#modal').style.display = 'none'; });

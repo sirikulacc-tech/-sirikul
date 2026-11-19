@@ -2,7 +2,8 @@
  * ระบบบันทึกรถส่วนกลางศิริกุล
  * - ข้อมูลเก็บใน Google Sheet (สร้างอัตโนมัติด้วย setup())
  * - ใน Drive มีโฟลเดอร์ "รถส่วนกลางศิริกุล" เก็บ Sheet และโฟลเดอร์ย่อย "รูปภาพ" (แยกรายเดือน)
- * - สิทธิ์: staff (บันทึก) / manager (ดูทั้งหมด) / admin (จัดการรถและผู้ใช้)
+ * - ใครมีลิงก์ก็ใช้ได้ (ไม่ต้องล็อกอิน) คนขับกรอกชื่อเอง
+ * - งานแอดมิน (แก้ข้อมูลรถ/อัปโหลดสำเนาทะเบียน) ต้องใส่ PIN ที่เก็บใน Script Properties: ADMIN_PIN
  */
 
 const TZ = 'Asia/Bangkok';
@@ -30,7 +31,7 @@ const SCHEMA = {
     cols: [
       ['id', 'รหัส'], ['ts', 'เวลาเบิก'], ['plate', 'ทะเบียน'], ['email', 'อีเมล'], ['name', 'ชื่อผู้ใช้'],
       ['odoStart', 'ไมล์ก่อน'], ['odoEnd', 'ไมล์หลัง'], ['purpose', 'วัตถุประสงค์/ปลายทาง'], ['images', 'ลิงก์รูปตอนเบิก'],
-      ['returnTs', 'เวลาคืน'], ['returnImages', 'ลิงก์รูปตอนคืน'], ['status', 'สถานะ']
+      ['returnTs', 'เวลาคืน'], ['returnImages', 'ลิงก์รูปตอนคืน'], ['status', 'สถานะ'], ['returnName', 'ผู้คืนรถ']
     ],
     textCols: ['ts', 'returnTs']
   },
@@ -51,9 +52,9 @@ const SCHEMA = {
     ],
     textCols: ['date', 'nextDate']
   },
-  users: {
-    title: 'ผู้ใช้',
-    cols: [['email', 'อีเมล'], ['name', 'ชื่อ'], ['role', 'สิทธิ์'], ['active', 'ใช้งาน']],
+  drivers: {
+    title: 'รายชื่อคนขับ',
+    cols: [['name', 'ชื่อ'], ['active', 'ใช้งาน (Y/N)']],
     textCols: []
   }
 };
@@ -95,11 +96,11 @@ function setup() {
   }
   const sheetFile = DriveApp.getFileById(ss.getId());
   if (!main.getFilesByName(sheetFile.getName()).hasNext()) sheetFile.moveTo(main);
-  // ผู้ติดตั้งเป็นแอดมินคนแรก
-  const me = (Session.getEffectiveUser().getEmail() || '').toLowerCase();
-  if (me && readRows_('users').length === 0) {
-    appendRow_('users', { email: me, name: 'แอดมิน', role: 'admin', active: 'Y' });
+  // PIN แอดมิน 6 หลัก (ดู/เปลี่ยนได้ที่ การตั้งค่าโปรเจกต์ → คุณสมบัติของสคริปต์ → ADMIN_PIN)
+  if (!props.getProperty('ADMIN_PIN')) {
+    props.setProperty('ADMIN_PIN', String(Math.floor(100000 + Math.random() * 900000)));
   }
+  Logger.log('PIN แอดมิน: ' + props.getProperty('ADMIN_PIN'));
   Logger.log('Sheet: ' + ss.getUrl());
   Logger.log('Folder: ' + DriveApp.getFolderById(props.getProperty('FOLDER_ID')).getUrl());
 }
@@ -118,19 +119,17 @@ function doGet(e) {
 // จุดเรียกเดียวจากหน้าเว็บ: google.script.run.api(action, payload)
 function api(action, payload) {
   try {
-    const me = currentUser_();
     payload = payload || {};
     switch (action) {
-      case 'bootstrap': return ok_(bootstrap_(me));
-      case 'checkout': return ok_(checkout_(me, payload));
-      case 'returnCar': return ok_(returnCar_(me, payload));
-      case 'addExpense': return ok_(addExpense_(me, payload));
+      case 'bootstrap': return ok_(bootstrap_());
+      case 'checkout': return ok_(checkout_(payload));
+      case 'returnCar': return ok_(returnCar_(payload));
+      case 'addExpense': return ok_(addExpense_(payload));
       case 'carHistory': return ok_(carHistory_(payload));
-      case 'addMaintenance': return ok_(addMaintenance_(me, payload));
+      case 'addMaintenance': return ok_(addMaintenance_(payload));
       case 'getRegDoc': return ok_(getRegDoc_(payload));
-      case 'saveCar': requireRole_(me, ['admin']); return ok_(saveCar_(payload));
-      case 'listUsage': return ok_(listUsage_(me, payload));
-      case 'listExpenses': return ok_(listExpenses_(me, payload));
+      case 'checkPin': requirePin_(payload.pin); return ok_(true);
+      case 'saveCar': requirePin_(payload.pin); return ok_(saveCar_(payload));
       default: throw new Error('ไม่รู้จักคำสั่ง');
     }
   } catch (e) {
@@ -141,22 +140,28 @@ function api(action, payload) {
 function ok_(data) { return { ok: true, data: data }; }
 
 /* ---------- สิทธิ์ ---------- */
-function currentUser_() {
-  const email = (Session.getActiveUser().getEmail() || '').toLowerCase();
-  if (!email) throw new Error('อ่านอีเมลผู้ใช้ไม่ได้ กรุณาเข้าด้วยบัญชี Google ขององค์กร');
-  const u = readRows_('users').filter(function (r) { return r.email.toLowerCase() === email && r.active !== 'N'; })[0];
-  if (!u) throw new Error('บัญชี ' + email + ' ยังไม่ได้รับสิทธิ์ ติดต่อแอดมินเพื่อเพิ่มในแท็บ "ผู้ใช้"');
-  return { email: email, name: u.name || email, role: u.role || 'staff' };
+// งานแอดมินเท่านั้นที่ต้องใช้ PIN การใช้งานทั่วไปไม่ต้องล็อกอิน
+function requirePin_(pin) {
+  const real = PropertiesService.getScriptProperties().getProperty('ADMIN_PIN');
+  if (!real) throw new Error('ยังไม่ได้ตั้ง PIN แอดมิน (รัน setup())');
+  const cache = CacheService.getScriptCache();
+  const fails = Number(cache.get('pinFails') || 0);
+  if (fails >= 10) throw new Error('ใส่ PIN ผิดหลายครั้ง กรุณารอ 10 นาที');
+  if (String(pin || '') !== real) {
+    cache.put('pinFails', String(fails + 1), 600);
+    throw new Error('PIN ไม่ถูกต้อง');
+  }
 }
 
-function requireRole_(me, roles) {
-  if (roles.indexOf(me.role) < 0) throw new Error('ไม่มีสิทธิ์ทำรายการนี้');
+// ชื่อคนขับที่กรอกมาจากฟอร์ม
+function name_(v) {
+  const n = str_(v, 60);
+  if (!n) throw new Error('กรุณากรอกชื่อผู้ใช้รถ');
+  return n;
 }
-
-function isManager_(me) { return me.role === 'manager' || me.role === 'admin'; }
 
 /* ---------- เริ่มต้น ---------- */
-function bootstrap_(me) {
+function bootstrap_() {
   const usage = readRows_('usage');
   const last = {};
   usage.forEach(function (u) { last[u.plate] = u.odoEnd !== '' ? u.odoEnd : u.odoStart; });
@@ -165,19 +170,28 @@ function bootstrap_(me) {
     return c;
   });
   const open = usage.filter(function (u) { return u.status === 'open'; }).map(function (u) {
-    return { id: u.id, plate: u.plate, name: u.name, email: u.email, ts: u.ts, odoStart: u.odoStart, purpose: u.purpose };
+    return { id: u.id, plate: u.plate, name: u.name, ts: u.ts, odoStart: u.odoStart, purpose: u.purpose };
   });
   return {
-    me: me,
+    drivers: driverNames_(usage),
     cars: cars,
     openTrips: open,
     appUrl: ScriptApp.getService().getUrl(),
     expenseTypes: EXPENSE_TYPES,
     maintTypes: MAINT_TYPES,
-    alerts: isManager_(me) ? buildAlerts_(cars, readRows_('maintenance')) : [],
-    recentUsage: listUsage_(me, { limit: 10 }),
-    recentExpenses: listExpenses_(me, { limit: 10 })
+    alerts: buildAlerts_(cars, readRows_('maintenance')),
+    recentUsage: listUsage_({ limit: 10 }),
+    recentExpenses: listExpenses_({ limit: 10 })
   };
+}
+
+// รายชื่อให้เลือก: จากแท็บ "รายชื่อคนขับ" + ชื่อที่เคยเบิกรถ
+function driverNames_(usage) {
+  const seen = {};
+  const out = [];
+  readRows_('drivers').forEach(function (d) { if (d.active !== 'N' && d.name && !seen[d.name]) { seen[d.name] = 1; out.push(String(d.name)); } });
+  usage.slice(-300).forEach(function (u) { if (u.name && !seen[u.name]) { seen[u.name] = 1; out.push(String(u.name)); } });
+  return out;
 }
 
 function buildAlerts_(cars, maint) {
@@ -209,8 +223,9 @@ function buildAlerts_(cars, maint) {
 }
 
 /* ---------- เบิกรถ / คืนรถ ---------- */
-function checkout_(me, p) {
+function checkout_(p) {
   const car = findCar_(p.plate);
+  const name = name_(p.name);
   const odoStart = num_(p.odoStart, 'ไมล์ก่อน');
   const purpose = str_(p.purpose, 200);
   if (!purpose) throw new Error('กรุณากรอกปลายทาง/วัตถุประสงค์');
@@ -219,22 +234,22 @@ function checkout_(me, p) {
     const held = readRows_('usage').filter(function (u) { return u.plate === car.plate && u.status === 'open'; })[0];
     if (held) throw new Error('รถคันนี้ถูกเบิกโดย ' + held.name + ' เมื่อ ' + String(held.ts).slice(0, 16) + ' ยังไม่ได้คืน');
     const row = {
-      id: Utilities.getUuid(), ts: now_(), plate: car.plate, email: me.email, name: me.name,
+      id: Utilities.getUuid(), ts: now_(), plate: car.plate, email: '', name: name,
       odoStart: odoStart, odoEnd: '', purpose: purpose, images: links.join('\n'),
-      returnTs: '', returnImages: '', status: 'open'
+      returnTs: '', returnImages: '', status: 'open', returnName: ''
     };
     appendRow_('usage', row);
     return { id: row.id };
   });
 }
 
-function returnCar_(me, p) {
+function returnCar_(p) {
+  const name = name_(p.name);
   const odoEnd = num_(p.odoEnd, 'ไมล์หลัง');
   const rows = readRows_('usage');
   const t = rows.filter(function (u) { return u.id === p.id; })[0];
   if (!t) throw new Error('ไม่พบรายการเบิกรถ');
   if (t.status !== 'open') throw new Error('รายการนี้คืนรถไปแล้ว');
-  if (t.email !== me.email && !isManager_(me)) throw new Error('คืนรถได้เฉพาะผู้เบิกหรือผู้จัดการ');
   if (odoEnd < Number(t.odoStart)) throw new Error('ไมล์หลังต้องไม่น้อยกว่าไมล์ก่อน (' + t.odoStart + ')');
   const links = saveImages_(p.images, t.plate, 'คืนรถ');
   return lock_(function () {
@@ -244,20 +259,21 @@ function returnCar_(me, p) {
     fresh.returnTs = now_();
     fresh.returnImages = links.join('\n');
     fresh.status = 'closed';
+    fresh.returnName = name;
     writeRow_(sheet_('usage'), fresh._row, 'usage', fresh);
     return { id: fresh.id, km: odoEnd - Number(fresh.odoStart) };
   });
 }
 
-function listUsage_(me, p) {
-  let rows = readRows_('usage');
-  if (!isManager_(me)) rows = rows.filter(function (r) { return r.email === me.email; });
+function listUsage_(p) {
+  const rows = readRows_('usage');
   return rows.reverse().slice(0, Math.min(Number(p.limit) || 50, 200));
 }
 
 /* ---------- ค่าใช้จ่าย ---------- */
-function addExpense_(me, p) {
+function addExpense_(p) {
   const car = findCar_(p.plate);
+  const name = name_(p.name);
   if (EXPENSE_TYPES.indexOf(p.type) < 0) throw new Error('ประเภทค่าใช้จ่ายไม่ถูกต้อง');
   const amount = num_(p.amount, 'จำนวนเงิน');
   if (amount <= 0) throw new Error('จำนวนเงินต้องมากกว่า 0');
@@ -266,16 +282,15 @@ function addExpense_(me, p) {
   return lock_(function () {
     const row = {
       id: Utilities.getUuid(), date: date, plate: car.plate, type: p.type, amount: amount,
-      note: str_(p.note, 300), images: links.join('\n'), email: me.email, name: me.name
+      note: str_(p.note, 300), images: links.join('\n'), email: '', name: name
     };
     appendRow_('expenses', row);
     return { id: row.id };
   });
 }
 
-function listExpenses_(me, p) {
-  let rows = readRows_('expenses');
-  if (!isManager_(me)) rows = rows.filter(function (r) { return r.email === me.email; });
+function listExpenses_(p) {
+  const rows = readRows_('expenses');
   return rows.reverse().slice(0, Math.min(Number(p.limit) || 50, 200));
 }
 
@@ -320,7 +335,7 @@ function saveRegDoc_(dataUrl, plate) {
   return { id: file.getId(), mime: m[1] };
 }
 
-// ผู้ใช้ที่มีสิทธิ์ทุกคนดูได้ (คนขับต้องใช้เมื่อถูกตรวจ) รูปส่งผ่านแอป ไม่ต้องแชร์ไฟล์ใน Drive
+// ทุกคนที่มีลิงก์ดูได้ (คนขับต้องใช้เมื่อถูกตรวจ) รูปส่งผ่านแอป ไม่ต้องแชร์ไฟล์ใน Drive
 function getRegDoc_(p) {
   const car = findCar_(p.plate);
   if (!car.regDocId) throw new Error('ยังไม่มีสำเนาทะเบียนของรถคันนี้ ให้แอดมินอัปโหลดในแท็บ "จัดการ"');
@@ -331,13 +346,13 @@ function getRegDoc_(p) {
 }
 
 /* ---------- ประวัติรถ / ซ่อมบำรุง ---------- */
-// ทุกคนที่มีสิทธิ์ดูประวัติการใช้และซ่อมบำรุงของรถแต่ละคันได้
+// ทุกคนที่มีลิงก์ดูประวัติการใช้และซ่อมบำรุงของรถแต่ละคันได้
 function carHistory_(p) {
   const car = findCar_(p.plate);
   const usage = readRows_('usage').filter(function (u) { return u.plate === car.plate; }).reverse().slice(0, 100)
     .map(function (u) {
       return { ts: u.ts, name: u.name, odoStart: u.odoStart, odoEnd: u.odoEnd, purpose: u.purpose,
-        returnTs: u.returnTs, status: u.status, images: u.images, returnImages: u.returnImages };
+        returnTs: u.returnTs, status: u.status, images: u.images, returnImages: u.returnImages, returnName: u.returnName };
     });
   const maint = readRows_('maintenance').filter(function (m) { return m.plate === car.plate; })
     .sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 100)
@@ -348,8 +363,9 @@ function carHistory_(p) {
   return { usage: usage, maint: maint };
 }
 
-function addMaintenance_(me, p) {
+function addMaintenance_(p) {
   const car = findCar_(p.plate);
+  const name = name_(p.name);
   if (MAINT_TYPES.indexOf(p.type) < 0) throw new Error('ประเภทไม่ถูกต้อง');
   const detail = str_(p.detail, 300);
   if (!detail) throw new Error('กรุณากรอกรายละเอียด');
@@ -362,7 +378,7 @@ function addMaintenance_(me, p) {
       cost: p.cost === '' || p.cost == null ? '' : num_(p.cost, 'ค่าใช้จ่าย'),
       nextDate: p.nextDate ? dateStr_(p.nextDate) : '',
       nextOdo: p.nextOdo === '' || p.nextOdo == null ? '' : num_(p.nextOdo, 'ไมล์ครั้งต่อไป'),
-      images: links.join('\n'), email: me.email, name: me.name
+      images: links.join('\n'), email: '', name: name
     };
     appendRow_('maintenance', row);
     return { id: row.id };
