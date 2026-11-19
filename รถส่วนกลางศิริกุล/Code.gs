@@ -75,7 +75,7 @@ function setup() {
     let sh = ss.getSheetByName(s.title);
     if (!sh) sh = ss.insertSheet(s.title);
     sh.getRange(1, 1, 1, s.cols.length).setValues([s.cols.map(function (c) { return c[1]; })])
-      .setFontWeight('bold').setBackground('#e8f0fe');
+      .setFontWeight('bold').setBackground('#e8f6de');
     sh.setFrozenRows(1);
     s.cols.forEach(function (c, i) {
       if (s.textCols.indexOf(c[0]) >= 0) sh.getRange(2, i + 1, sh.getMaxRows() - 1, 1).setNumberFormat('@');
@@ -645,7 +645,7 @@ function writeTable_(sh, title, header, rows) {
   sh.setName(title);
   const all = [header].concat(rows);
   sh.getRange(1, 1, all.length, header.length).setValues(all);
-  sh.getRange(1, 1, 1, header.length).setFontWeight('bold').setBackground('#e8f0fe');
+  sh.getRange(1, 1, 1, header.length).setFontWeight('bold').setBackground('#e8f6de');
   sh.setFrozenRows(1);
   sh.autoResizeColumns(1, header.length);
 }

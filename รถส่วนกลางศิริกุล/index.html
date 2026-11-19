@@ -18,32 +18,33 @@
 </script>
 <style>
   :root {
-    --bg:#f2f5fb; --card:#ffffff; --ink:#172033; --mute:#64708a; --line:#e3e8f2; --input:#ffffff;
-    --pri:#2457d6; --on-pri:#ffffff; --pri-soft:#e8effe;
-    --ok:#0c8a5c; --ok-bg:#dcf5ea; --warn:#b45309; --warn-bg:#fff1d6; --bad:#c2271f; --bad-bg:#fde4e2;
-    --shadow:0 1px 2px rgba(23,32,51,.06), 0 8px 22px rgba(23,32,51,.07);
-    --hdr:linear-gradient(135deg,#1d4ed8 0%,#3b82f6 100%);
+    /* โทนสีจากโลโก้ศิริกุล: ดำ + เขียวใบไม้ */
+    --bg:#f3f6f1; --card:#ffffff; --ink:#151d14; --mute:#5f6b5c; --line:#e0e7dc; --input:#ffffff;
+    --pri:#2a7a0e; --on-pri:#ffffff; --pri-soft:#e8f6de; --brand:#42e700;
+    --ok:#1d7f3c; --ok-bg:#def3e2; --warn:#b45309; --warn-bg:#fff1d6; --bad:#c2271f; --bad-bg:#fde4e2;
+    --shadow:0 1px 2px rgba(20,30,18,.06), 0 8px 22px rgba(20,30,18,.07);
+    --hdr:linear-gradient(135deg,#0e130d 0%,#1a2c14 55%,#24501a 100%);
     color-scheme: light;
   }
   :root[data-theme="dark"] {
-    --bg:#0d1220; --card:#161e31; --ink:#e8edf8; --mute:#94a1bb; --line:#26314a; --input:#0f1729;
-    --pri:#6f9dff; --on-pri:#0a1226; --pri-soft:#1c2b4f;
-    --ok:#46d49c; --ok-bg:#113527; --warn:#f6b24d; --warn-bg:#3a2b10; --bad:#ff7d74; --bad-bg:#3d1a19;
+    --bg:#0c110b; --card:#151d14; --ink:#e7eee4; --mute:#97a593; --line:#263323; --input:#0f160e;
+    --pri:#63e22f; --on-pri:#0b1607; --pri-soft:#1d3317; --brand:#42e700;
+    --ok:#4fd88a; --ok-bg:#12341f; --warn:#f6b24d; --warn-bg:#3a2b10; --bad:#ff7d74; --bad-bg:#3d1a19;
     --shadow:0 1px 2px rgba(0,0,0,.45), 0 8px 22px rgba(0,0,0,.3);
-    --hdr:linear-gradient(135deg,#14224a 0%,#1f3b80 100%);
+    --hdr:linear-gradient(135deg,#070a07 0%,#122010 60%,#1a3a12 100%);
     color-scheme: dark;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html { background: var(--bg); }
   body { margin:0; font-family:"Sarabun","Noto Sans Thai",system-ui,sans-serif; background:var(--bg); color:var(--ink); font-size:16px; line-height:1.45; padding-bottom:84px; transition:background .2s, color .2s; }
-  header { background:var(--hdr); color:#fff; padding:12px 16px; position:sticky; top:0; z-index:5; display:flex; align-items:center; justify-content:space-between; gap:10px; box-shadow:0 2px 12px rgba(0,0,0,.18); }
+  header { background:var(--hdr); color:#fff; border-bottom:3px solid var(--brand); padding:12px 16px; position:sticky; top:0; z-index:5; display:flex; align-items:center; justify-content:space-between; gap:10px; box-shadow:0 2px 12px rgba(0,0,0,.18); }
   .brand { display:flex; align-items:center; gap:10px; min-width:0; }
   .logo { width:38px; height:38px; border-radius:12px; background:rgba(255,255,255,.18); display:grid; place-items:center; flex:none; }
   header h1 { margin:0; font-size:17px; font-weight:800; line-height:1.2; }
   header small { opacity:.85; font-size:12.5px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .seg { display:flex; background:rgba(255,255,255,.18); border-radius:12px; padding:3px; flex:none; }
   .seg button { margin:0; width:auto; background:transparent; color:#fff; padding:6px 10px; font-size:13px; border-radius:9px; display:flex; align-items:center; gap:4px; font-weight:600; }
-  .seg button.on { background:#fff; color:#1d4ed8; }
+  .seg button.on { background:#fff; color:#1a2c14; }
   main { padding:14px 16px; max-width:640px; margin:0 auto; }
   .card { background:var(--card); border-radius:16px; padding:16px; margin-bottom:14px; box-shadow:var(--shadow); border:1px solid var(--line); animation:up .25s ease both; }
   @keyframes up { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
