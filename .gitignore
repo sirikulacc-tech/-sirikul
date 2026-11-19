@@ -14,3 +14,6 @@
 .env
 .clasp.json
 .clasprc.json
+
+# ไอคอนแอป (ส่วนของตัวระบบ ไม่ใช่ข้อมูล)
+!icons/*.png

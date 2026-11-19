@@ -6,6 +6,13 @@
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#1a2c14">
 <title>รถส่วนกลางศิริกุล</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="รถส่วนกลาง">
 <!-- ระบบรถส่วนกลางศิริกุล: หน้าเว็บอยู่บน GitHub Pages ข้อมูลอยู่ใน Google Sheets / Drive ของสำนักงาน -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -22,9 +29,12 @@
 <body>
 <header>
   <div class="brand"><span class="logo" id="brandLogo" data-i="car"></span><div><h1>รถส่วนกลางศิริกุล</h1><small id="who">กำลังโหลด...</small></div></div>
-  <div class="seg" role="group" aria-label="ธีม">
-    <button data-th="light"><i data-i="sun" data-s="14"></i>ปกติ</button>
-    <button data-th="dark"><i data-i="moon" data-s="14"></i>มืด</button>
+  <div class="hright">
+    <button class="iconbtn hide" id="fsBtn" aria-label="เต็มจอ" title="เต็มจอ"></button>
+    <div class="seg" role="group" aria-label="ธีม">
+      <button data-th="light"><i data-i="sun" data-s="14"></i>ปกติ</button>
+      <button data-th="dark"><i data-i="moon" data-s="14"></i>มืด</button>
+    </div>
   </div>
 </header>
 <main id="app"><div class="center mute">กำลังโหลด...</div></main>

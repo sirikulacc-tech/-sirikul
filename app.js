@@ -102,6 +102,8 @@ var ICON = {
   moon:'<path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/>',
   qr:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM21 14v.01M14 21h.01M17 21h4v-4"/>',
   chart:'<path d="M4 20V11M10 20V5M16 20v-7M2 20h20"/>',
+  expand:'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  compress:'<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>',
   shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>'
 };
 function ic(n, size) {
@@ -136,6 +138,50 @@ function setTheme(t, save) {
   document.documentElement.setAttribute('data-theme', t);
   if (save) { try { localStorage.setItem('theme', t); } catch (e) { /* เบราว์เซอร์บล็อกที่เก็บข้อมูล ใช้ได้เฉพาะรอบนี้ */ } }
   document.querySelectorAll('.seg button').forEach(function (b) { b.classList.toggle('on', b.dataset.th === t); });
+}
+
+/* ---------- เต็มจอ / ติดตั้งเป็นแอป ----------
+   เบราว์เซอร์ไม่ให้เข้าเต็มจอเองตอนเปิดหน้า จึงเข้าเต็มจอเมื่อแตะหน้าจอครั้งแรก (Android/คอมพิวเตอร์)
+   ถ้าผู้ใช้กดออกเอง จะไม่บังคับซ้ำในรอบนั้น ส่วน iPhone ใช้วิธีติดตั้งเป็นแอปบนหน้าจอหลัก */
+var FS = {
+  standalone: !!((window.matchMedia && (matchMedia('(display-mode: fullscreen)').matches || matchMedia('(display-mode: standalone)').matches)) || navigator.standalone),
+  supported: !!(document.fullscreenEnabled && document.documentElement.requestFullscreen),
+  mobile: !!(window.matchMedia && matchMedia('(pointer: coarse)').matches),
+  ios: /iphone|ipad|ipod/i.test(navigator.userAgent),
+  prompt: null, auto: true
+};
+function isFull() { return !!document.fullscreenElement; }
+function enterFull() { if (FS.supported && !isFull()) document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(function () {}); }
+function toggleFull() { if (isFull()) { FS.auto = false; document.exitFullscreen().catch(function () {}); } else enterFull(); }
+function paintFsBtn() {
+  var b = $('#fsBtn'); if (!b) return;
+  b.classList.toggle('hide', FS.standalone || !FS.supported);
+  b.innerHTML = ic(isFull() ? 'compress' : 'expand', 18);
+  b.setAttribute('aria-label', isFull() ? 'ออกจากเต็มจอ' : 'เต็มจอ');
+}
+function initFullscreen() {
+  if (FS.standalone) document.body.classList.add('standalone');
+  if (sget('sessionStorage', 'fsOff')) FS.auto = false;
+  $('#fsBtn').addEventListener('click', function (e) { e.stopPropagation(); toggleFull(); });
+  document.addEventListener('fullscreenchange', function () {
+    if (!isFull()) { FS.auto = false; sset('sessionStorage', 'fsOff', '1'); } // ออกเอง = ไม่บังคับซ้ำ
+    paintFsBtn();
+  });
+  document.addEventListener('pointerdown', function first() {
+    document.removeEventListener('pointerdown', first, true);
+    if (FS.auto && !FS.standalone) enterFull();
+  }, true);
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); FS.prompt = e; if (!ADMIN_MODE && S.tab === 'home') render(); });
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});
+  paintFsBtn();
+}
+function installCard() {
+  if (FS.standalone || !FS.mobile || sget('localStorage', 'installHide')) return '';
+  var how = FS.prompt ? '<button data-act="install">ติดตั้งแอป</button>'
+    : FS.ios ? '<div class="mute" style="font-size:13px;margin-top:4px">แตะปุ่ม <b>แชร์</b> ด้านล่างของ Safari แล้วเลือก <b>เพิ่มไปยังหน้าจอโฮม</b></div>'
+    : '<div class="mute" style="font-size:13px;margin-top:4px">แตะ ⋮ มุมขวาบนของ Chrome แล้วเลือก <b>เพิ่มลงในหน้าจอหลัก</b> หรือ <b>ติดตั้งแอป</b></div>';
+  return '<div class="card install"><img src="icons/icon-192.png" alt=""><div><b>เปิดเป็นแอปเต็มจอ</b><div class="mute" style="font-size:14px">ติดตั้งไว้บนหน้าจอหลัก เปิดแล้วเต็มจอทุกครั้ง ไม่มีแถบเบราว์เซอร์</div>' +
+    how + '<div class="btns"><button class="ghost" data-act="installhide">ไม่ต้องแสดงอีก</button></div></div></div>';
 }
 
 /* ---------- ตัวช่วย: ค้างเบิก / เดือน / กล่องยืนยัน ---------- */
@@ -174,6 +220,7 @@ function render() {
   bindForms();
   paintIcons();
   applyLogo();
+  paintFsBtn();
   if (ADMIN_MODE && S.asub === 'qr') drawQr();
   if (!ADMIN_MODE && S.tab === 'car' && (S.sub === 'history' || S.sub === 'maint')) ensureHist();
 }
@@ -205,6 +252,7 @@ function soonest(c) {
 }
 function viewHome() {
   var h = '<div class="hello">' + (S.logo ? '<div class="hello-logo">' + logoImg() + '</div>' : '') + '<div><span class="co">' + esc(S.company) + '</span><b>สวัสดี' + (S.name ? ' คุณ' + esc(S.name) : '') + '</b><span>' + (S.cars.length ? 'เลือกรถที่ต้องการ หรือสแกน QR ที่รถ' : 'ยังไม่มีรถในระบบ') + '</span></div></div>';
+  h += installCard();
   if (S.cars.length) {
     h += '<div class="tiles" style="margin-bottom:14px">' + S.cars.map(function (c) {
       var t = openTripOf(c.plate), sn = soonest(c);
@@ -764,6 +812,8 @@ function bindForms() {
       else if (a === 'reg') showReg();
       else if (a === 'asub') { S.asub = b.dataset.s; if (S.asub === 'drivers') S.dlist = null; render(); window.scrollTo(0, 0); }
       else if (a === 'print') window.print();
+      else if (a === 'install' && FS.prompt) { FS.prompt.prompt(); FS.prompt.userChoice.then(function () { FS.prompt = null; render(); }); }
+      else if (a === 'installhide') { sset('localStorage', 'installHide', '1'); render(); }
       else if (a === 'removelogo') {
         askConfirm('ลบโลโก้ออกจากแอป?', 'ลบโลโก้').then(function (ok) {
           if (!ok) return;
@@ -971,6 +1021,7 @@ function buildAlerts(cars, maint) {
 document.querySelectorAll('.seg button').forEach(function (b) {
   b.addEventListener('click', function () { setTheme(b.dataset.th, true); });
 });
+initFullscreen();
 S.name = sget('localStorage', 'driverName');
 try { S.profiles = JSON.parse(sget('localStorage', 'driverProfiles') || '{}') || {}; } catch (e) { S.profiles = {}; }
 S.pin = sget('sessionStorage', 'adminPin');
