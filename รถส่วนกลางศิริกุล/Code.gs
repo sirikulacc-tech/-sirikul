@@ -21,7 +21,7 @@ const SCHEMA = {
       ['id', 'รหัส'], ['plate', 'ทะเบียน'], ['model', 'ยี่ห้อ/รุ่น'], ['year', 'ปี'], ['color', 'สี'], ['fuel', 'เชื้อเพลิง'],
       ['vin', 'เลขตัวถัง'], ['engineNo', 'เลขเครื่อง'],
       ['actExp', 'พ.ร.บ.หมดอายุ'], ['taxExp', 'ภาษีหมดอายุ'], ['insExp', 'ประกันหมดอายุ'], ['active', 'ใช้งาน'],
-      ['regDocId', 'ไฟล์สำเนาทะเบียน (Drive ID)'], ['regDocMime', 'ชนิดไฟล์สำเนาทะเบียน'], ['province', 'จังหวัด']
+      ['regDocId', 'ไฟล์สำเนาทะเบียน (Drive ID)'], ['regDocMime', 'ชนิดไฟล์สำเนาทะเบียน'], ['province', 'จังหวัด'], ['insurer', 'บริษัทประกันภัย']
     ],
     textCols: ['year', 'vin', 'engineNo', 'actExp', 'taxExp', 'insExp']
   },
@@ -289,6 +289,7 @@ function saveCar_(p) {
     const rec = old ? Object.assign({}, old) : { id: Utilities.getUuid(), regDocId: '', regDocMime: '' };
     rec.plate = plate;
     rec.province = str_(p.province, 40);
+    rec.insurer = str_(p.insurer, 60);
     rec.model = str_(p.model, 80); rec.year = str_(p.year, 4); rec.color = str_(p.color, 30);
     rec.fuel = str_(p.fuel, 30); rec.vin = str_(p.vin, 30); rec.engineNo = str_(p.engineNo, 30);
     rec.actExp = p.actExp ? dateStr_(p.actExp) : '';

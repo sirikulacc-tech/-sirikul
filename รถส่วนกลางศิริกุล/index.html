@@ -5,88 +5,152 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>รถส่วนกลางศิริกุล</title>
+<meta name="color-scheme" content="light dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script>
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem('theme'); } catch (e) {}
+    if (t !== 'light' && t !== 'dark') t = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>
 <style>
-  :root { --bg:#f4f6fa; --card:#fff; --ink:#1f2937; --mute:#6b7280; --pri:#1a56db; --bad:#b91c1c; --warn:#b45309; --line:#e5e7eb; }
-  * { box-sizing: border-box; }
-  body { margin:0; font-family: "Sarabun","Noto Sans Thai",system-ui,sans-serif; background:var(--bg); color:var(--ink); font-size:16px; padding-bottom:72px; }
-  header { background:var(--pri); color:#fff; padding:12px 16px; position:sticky; top:0; z-index:5; }
-  header h1 { margin:0; font-size:18px; }
-  header small { opacity:.85; }
-  main { padding:12px 16px; max-width:640px; margin:0 auto; }
-  .card { background:var(--card); border-radius:12px; padding:14px; margin-bottom:12px; box-shadow:0 1px 2px rgba(0,0,0,.06); }
-  h2 { font-size:16px; margin:0 0 10px; }
-  label { display:block; font-size:14px; color:var(--mute); margin:10px 0 4px; }
-  input, select, textarea { width:100%; padding:11px; font-size:16px; border:1px solid var(--line); border-radius:8px; background:#fff; font-family:inherit; }
-  button { font-family:inherit; font-size:16px; border:0; border-radius:10px; padding:12px 16px; background:var(--pri); color:#fff; width:100%; margin-top:14px; }
+  :root {
+    --bg:#f2f5fb; --card:#ffffff; --ink:#172033; --mute:#64708a; --line:#e3e8f2; --input:#ffffff;
+    --pri:#2457d6; --on-pri:#ffffff; --pri-soft:#e8effe;
+    --ok:#0c8a5c; --ok-bg:#dcf5ea; --warn:#b45309; --warn-bg:#fff1d6; --bad:#c2271f; --bad-bg:#fde4e2;
+    --shadow:0 1px 2px rgba(23,32,51,.06), 0 8px 22px rgba(23,32,51,.07);
+    --hdr:linear-gradient(135deg,#1d4ed8 0%,#3b82f6 100%);
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg:#0d1220; --card:#161e31; --ink:#e8edf8; --mute:#94a1bb; --line:#26314a; --input:#0f1729;
+    --pri:#6f9dff; --on-pri:#0a1226; --pri-soft:#1c2b4f;
+    --ok:#46d49c; --ok-bg:#113527; --warn:#f6b24d; --warn-bg:#3a2b10; --bad:#ff7d74; --bad-bg:#3d1a19;
+    --shadow:0 1px 2px rgba(0,0,0,.45), 0 8px 22px rgba(0,0,0,.3);
+    --hdr:linear-gradient(135deg,#14224a 0%,#1f3b80 100%);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { background: var(--bg); }
+  body { margin:0; font-family:"Sarabun","Noto Sans Thai",system-ui,sans-serif; background:var(--bg); color:var(--ink); font-size:16px; line-height:1.45; padding-bottom:84px; transition:background .2s, color .2s; }
+  header { background:var(--hdr); color:#fff; padding:12px 16px; position:sticky; top:0; z-index:5; display:flex; align-items:center; justify-content:space-between; gap:10px; box-shadow:0 2px 12px rgba(0,0,0,.18); }
+  .brand { display:flex; align-items:center; gap:10px; min-width:0; }
+  .logo { width:38px; height:38px; border-radius:12px; background:rgba(255,255,255,.18); display:grid; place-items:center; flex:none; }
+  header h1 { margin:0; font-size:17px; font-weight:800; line-height:1.2; }
+  header small { opacity:.85; font-size:12.5px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .seg { display:flex; background:rgba(255,255,255,.18); border-radius:12px; padding:3px; flex:none; }
+  .seg button { margin:0; width:auto; background:transparent; color:#fff; padding:6px 10px; font-size:13px; border-radius:9px; display:flex; align-items:center; gap:4px; font-weight:600; }
+  .seg button.on { background:#fff; color:#1d4ed8; }
+  main { padding:14px 16px; max-width:640px; margin:0 auto; }
+  .card { background:var(--card); border-radius:16px; padding:16px; margin-bottom:14px; box-shadow:var(--shadow); border:1px solid var(--line); animation:up .25s ease both; }
+  @keyframes up { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+  @media (prefers-reduced-motion: reduce) { .card { animation:none; } body { transition:none; } }
+  h2 { font-size:16px; margin:0 0 10px; font-weight:700; }
+  label { display:block; font-size:13.5px; color:var(--mute); margin:12px 0 5px; font-weight:600; }
+  input, select, textarea { width:100%; padding:12px; font-size:16px; border:1.5px solid var(--line); border-radius:12px; background:var(--input); color:var(--ink); font-family:inherit; }
+  input:focus, select:focus, textarea:focus { outline:none; border-color:var(--pri); box-shadow:0 0 0 3px var(--pri-soft); }
+  input[type=file] { padding:10px; }
+  button { font-family:inherit; font-size:16px; font-weight:700; border:0; border-radius:14px; padding:13px 16px; background:var(--pri); color:var(--on-pri); width:100%; margin-top:14px; cursor:pointer; transition:transform .08s, opacity .15s; }
+  button:active { transform:scale(.98); }
   button:disabled { opacity:.5; }
-  button.ghost { background:#e5e7eb; color:var(--ink); }
-  button.line { background:#fff; color:var(--pri); border:1px solid var(--pri); }
+  button.ghost { background:var(--pri-soft); color:var(--pri); }
+  button.line { background:transparent; color:var(--pri); border:1.5px solid var(--pri); }
   button.small { width:auto; margin:0; padding:6px 12px; font-size:14px; }
-  nav { position:fixed; bottom:0; left:0; right:0; display:flex; background:#fff; border-top:1px solid var(--line); z-index:5; }
-  nav button { flex:1; margin:0; border-radius:0; background:#fff; color:var(--mute); padding:12px 4px; font-size:13px; }
-  nav button.on { color:var(--pri); font-weight:700; }
-  .menu { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
-  .menu button { margin:0; background:#fff; color:var(--ink); border:1px solid var(--line); padding:14px 6px; }
-  .menu button.on { background:var(--pri); color:#fff; border-color:var(--pri); }
-  .alert { padding:8px 10px; border-radius:8px; margin-bottom:6px; font-size:14px; background:#fef3c7; color:var(--warn); }
-  .alert.bad { background:#fee2e2; color:var(--bad); }
-  .row { border-bottom:1px solid var(--line); padding:8px 0; font-size:14px; }
-  .row:last-child { border:0; }
+  .ic { display:block; flex:none; }
+  nav { position:fixed; bottom:0; left:0; right:0; display:flex; background:var(--card); border-top:1px solid var(--line); z-index:5; padding-bottom:env(safe-area-inset-bottom); }
+  nav button { flex:1; margin:0; border-radius:0; background:transparent; color:var(--mute); padding:8px 4px 9px; font-size:12px; font-weight:600; display:flex; flex-direction:column; align-items:center; gap:3px; }
+  nav button.on { color:var(--pri); }
+  nav button.on span { font-weight:800; }
+  .menu { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+  .menu button { margin:0; background:var(--card); color:var(--ink); border:1px solid var(--line); box-shadow:var(--shadow); padding:14px 6px 12px; display:flex; flex-direction:column; align-items:center; gap:6px; font-size:14px; font-weight:700; }
+  .menu button .ic { color:var(--pri); }
+  .menu button.on { background:var(--pri); color:var(--on-pri); border-color:var(--pri); }
+  .menu button.on .ic { color:var(--on-pri); }
+  .alert { padding:9px 12px; border-radius:12px; margin-bottom:7px; font-size:14px; background:var(--warn-bg); color:var(--warn); font-weight:600; }
+  .alert.bad { background:var(--bad-bg); color:var(--bad); }
+  .row { border-bottom:1px solid var(--line); padding:10px 0; font-size:14px; }
+  .row:last-child { border:0; padding-bottom:0; }
   .row b { font-size:15px; }
-  .kv { display:flex; justify-content:space-between; gap:12px; padding:7px 0; border-bottom:1px solid var(--line); font-size:15px; }
+  .kv { display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--line); font-size:15px; }
   .kv:last-child { border:0; }
-  .kv span:first-child { color:var(--mute); flex:none; }
-  .kv span:last-child { text-align:right; word-break:break-all; }
+  .kv > span:first-child { color:var(--mute); flex:none; }
+  .kv > span:last-child { text-align:right; word-break:break-word; }
   .mute { color:var(--mute); }
+  a { color:var(--pri); }
   .thumbs { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
-  .thumbs img { width:64px; height:64px; object-fit:cover; border-radius:6px; }
-  #msg { position:fixed; left:16px; right:16px; bottom:76px; padding:12px; border-radius:10px; color:#fff; display:none; z-index:20; text-align:center; }
-  #msg.ok { background:#047857; } #msg.err { background:var(--bad); }
+  .thumbs img { width:64px; height:64px; object-fit:cover; border-radius:10px; }
+  #msg { position:fixed; left:16px; right:16px; bottom:92px; padding:13px; border-radius:14px; color:#fff; display:none; z-index:20; text-align:center; font-weight:700; box-shadow:0 8px 24px rgba(0,0,0,.3); }
+  #msg.ok { background:#0c8a5c; } #msg.err { background:#c2271f; }
   .hide { display:none; }
   .center { text-align:center; padding:40px 16px; }
-  .qrgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .qrcell { border:1px solid var(--line); border-radius:10px; padding:10px; text-align:center; background:#fff; break-inside:avoid; }
-  .qrcell div.q { display:flex; justify-content:center; margin-bottom:6px; }
-  .qrcell b { font-size:18px; display:block; }
-  .qrcell small { color:var(--mute); }
-  .hd { display:grid; grid-template-columns:auto 1fr; gap:12px; align-items:center; }
-  .hdl { text-align:center; }
-  .plate { display:inline-block; min-width:140px; background:#fff; border:3px solid #111; border-radius:10px; padding:3px 12px 5px; box-shadow:0 0 0 2px #fff, 0 0 0 3px #9ca3af; }
+  /* ทักทาย + รถทั้งหมด */
+  .hello { margin:2px 2px 14px; }
+  .hello b { font-size:21px; font-weight:800; display:block; }
+  .hello span { color:var(--mute); font-size:14px; }
+  .tiles { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .tile { margin:0; background:var(--card); color:var(--ink); border:1px solid var(--line); box-shadow:var(--shadow); border-radius:16px; padding:12px; text-align:left; font-weight:400; display:flex; flex-direction:column; gap:7px; align-items:flex-start; }
+  .tile .mdl { font-size:13px; color:var(--mute); }
+  /* ป้ายทะเบียน */
+  .plate { display:inline-block; min-width:140px; background:#fff; border:3px solid #111; border-radius:11px; padding:3px 12px 5px; box-shadow:0 0 0 2px #fff, 0 0 0 3px #9ca3af; text-align:center; }
   .plate .no { font-size:29px; font-weight:800; letter-spacing:1px; line-height:1.15; color:#111; white-space:nowrap; }
   .plate .pv { font-size:13px; font-weight:700; color:#374151; min-height:17px; }
-  .hdl .badge { margin-top:8px; }
-  .hdl button { margin-top:8px; padding:6px 8px; font-size:13px; }
-  .cdrow { padding:5px 0; border-bottom:1px solid var(--line); }
+  .plate.sm { min-width:0; padding:1px 8px 2px; border-width:2px; border-radius:8px; box-shadow:none; }
+  .plate.sm .no { font-size:18px; }
+  .plate.sm .pv { font-size:10.5px; min-height:13px; }
+  /* หัวหน้ารถ */
+  .hd { display:grid; grid-template-columns:auto 1fr; gap:14px; align-items:center; }
+  .hdl { text-align:center; }
+  .hdl .chip { margin-top:10px; }
+  .hdl button { margin-top:9px; padding:7px 8px; font-size:13px; }
+  .cdrow { padding:6px 0; border-bottom:1px solid var(--line); }
   .cdrow:last-child { border:0; }
-  .cdrow .t { display:flex; justify-content:space-between; gap:6px; font-size:14px; flex-wrap:wrap; }
+  .cdrow .t { display:flex; justify-content:space-between; gap:6px; font-size:14px; flex-wrap:wrap; align-items:baseline; }
+  .cdrow .t > span:first-child { font-weight:700; }
   .cdrow .d { font-size:12px; color:var(--mute); text-align:right; }
-  .cd-ok { color:#047857; font-weight:700; } .cd-warn { color:var(--warn); font-weight:700; } .cd-bad { color:var(--bad); font-weight:700; } .cd-na { color:var(--mute); }
-  .pick { font-size:14px; padding:8px; margin-bottom:12px; }
-  .badge { display:inline-block; padding:2px 8px; border-radius:99px; font-size:13px; background:#fee2e2; color:var(--bad); }
-  .badge.free { background:#d1fae5; color:#047857; }
-  .exp-bad { color:var(--bad); font-weight:700; }
-  .exp-warn { color:var(--warn); font-weight:700; }
+  .cdrow .ins { font-size:12.5px; color:var(--ink); text-align:right; font-weight:600; }
+  .cd-ok { color:var(--ok); font-weight:800; } .cd-warn { color:var(--warn); font-weight:800; } .cd-bad { color:var(--bad); font-weight:800; } .cd-na { color:var(--mute); }
+  .exp-bad { color:var(--bad); font-weight:700; } .exp-warn { color:var(--warn); font-weight:700; }
+  .pick { font-size:14px; padding:10px; margin-bottom:12px; }
+  .chip, .badge { display:inline-block; padding:3px 10px; border-radius:99px; font-size:12.5px; font-weight:700; background:var(--bad-bg); color:var(--bad); }
+  .chip.free, .badge.free { background:var(--ok-bg); color:var(--ok); }
+  .chip.warn { background:var(--warn-bg); color:var(--warn); }
   details > summary { cursor:pointer; font-weight:700; color:var(--pri); }
-  #modal { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:30; display:none; padding:16px; overflow:auto; }
-  #modal .box { background:#fff; border-radius:12px; padding:12px; max-width:640px; margin:0 auto; }
-  #modal img { width:100%; height:auto; border-radius:8px; }
+  /* QR (พื้นขาวเสมอเพื่อให้สแกนได้) */
+  .qrgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .qrcell { border:1px solid #d9dee8; border-radius:14px; padding:10px; text-align:center; background:#fff; color:#111; break-inside:avoid; }
+  .qrcell div.q { display:flex; justify-content:center; margin-bottom:6px; }
+  .qrcell b { font-size:18px; display:block; }
+  .qrcell small { color:#555; }
+  #modal { position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:30; display:none; padding:16px; overflow:auto; }
+  #modal .box { background:var(--card); border-radius:16px; padding:14px; max-width:640px; margin:0 auto; }
+  #modal img { width:100%; height:auto; border-radius:10px; }
   @media print {
+    :root, :root[data-theme="dark"] { --bg:#fff; --card:#fff; --ink:#000; --line:#ddd; }
     header, nav, #msg, #modal, .noprint { display:none !important; }
-    body { background:#fff; padding:0; }
-    .card { box-shadow:none; padding:0; }
+    body { background:#fff; color:#000; padding:0; }
+    .card { box-shadow:none; padding:0; border:0; }
   }
 </style>
 </head>
 <body>
-<header><h1>รถส่วนกลางศิริกุล</h1><small id="who">กำลังโหลด...</small></header>
+<header>
+  <div class="brand"><span class="logo" data-i="car"></span><div><h1>รถส่วนกลางศิริกุล</h1><small id="who">กำลังโหลด...</small></div></div>
+  <div class="seg" role="group" aria-label="ธีม">
+    <button data-th="light"><i data-i="sun" data-s="14"></i>ปกติ</button>
+    <button data-th="dark"><i data-i="moon" data-s="14"></i>มืด</button>
+  </div>
+</header>
 <main id="app"><div class="center mute">กำลังโหลด...</div></main>
 <div id="msg"></div>
 <div id="modal"><div class="box"><div id="modalBody"></div><button class="ghost" id="modalClose">ปิด</button></div></div>
 <nav id="nav" class="hide">
-  <button data-t="home" class="on">หน้าแรก</button>
-  <button data-t="car">รถ</button>
-  <button data-t="expense">ค่าใช้จ่าย</button>
-  <button data-t="cars" id="navCars" class="hide">จัดการ</button>
+  <button data-t="home" class="on"><i data-i="home"></i><span>หน้าแรก</span></button>
+  <button data-t="car"><i data-i="car"></i><span>รถ</span></button>
+  <button data-t="expense"><i data-i="receipt"></i><span>ค่าใช้จ่าย</span></button>
+  <button data-t="cars" id="navCars" class="hide"><i data-i="sliders"></i><span>จัดการ</span></button>
 </nav>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -149,6 +213,32 @@ function readDataUrl(file) {
   });
 }
 
+/* ---------- ไอคอน + ธีม ---------- */
+var ICON = {
+  car:'<path d="M5 16l1.6-5.1A2 2 0 0 1 8.5 9.5h7a2 2 0 0 1 1.9 1.4L19 16"/><path d="M3 16h18v3a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-1H7v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><circle cx="7.5" cy="13.2" r=".7"/><circle cx="16.5" cy="13.2" r=".7"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle cx="12" cy="7.6" r=".7"/>',
+  wrench:'<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>',
+  home:'<path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/>',
+  receipt:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
+  sliders:'<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/>',
+  moon:'<path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/>',
+  shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>'
+};
+function ic(n, size) {
+  var z = size || 22;
+  return '<svg class="ic" width="' + z + '" height="' + z + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[n] + '</svg>';
+}
+function paintIcons() {
+  document.querySelectorAll('[data-i]').forEach(function (el) { el.innerHTML = ic(el.dataset.i, Number(el.dataset.s) || 22); el.style.display = 'contents'; });
+}
+function setTheme(t, save) {
+  document.documentElement.setAttribute('data-theme', t);
+  if (save) { try { localStorage.setItem('theme', t); } catch (e) { /* เบราว์เซอร์บล็อกที่เก็บข้อมูล ใช้ได้เฉพาะรอบนี้ */ } }
+  document.querySelectorAll('.seg button').forEach(function (b) { b.classList.toggle('on', b.dataset.th === t); });
+}
+
 /* ---------- เฟรมหลัก ---------- */
 function render() {
   var h = '';
@@ -159,6 +249,7 @@ function render() {
   $('#app').innerHTML = h;
   document.querySelectorAll('nav button').forEach(function (b) { b.classList.toggle('on', b.dataset.t === S.tab); });
   bindForms();
+  paintIcons();
   if (S.tab === 'cars') drawQr();
   if (S.tab === 'car' && (S.sub === 'history' || S.sub === 'maint')) ensureHist();
 }
@@ -180,8 +271,27 @@ function expClass(d) {
 }
 
 /* ---------- หน้าแรก ---------- */
+function soonest(c) {
+  var best = null;
+  [['พ.ร.บ.', c.actExp], ['ภาษี', c.taxExp], ['ประกัน', c.insExp]].forEach(function (p) {
+    var n = daysLeft(p[1]);
+    if (n !== null && (best === null || n < best.n)) best = { what: p[0], n: n };
+  });
+  return best;
+}
 function viewHome() {
-  var h = '';
+  var h = '<div class="hello"><b>สวัสดี ' + esc(S.me.name) + '</b><span>' + (S.cars.length ? 'เลือกรถที่ต้องการ หรือสแกน QR ที่รถ' : 'ยังไม่มีรถในระบบ') + '</span></div>';
+  if (S.cars.length) {
+    h += '<div class="tiles" style="margin-bottom:14px">' + S.cars.map(function (c) {
+      var t = openTripOf(c.plate), sn = soonest(c);
+      var cls = sn && sn.n < 0 ? '' : sn && sn.n <= 30 ? 'warn' : 'free';
+      return '<button class="tile" data-act="opencar" data-p="' + esc(c.plate) + '">' +
+        '<div class="plate sm"><div class="no">' + esc(c.plate) + '</div><div class="pv">' + esc(c.province) + '</div></div>' +
+        '<div class="mdl">' + esc(c.model) + '</div>' +
+        (t ? '<span class="chip">ถูกเบิกโดย ' + esc(t.name) + '</span>' : '<span class="chip free">ว่าง พร้อมใช้</span>') +
+        (sn && sn.n <= 30 ? '<span class="chip ' + cls + '">' + sn.what + ' ' + cdText(sn.n) + '</span>' : '') + '</button>';
+    }).join('') + '</div>';
+  }
   if (isMgr() && S.alerts.length) {
     h += '<div class="card"><h2>แจ้งเตือนวันครบกำหนด</h2>' + S.alerts.map(function (a) {
       return '<div class="alert ' + (a.expired ? 'bad' : '') + '">' + esc(a.plate) + ' · ' + esc(a.what) + ' ' +
@@ -215,10 +325,10 @@ function daysLeft(d) {
 }
 function cdText(n) { return n === null ? 'ยังไม่ระบุ' : n < 0 ? 'เกินกำหนด ' + (-n) + ' วัน' : n === 0 ? 'หมดอายุวันนี้' : 'เหลือ ' + n + ' วัน'; }
 function cdClass(n) { return n === null ? 'cd-na' : n < 0 ? 'cd-bad' : n <= 30 ? 'cd-warn' : 'cd-ok'; }
-function cdRow(label, d) {
+function cdRow(label, d, extra) {
   var n = daysLeft(d);
   return '<div class="cdrow"><div class="t"><span>' + label + '</span><span class="' + cdClass(n) + '">' + cdText(n) + '</span></div>' +
-    '<div class="d">' + (d ? 'หมดอายุ ' + thDate(d) : '') + '</div></div>';
+    '<div class="d">' + (d ? 'หมดอายุ ' + thDate(d) : '') + '</div>' + (extra || '') + '</div>';
 }
 
 function viewCar() {
@@ -227,9 +337,9 @@ function viewCar() {
   var t = openTripOf(car.plate);
   var h = '<div class="card hd"><div class="hdl">' +
     '<div class="plate"><div class="no">' + esc(car.plate) + '</div><div class="pv">' + esc(car.province) + '</div></div><br>' +
-    (t ? '<span class="badge">ถูกเบิกอยู่</span>' : '<span class="badge free">ว่าง</span>') +
+    (t ? '<span class="chip">ถูกเบิกอยู่</span>' : '<span class="chip free">ว่าง</span>') +
     '<button class="line" data-act="reg">ดูสำเนาทะเบียน</button></div>' +
-    '<div class="hdr">' + cdRow('พ.ร.บ.', car.actExp) + cdRow('ภาษีรถ', car.taxExp) + cdRow('ประกันภัย', car.insExp) + '</div></div>';
+    '<div class="hdr">' + cdRow('พ.ร.บ.', car.actExp) + cdRow('ภาษีรถ', car.taxExp) + cdRow('ประกันภัย', car.insExp, car.insurer ? '<div class="ins">' + esc(car.insurer) + '</div>' : '<div class="d">ยังไม่ระบุบริษัทประกัน</div>') + '</div></div>';
   h += '<div class="menu">' +
     menuBtn('trip', t ? 'คืนรถ' : 'เบิกรถ') + menuBtn('history', 'ประวัติการใช้งาน') +
     menuBtn('info', 'ข้อมูลรถ') + menuBtn('maint', 'ประวัติการซ่อมบำรุง') + '</div>';
@@ -242,7 +352,8 @@ function viewCar() {
   }).join('') + '</select>';
   return h;
 }
-function menuBtn(k, label) { return '<button data-act="sub" data-s="' + k + '" class="' + (S.sub === k ? 'on' : '') + '">' + label + '</button>'; }
+var MENU_IC = { trip:'car', history:'clock', info:'info', maint:'wrench' };
+function menuBtn(k, label) { return '<button data-act="sub" data-s="' + k + '" class="' + (S.sub === k ? 'on' : '') + '">' + ic(MENU_IC[k], 24) + '<span>' + label + '</span></button>'; }
 
 function viewTrip(car, t) {
   if (!t) {
@@ -283,6 +394,7 @@ function viewHistory(car) {
 }
 
 var SERVICE = 'ตรวจเช็คตามระยะ';
+var INSURERS = ['วิริยะประกันภัย', 'ทิพยประกันภัย', 'กรุงเทพประกันภัย', 'สินมั่นคงประกันภัย', 'เมืองไทยประกันภัย', 'ไทยศรีประกันภัย', 'ไทยประกันภัย', 'อินทรประกันภัย', 'ชับบ์สามัคคีประกันภัย', 'แอลเอ็มจี ประกันภัย', 'เอเชียประกันภัย 1950', 'นวกิจประกันภัย', 'ไทยวิวัฒน์ประกันภัย', 'ธนชาตประกันภัย', 'โตเกียวมารีนประกันภัย'];
 
 function serviceCard(car, d) {
   var h = '<div class="card"><h2>เช็คระยะ</h2>';
@@ -331,7 +443,7 @@ function viewInfo(car) {
   return '<div class="card"><h2>ข้อมูลรถ</h2>' + kv('ทะเบียน', car.plate) + kv('จังหวัด', car.province) + kv('ยี่ห้อ/รุ่น', car.model) + kv('ปี', car.year) +
     kv('สี', car.color) + kv('เชื้อเพลิง', car.fuel) + kv('เลขตัวถัง', car.vin) + kv('เลขเครื่อง', car.engineNo) +
     kv('เลขไมล์ล่าสุด', car.lastOdo === '' ? '' : Number(car.lastOdo).toLocaleString('th-TH') + ' กม.') + '</div>' +
-    '<div class="card"><h2>วันหมดอายุ</h2>' + exp('พ.ร.บ.', car.actExp) + exp('ภาษีรถ', car.taxExp) + exp('ประกันภัย', car.insExp) + '</div>' +
+    '<div class="card"><h2>วันหมดอายุ</h2>' + exp('พ.ร.บ.', car.actExp) + exp('ภาษีรถ', car.taxExp) + exp('ประกันภัย', car.insExp) + kv('บริษัทประกันภัย', car.insurer) + '</div>' +
     (isAdmin() ? '<button class="ghost" data-act="edit">แก้ไขข้อมูลรถ / อัปโหลดสำเนาทะเบียน</button>' : '');
 }
 
@@ -389,6 +501,8 @@ function viewManage() {
       '<label>พ.ร.บ.หมดอายุ</label><input name="actExp" type="date" value="' + v('actExp') + '">' +
       '<label>ภาษีหมดอายุ</label><input name="taxExp" type="date" value="' + v('taxExp') + '">' +
       '<label>ประกันหมดอายุ</label><input name="insExp" type="date" value="' + v('insExp') + '">' +
+      '<label>บริษัทประกันภัย</label><input name="insurer" list="insurers" maxlength="60" value="' + v('insurer') + '" placeholder="พิมพ์หรือเลือกจากรายการ">' +
+      '<datalist id="insurers">' + INSURERS.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
       '<label>สถานะ</label><select name="active"><option value="Y">ใช้งาน</option><option value="N"' + (e.active === 'N' ? ' selected' : '') + '>เลิกใช้</option></select>' +
       '<label>สำเนาทะเบียนรถ (รูปภาพหรือ PDF ไม่เกิน 4 MB)' + (e.regDocId ? ' — มีไฟล์เดิมอยู่ เลือกใหม่เพื่อแทนที่' : '') + '</label>' +
       '<input type="file" id="regFile" accept="image/*,application/pdf">' +
@@ -428,7 +542,7 @@ function bindForms() {
   }, 'บันทึกประวัติซ่อมบำรุงแล้ว', function () { S.hist = {}; S.tab = 'car'; S.sub = 'maint'; S.mopen = false; S.mdef = ''; });
   hook('#fExpense', 'addExpense', function (d) { return { plate: d.plate, date: d.date, type: d.type, amount: d.amount, note: d.note, images: pendingImages }; }, null, after('home'));
   hook('#fCar', 'saveCar', function (d) {
-    var o = {}; ['plate','province','model','year','color','fuel','vin','engineNo','actExp','taxExp','insExp','active'].forEach(function (k) { o[k] = d[k]; });
+    var o = {}; ['plate','province','model','year','color','fuel','vin','engineNo','actExp','taxExp','insExp','insurer','active'].forEach(function (k) { o[k] = d[k]; });
     if (pendingReg) o.regDoc = pendingReg; return o;
   }, null, function () { S.edit = ''; S.tab = 'cars'; });
 
@@ -454,6 +568,7 @@ function bindForms() {
       var a = b.dataset.act;
       if (a === 'sub') { S.sub = b.dataset.s; S.mopen = false; S.mdef = ''; render(); }
       else if (a === 'reg') showReg();
+      else if (a === 'opencar') { S.plate = b.dataset.p; S.sub = 'trip'; S.tab = 'car'; render(); window.scrollTo(0, 0); }
       else if (a === 'edit') { S.edit = S.plate; S.tab = 'cars'; render(); window.scrollTo(0, 99999); }
       else if (a === 'editcar') { S.edit = b.dataset.p; render(); window.scrollTo(0, 99999); }
       else if (a === 'newcar') { S.edit = ''; render(); }
@@ -498,6 +613,11 @@ async function load() {
   $('#navCars').classList.toggle('hide', !isMgr());
 }
 
+document.querySelectorAll('.seg button').forEach(function (b) {
+  b.addEventListener('click', function () { setTheme(b.dataset.th, true); });
+});
+paintIcons();
+setTheme(document.documentElement.getAttribute('data-theme'), false);
 $('#modalClose').addEventListener('click', function () { $('#modal').style.display = 'none'; });
 document.querySelectorAll('nav button').forEach(function (b) {
   b.addEventListener('click', function () { S.tab = b.dataset.t; render(); window.scrollTo(0, 0); });
