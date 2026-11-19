@@ -23,10 +23,11 @@ const SCHEMA = {
   usage: {
     title: 'การใช้รถ',
     cols: [
-      ['id', 'รหัส'], ['ts', 'เวลาบันทึก'], ['plate', 'ทะเบียน'], ['email', 'อีเมล'], ['name', 'ชื่อผู้ใช้'],
-      ['odoStart', 'ไมล์ก่อน'], ['odoEnd', 'ไมล์หลัง'], ['purpose', 'วัตถุประสงค์/ปลายทาง'], ['images', 'ลิงก์รูป']
+      ['id', 'รหัส'], ['ts', 'เวลาเบิก'], ['plate', 'ทะเบียน'], ['email', 'อีเมล'], ['name', 'ชื่อผู้ใช้'],
+      ['odoStart', 'ไมล์ก่อน'], ['odoEnd', 'ไมล์หลัง'], ['purpose', 'วัตถุประสงค์/ปลายทาง'], ['images', 'ลิงก์รูปตอนเบิก'],
+      ['returnTs', 'เวลาคืน'], ['returnImages', 'ลิงก์รูปตอนคืน'], ['status', 'สถานะ']
     ],
-    textCols: ['ts']
+    textCols: ['ts', 'returnTs']
   },
   expenses: {
     title: 'ค่าใช้จ่าย',
@@ -90,8 +91,12 @@ function setup() {
 }
 
 /* ---------- Web app ---------- */
-function doGet() {
-  return HtmlService.createHtmlOutputFromFile('index')
+function doGet(e) {
+  // ทะเบียนจาก QR (?plate=...) กรองเหลือเฉพาะตัวอักษรที่ปลอดภัยก่อนฝังลงหน้า
+  const plate = String((e && e.parameter && e.parameter.plate) || '').replace(/[^\wก-๙\- ]/g, '').slice(0, 20);
+  const t = HtmlService.createTemplateFromFile('index');
+  t.initialPlate = plate;
+  return t.evaluate()
     .setTitle('รถส่วนกลางศิริกุล')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
@@ -103,7 +108,8 @@ function api(action, payload) {
     payload = payload || {};
     switch (action) {
       case 'bootstrap': return ok_(bootstrap_(me));
-      case 'addUsage': return ok_(addUsage_(me, payload));
+      case 'checkout': return ok_(checkout_(me, payload));
+      case 'returnCar': return ok_(returnCar_(me, payload));
       case 'addExpense': return ok_(addExpense_(me, payload));
       case 'saveCar': requireRole_(me, ['admin']); return ok_(saveCar_(payload));
       case 'listUsage': return ok_(listUsage_(me, payload));
@@ -134,10 +140,21 @@ function isManager_(me) { return me.role === 'manager' || me.role === 'admin'; }
 
 /* ---------- เริ่มต้น ---------- */
 function bootstrap_(me) {
-  const cars = readRows_('cars').filter(function (c) { return c.active !== 'N'; });
+  const usage = readRows_('usage');
+  const last = {};
+  usage.forEach(function (u) { last[u.plate] = u.odoEnd !== '' ? u.odoEnd : u.odoStart; });
+  const cars = readRows_('cars').filter(function (c) { return c.active !== 'N'; }).map(function (c) {
+    c.lastOdo = last[c.plate] == null ? '' : last[c.plate];
+    return c;
+  });
+  const open = usage.filter(function (u) { return u.status === 'open'; }).map(function (u) {
+    return { id: u.id, plate: u.plate, name: u.name, email: u.email, ts: u.ts, odoStart: u.odoStart, purpose: u.purpose };
+  });
   return {
     me: me,
     cars: cars,
+    openTrips: open,
+    appUrl: ScriptApp.getService().getUrl(),
     expenseTypes: EXPENSE_TYPES,
     alerts: isManager_(me) ? buildAlerts_(cars) : [],
     recentUsage: listUsage_(me, { limit: 10 }),
@@ -159,22 +176,44 @@ function buildAlerts_(cars) {
   return out.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
 }
 
-/* ---------- บันทึกการใช้รถ ---------- */
-function addUsage_(me, p) {
+/* ---------- เบิกรถ / คืนรถ ---------- */
+function checkout_(me, p) {
   const car = findCar_(p.plate);
   const odoStart = num_(p.odoStart, 'ไมล์ก่อน');
-  const odoEnd = p.odoEnd === '' || p.odoEnd == null ? '' : num_(p.odoEnd, 'ไมล์หลัง');
-  if (odoEnd !== '' && odoEnd < odoStart) throw new Error('ไมล์หลังต้องไม่น้อยกว่าไมล์ก่อน');
   const purpose = str_(p.purpose, 200);
-  if (!purpose) throw new Error('กรุณากรอกวัตถุประสงค์/ปลายทาง');
-  const links = saveImages_(p.images, car.plate, 'ใช้รถ');
+  if (!purpose) throw new Error('กรุณากรอกปลายทาง/วัตถุประสงค์');
+  const links = saveImages_(p.images, car.plate, 'เบิกรถ');
   return lock_(function () {
+    const held = readRows_('usage').filter(function (u) { return u.plate === car.plate && u.status === 'open'; })[0];
+    if (held) throw new Error('รถคันนี้ถูกเบิกโดย ' + held.name + ' เมื่อ ' + String(held.ts).slice(0, 16) + ' ยังไม่ได้คืน');
     const row = {
       id: Utilities.getUuid(), ts: now_(), plate: car.plate, email: me.email, name: me.name,
-      odoStart: odoStart, odoEnd: odoEnd, purpose: purpose, images: links.join('\n')
+      odoStart: odoStart, odoEnd: '', purpose: purpose, images: links.join('\n'),
+      returnTs: '', returnImages: '', status: 'open'
     };
     appendRow_('usage', row);
     return { id: row.id };
+  });
+}
+
+function returnCar_(me, p) {
+  const odoEnd = num_(p.odoEnd, 'ไมล์หลัง');
+  const rows = readRows_('usage');
+  const t = rows.filter(function (u) { return u.id === p.id; })[0];
+  if (!t) throw new Error('ไม่พบรายการเบิกรถ');
+  if (t.status !== 'open') throw new Error('รายการนี้คืนรถไปแล้ว');
+  if (t.email !== me.email && !isManager_(me)) throw new Error('คืนรถได้เฉพาะผู้เบิกหรือผู้จัดการ');
+  if (odoEnd < Number(t.odoStart)) throw new Error('ไมล์หลังต้องไม่น้อยกว่าไมล์ก่อน (' + t.odoStart + ')');
+  const links = saveImages_(p.images, t.plate, 'คืนรถ');
+  return lock_(function () {
+    const fresh = readRows_('usage').filter(function (u) { return u.id === p.id; })[0];
+    if (!fresh || fresh.status !== 'open') throw new Error('รายการนี้คืนรถไปแล้ว');
+    fresh.odoEnd = odoEnd;
+    fresh.returnTs = now_();
+    fresh.returnImages = links.join('\n');
+    fresh.status = 'closed';
+    writeRow_(sheet_('usage'), fresh._row, 'usage', fresh);
+    return { id: fresh.id, km: odoEnd - Number(fresh.odoStart) };
   });
 }
 
@@ -223,7 +262,7 @@ function saveCar_(p) {
     const idx = rows.findIndex(function (r) { return r.plate === plate; });
     if (idx >= 0) {
       rec.id = rows[idx].id;
-      writeRow_(sh, idx + 2, 'cars', rec);
+      writeRow_(sh, rows[idx]._row, 'cars', rec);
     } else {
       rec.id = Utilities.getUuid();
       appendRow_('cars', rec);
@@ -271,14 +310,17 @@ function readRows_(key) {
   const last = sh.getLastRow();
   if (last < 2) return [];
   const vals = sh.getRange(2, 1, last - 1, sc.cols.length).getValues();
-  return vals.filter(function (r) { return r[0] !== ''; }).map(function (r) {
-    const o = {};
+  const out = [];
+  vals.forEach(function (r, n) {
+    if (r[0] === '') return;
+    const o = { _row: n + 2 };
     sc.cols.forEach(function (c, i) {
       const v = r[i];
       o[c[0]] = v instanceof Date ? Utilities.formatDate(v, TZ, 'yyyy-MM-dd') : v;
     });
-    return o;
+    out.push(o);
   });
+  return out;
 }
 
 function toArray_(key, obj) {

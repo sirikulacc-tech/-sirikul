@@ -35,6 +35,18 @@
   #msg.ok { background:#047857; } #msg.err { background:var(--bad); }
   .hide { display:none; }
   .center { text-align:center; padding:40px 16px; }
+  .qrgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .qrcell { border:1px solid var(--line); border-radius:10px; padding:10px; text-align:center; background:#fff; break-inside:avoid; }
+  .qrcell div.q { display:flex; justify-content:center; margin-bottom:6px; }
+  .qrcell b { font-size:18px; display:block; }
+  .qrcell small { color:var(--mute); }
+  .badge { display:inline-block; padding:2px 8px; border-radius:99px; font-size:13px; background:#fee2e2; color:var(--bad); }
+  .badge.free { background:#d1fae5; color:#047857; }
+  @media print {
+    header, nav, #msg, .noprint { display:none !important; }
+    body { background:#fff; padding:0; }
+    .card { box-shadow:none; padding:0; }
+  }
 </style>
 </head>
 <body>
@@ -43,13 +55,15 @@
 <div id="msg"></div>
 <nav id="nav" class="hide">
   <button data-t="home" class="on">หน้าแรก</button>
-  <button data-t="usage">ใช้รถ</button>
+  <button data-t="trip">เบิก/คืนรถ</button>
   <button data-t="expense">ค่าใช้จ่าย</button>
   <button data-t="cars" id="navCars" class="hide">รถ</button>
 </nav>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
-var S = { me:null, cars:[], types:[], alerts:[], usage:[], expenses:[], tab:'home', busy:false };
+var INITIAL_PLATE = <?!= JSON.stringify(initialPlate) ?>;
+var S = { me:null, cars:[], types:[], alerts:[], usage:[], expenses:[], open:[], appUrl:'', plate:'', tab:'home', busy:false };
 var $ = function (s) { return document.querySelector(s); };
 
 function esc(v) {
@@ -106,12 +120,13 @@ function carOptions() {
 function render() {
   var h = '';
   if (S.tab === 'home') h = viewHome();
-  else if (S.tab === 'usage') h = viewUsage();
+  else if (S.tab === 'trip') h = viewTrip();
   else if (S.tab === 'expense') h = viewExpense();
   else if (S.tab === 'cars') h = viewCars();
   $('#app').innerHTML = h;
   document.querySelectorAll('nav button').forEach(function (b) { b.classList.toggle('on', b.dataset.t === S.tab); });
   bindForms();
+  if (S.tab === 'cars') drawQr();
 }
 
 function viewHome() {
@@ -122,10 +137,15 @@ function viewHome() {
         (a.expired ? 'หมดอายุแล้ว ' : 'หมดอายุ ') + thDate(a.date) + '</div>';
     }).join('') + '</div>';
   }
+  if (S.open.length) {
+    h += '<div class="card"><h2>รถที่ถูกเบิกอยู่</h2>' + S.open.map(function (t) {
+      return '<div class="row"><b>' + esc(t.plate) + '</b> · ' + esc(t.name) + '<br><span class="mute">' + esc(String(t.ts).slice(0, 16)) + ' · ' + esc(t.purpose) + '</span></div>';
+    }).join('') + '</div>';
+  }
   h += '<div class="card"><h2>การใช้รถล่าสุด</h2>' + (S.usage.length ? S.usage.map(function (u) {
-    var km = u.odoEnd !== '' ? (u.odoEnd - u.odoStart) + ' กม.' : 'ยังไม่ระบุไมล์หลัง';
+    var km = u.status === 'open' ? 'ยังไม่คืนรถ' : (u.odoEnd - u.odoStart) + ' กม.';
     return '<div class="row"><b>' + esc(u.plate) + '</b> · ' + esc(u.name) + '<br>' + esc(u.purpose) +
-      '<br><span class="mute">' + esc(String(u.ts).slice(0, 16)) + ' · ' + km + '</span>' + links(u.images) + '</div>';
+      '<br><span class="mute">' + esc(String(u.ts).slice(0, 16)) + ' · ' + km + '</span>' + links(u.images) + links(u.returnImages) + '</div>';
   }).join('') : '<div class="mute">ยังไม่มีรายการ</div>') + '</div>';
   h += '<div class="card"><h2>ค่าใช้จ่ายล่าสุด</h2>' + (S.expenses.length ? S.expenses.map(function (e) {
     return '<div class="row"><b>' + esc(e.plate) + '</b> · ' + esc(e.type) + ' · ' + baht(e.amount) + ' บาท<br>' +
@@ -140,19 +160,41 @@ function links(s) {
   }).join('') + '</div>';
 }
 
-function imageField() {
-  return '<label>แนบรูป (ถ่ายหรือเลือกจากเครื่อง ไม่เกิน 5 รูป)</label>' +
+function imageField(label) {
+  return '<label>' + esc(label || 'แนบรูป') + ' (ไม่เกิน 5 รูป)</label>' +
     '<input type="file" id="imgs" accept="image/*" multiple><div class="thumbs" id="thumbs"></div>';
 }
 
-function viewUsage() {
+function openTripOf(plate) { return S.open.filter(function (t) { return t.plate === plate; })[0]; }
+
+function viewTrip() {
   if (!S.cars.length) return '<div class="card">ยังไม่มีรถในระบบ ให้แอดมินเพิ่มในแท็บ "รถ"</div>';
-  return '<form class="card" id="fUsage"><h2>บันทึกการใช้รถ</h2>' +
-    '<label>ทะเบียนรถ</label><select name="plate">' + carOptions() + '</select>' +
-    '<label>เลขไมล์ก่อนออกเดินทาง</label><input name="odoStart" type="number" inputmode="numeric" min="0" required>' +
-    '<label>เลขไมล์หลังกลับ (ถ้ายังไม่กลับ เว้นว่างได้)</label><input name="odoEnd" type="number" inputmode="numeric" min="0">' +
-    '<label>วัตถุประสงค์ / ปลายทาง</label><textarea name="purpose" rows="2" maxlength="200" required></textarea>' +
-    imageField() + '<button type="submit">บันทึก</button></form>';
+  if (!S.plate) S.plate = S.cars[0].plate;
+  var car = S.cars.filter(function (c) { return c.plate === S.plate; })[0] || S.cars[0];
+  var h = '<div class="card"><h2>เลือกรถ</h2><select id="pickCar">' + S.cars.map(function (c) {
+    var t = openTripOf(c.plate);
+    return '<option value="' + esc(c.plate) + '"' + (c.plate === car.plate ? ' selected' : '') + '>' + esc(c.plate) + ' ' + esc(c.model) + (t ? ' (ถูกเบิกอยู่)' : '') + '</option>';
+  }).join('') + '</select></div>';
+  var t = openTripOf(car.plate);
+  if (!t) {
+    h += '<form class="card" id="fCheckout"><h2>เบิกรถ <span class="badge free">ว่าง</span></h2>' +
+      '<div><b>' + esc(car.plate) + '</b> ' + esc(car.model) + '</div>' +
+      '<input type="hidden" name="plate" value="' + esc(car.plate) + '">' +
+      '<label>เลขไมล์ก่อนออกเดินทาง</label><input name="odoStart" type="number" inputmode="numeric" min="0" value="' + esc(car.lastOdo) + '" required>' +
+      '<label>ไปที่ไหน / ไปทำอะไร</label><textarea name="purpose" rows="2" maxlength="200" required placeholder="เช่น ส่งเอกสารที่สรรพากร"></textarea>' +
+      imageField('ถ่ายรูปหน้าปัดไมล์/สภาพรถ (ถ้ามี)') + '<button type="submit">เบิกรถ</button></form>';
+  } else if (t.email === S.me.email || isMgr()) {
+    h += '<form class="card" id="fReturn"><h2>คืนรถ <span class="badge">กำลังใช้งาน</span></h2>' +
+      '<div><b>' + esc(car.plate) + '</b> เบิกโดย ' + esc(t.name) + '<br><span class="mute">' + esc(String(t.ts).slice(0, 16)) +
+      ' · ไมล์ก่อน ' + esc(t.odoStart) + '<br>' + esc(t.purpose) + '</span></div>' +
+      '<input type="hidden" name="id" value="' + esc(t.id) + '">' +
+      '<label>เลขไมล์หลังกลับ</label><input name="odoEnd" type="number" inputmode="numeric" min="' + esc(t.odoStart) + '" required>' +
+      imageField('ถ่ายรูปหน้าปัดไมล์ตอนคืน (ถ้ามี)') + '<button type="submit">คืนรถ</button></form>';
+  } else {
+    h += '<div class="card"><h2>รถคันนี้ถูกเบิกอยู่ <span class="badge">ไม่ว่าง</span></h2>' +
+      '<b>' + esc(car.plate) + '</b> เบิกโดย ' + esc(t.name) + '<br><span class="mute">' + esc(String(t.ts).slice(0, 16)) + ' · ' + esc(t.purpose) + '</span></div>';
+  }
+  return h;
 }
 
 function viewExpense() {
@@ -163,7 +205,7 @@ function viewExpense() {
     '<label>ประเภท</label><select name="type">' + S.types.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('') + '</select>' +
     '<label>จำนวนเงิน (บาท)</label><input name="amount" type="number" inputmode="decimal" min="0.01" step="0.01" required>' +
     '<label>หมายเหตุ</label><input name="note" maxlength="300">' +
-    imageField() + '<button type="submit">บันทึก</button></form>';
+    imageField('แนบรูปใบเสร็จ') + '<button type="submit">บันทึก</button></form>';
 }
 
 function viewCars() {
@@ -171,8 +213,12 @@ function viewCars() {
     return '<div class="row"><b>' + esc(c.plate) + '</b> ' + esc(c.model) + ' ' + esc(c.year) +
       '<br><span class="mute">พ.ร.บ. ' + thDate(c.actExp) + ' · ภาษี ' + thDate(c.taxExp) + ' · ประกัน ' + thDate(c.insExp) + '</span></div>';
   }).join('') : '<div class="mute">ยังไม่มีรถ</div>') + '</div>';
+  if (S.cars.length) {
+    h += '<div class="card"><h2>QR Code ติดรถ</h2><div class="mute noprint" style="font-size:14px;margin-bottom:8px">พิมพ์แล้วติดไว้ในรถแต่ละคัน คนขับสแกนเพื่อเบิก/คืนรถ</div>' +
+      '<div class="qrgrid" id="qrgrid"></div><button class="noprint ghost" onclick="window.print()">พิมพ์ QR ทั้งหมด</button></div>';
+  }
   if (S.me.role === 'admin') {
-    h += '<form class="card" id="fCar"><h2>เพิ่ม/แก้ไขรถ (ทะเบียนซ้ำ = แก้ไข)</h2>' +
+    h += '<form class="card noprint" id="fCar"><h2>เพิ่ม/แก้ไขรถ (ทะเบียนซ้ำ = แก้ไข)</h2>' +
       '<label>ทะเบียน</label><input name="plate" required maxlength="20">' +
       '<label>ยี่ห้อ/รุ่น</label><input name="model" maxlength="80">' +
       '<label>ปี</label><input name="year" inputmode="numeric" maxlength="4">' +
@@ -198,11 +244,13 @@ function bindForms() {
       $('#thumbs').innerHTML = pendingImages.map(function (d) { return '<img src="' + d + '">'; }).join('');
     } catch (e) { toast(e.message, 'err'); }
   });
-  hook('#fUsage', 'addUsage', function (d) { return { plate: d.plate, odoStart: d.odoStart, odoEnd: d.odoEnd, purpose: d.purpose, images: pendingImages }; });
+  hook('#fCheckout', 'checkout', function (d) { return { plate: d.plate, odoStart: d.odoStart, purpose: d.purpose, images: pendingImages }; }, 'เบิกรถเรียบร้อย');
+  hook('#fReturn', 'returnCar', function (d) { return { id: d.id, odoEnd: d.odoEnd, images: pendingImages }; }, 'คืนรถเรียบร้อย');
+  var pc = $('#pickCar'); if (pc) pc.addEventListener('change', function () { S.plate = pc.value; render(); });
   hook('#fExpense', 'addExpense', function (d) { return { plate: d.plate, date: d.date, type: d.type, amount: d.amount, note: d.note, images: pendingImages }; });
   hook('#fCar', 'saveCar', function (d) { return d; });
 }
-function hook(sel, action, build) {
+function hook(sel, action, build, okMsg) {
   var f = $(sel); if (!f) return;
   f.addEventListener('submit', async function (ev) {
     ev.preventDefault();
@@ -211,16 +259,28 @@ function hook(sel, action, build) {
     try {
       var d = {}; new FormData(f).forEach(function (v, k) { d[k] = v; });
       await call(action, build(d));
-      toast('บันทึกเรียบร้อย', 'ok');
+      toast(okMsg || 'บันทึกเรียบร้อย', 'ok');
       await load(); S.tab = action === 'saveCar' ? 'cars' : 'home'; render();
-    } catch (e) { toast(e.message, 'err'); btn.disabled = false; btn.textContent = 'บันทึก'; }
+    } catch (e) { toast(e.message, 'err'); btn.disabled = false; btn.textContent = 'ลองอีกครั้ง'; }
     S.busy = false;
+  });
+}
+
+function drawQr() {
+  var g = $('#qrgrid'); if (!g || !window.QRCode || !S.appUrl) return;
+  S.cars.forEach(function (c) {
+    var cell = document.createElement('div'); cell.className = 'qrcell';
+    var q = document.createElement('div'); q.className = 'q';
+    cell.appendChild(q);
+    cell.insertAdjacentHTML('beforeend', '<b>' + esc(c.plate) + '</b><small>สแกนเพื่อเบิก/คืนรถ</small>');
+    g.appendChild(cell);
+    new QRCode(q, { text: S.appUrl + '?plate=' + encodeURIComponent(c.plate), width: 150, height: 150, correctLevel: QRCode.CorrectLevel.M });
   });
 }
 
 async function load() {
   var d = await call('bootstrap');
-  S.me = d.me; S.cars = d.cars; S.types = d.expenseTypes; S.alerts = d.alerts; S.usage = d.recentUsage; S.expenses = d.recentExpenses;
+  S.me = d.me; S.cars = d.cars; S.types = d.expenseTypes; S.alerts = d.alerts; S.usage = d.recentUsage; S.expenses = d.recentExpenses; S.open = d.openTrips; S.appUrl = d.appUrl;
   $('#who').textContent = S.me.name + ' (' + S.me.role + ')';
   $('#nav').classList.remove('hide');
   $('#navCars').classList.toggle('hide', !isMgr());
@@ -229,7 +289,11 @@ async function load() {
 document.querySelectorAll('nav button').forEach(function (b) {
   b.addEventListener('click', function () { S.tab = b.dataset.t; render(); window.scrollTo(0, 0); });
 });
-load().then(render).catch(function (e) {
+load().then(function () {
+  if (INITIAL_PLATE && S.cars.some(function (c) { return c.plate === INITIAL_PLATE; })) { S.plate = INITIAL_PLATE; S.tab = 'trip'; }
+  else if (INITIAL_PLATE) toast('ไม่พบรถทะเบียน ' + INITIAL_PLATE, 'err');
+  render();
+}).catch(function (e) {
   $('#who').textContent = '';
   $('#app').innerHTML = '<div class="card"><h2>เข้าใช้งานไม่ได้</h2>' + esc(e.message) + '</div>';
 });
