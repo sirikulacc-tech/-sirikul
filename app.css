@@ -275,3 +275,21 @@
   .dt thead th:first-child { border-top-left-radius:10px; } .dt thead th:last-child { border-top-right-radius:10px; }
   .todo { border:1px solid color-mix(in srgb, currentColor 16%, transparent); }
   .ocrbox { border-color:var(--pri-2); }
+
+  /* ===================== ป้ายทะเบียนแบบป้ายจริง ===================== */
+  .plate { position:relative; display:inline-block; min-width:152px; padding:7px 18px 6px; text-align:center;
+    background:linear-gradient(180deg,#ffffff 0%,#f6f7f4 55%,#eceee9 100%); border:2.5px solid #161a16; border-radius:11px;
+    box-shadow:inset 0 0 0 3px #fff, inset 0 0 0 4.5px #161a16, 0 1px 0 rgba(255,255,255,.6), 0 12px 20px -12px rgba(0,0,0,.5); }
+  .plate::before, .plate::after { content:""; position:absolute; top:8px; width:6px; height:6px; border-radius:50%;
+    background:radial-gradient(circle at 35% 35%,#ffffff 0%,#b8beb6 45%,#6d756c 100%); box-shadow:0 1px 1px rgba(0,0,0,.35); }
+  .plate::before { left:10px; } .plate::after { right:10px; }
+  .plate .no { font-family:"Kanit","Sarabun",sans-serif; font-weight:600; font-size:33px; letter-spacing:1.5px; color:#101310; line-height:1.12;
+    text-shadow:0 1px 0 #fff, 0 -1px 0 rgba(0,0,0,.10); white-space:nowrap; }
+  .plate .pv { font-family:"Kanit","Sarabun",sans-serif; font-weight:500; font-size:13.5px; color:#1d221d; letter-spacing:.4px;
+    border-top:1px solid #d3d8d0; margin:2px 6px 0; padding-top:1px; min-height:19px; }
+  .plate.sm { min-width:0; padding:4px 11px 3px; border-width:2px; border-radius:8px;
+    box-shadow:inset 0 0 0 2px #fff, inset 0 0 0 3px #161a16, 0 6px 12px -8px rgba(0,0,0,.45); }
+  .plate.sm::before, .plate.sm::after { top:5px; width:3.5px; height:3.5px; }
+  .plate.sm::before { left:5px; } .plate.sm::after { right:5px; }
+  .plate.sm .no { font-size:19px; letter-spacing:1px; }
+  .plate.sm .pv { font-size:10.5px; margin:1px 3px 0; padding-top:0; min-height:13px; }

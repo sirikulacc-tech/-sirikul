@@ -137,7 +137,8 @@ function shrinkLogo(file) {
 function setTheme(t, save) {
   document.documentElement.setAttribute('data-theme', t);
   if (save) { try { localStorage.setItem('theme', t); } catch (e) { /* เบราว์เซอร์บล็อกที่เก็บข้อมูล ใช้ได้เฉพาะรอบนี้ */ } }
-  document.querySelectorAll('.seg button').forEach(function (b) { b.classList.toggle('on', b.dataset.th === t); });
+  var tb = $('#themeBtn');
+  if (tb) { tb.innerHTML = ic(t === 'dark' ? 'sun' : 'moon', 18); tb.setAttribute('aria-label', t === 'dark' ? 'เปลี่ยนเป็นโหมดปกติ' : 'เปลี่ยนเป็นโหมดมืด'); }
 }
 
 /* ---------- เต็มจอ / ติดตั้งเป็นแอป ----------
@@ -346,7 +347,6 @@ function viewTrip(car, t) {
     return '<form class="card" id="fReturn"><h2>คืนรถ</h2>' +
       '<div>เบิกโดย <b>' + esc(t.name) + '</b><br><span class="mute">' + thTime(t.ts) + ' · ไมล์ก่อน ' + esc(t.odoStart) + '<br>' + esc(t.purpose) + '</span></div>' +
       '<input type="hidden" name="id" value="' + esc(t.id) + '">' +
-      nameField('ชื่อผู้คืนรถ') +
       '<label>เลขไมล์หลังกลับ</label><input name="odoEnd" type="number" inputmode="numeric" min="' + esc(t.odoStart) + '" required>' +
       imageField('ถ่ายรูปหน้าปัดไมล์ตอนคืน (ถ้ามี)') + '<button type="submit">คืนรถ</button></form>';
   }
@@ -761,7 +761,7 @@ function bindForms() {
     }
     return w.join('\n\n');
   });
-  hook('#fReturn', 'returnCar', function (d) { return { name: d.name, id: d.id, odoEnd: d.odoEnd, images: pendingImages }; }, 'คืนรถเรียบร้อย', after('home'), function (d) {
+  hook('#fReturn', 'returnCar', function (d) { var t = openTripOf(S.plate); return { name: S.name || (t && t.name) || 'ไม่ระบุ', id: d.id, odoEnd: d.odoEnd, images: pendingImages }; }, 'คืนรถเรียบร้อย', after('home'), function (d) {
     var t = openTripOf(S.plate); if (!t) return '';
     var dist = Number(d.odoEnd) - Number(t.odoStart);
     return dist > TRIP_MAX ? 'ระยะทางเที่ยวนี้ ' + km(dist) + ' กม. มากผิดปกติ กรุณาตรวจสอบเลขไมล์อีกครั้ง' : '';
@@ -1018,8 +1018,9 @@ function buildAlerts(cars, maint) {
   return out.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
 }
 
-document.querySelectorAll('.seg button').forEach(function (b) {
-  b.addEventListener('click', function () { setTheme(b.dataset.th, true); });
+$('#themeBtn').addEventListener('click', function (e) {
+  e.stopPropagation();
+  setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark', true);
 });
 initFullscreen();
 S.name = sget('localStorage', 'driverName');
