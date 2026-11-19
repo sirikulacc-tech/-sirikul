@@ -1,269 +1,13 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-<base target="_top">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>รถส่วนกลางศิริกุล</title>
-<meta name="color-scheme" content="light dark">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
-<script>
-  (function () {
-    var t = null;
-    try { t = localStorage.getItem('theme'); } catch (e) {}
-    if (t !== 'light' && t !== 'dark') t = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', t);
-  })();
-</script>
-<style>
-  :root {
-    /* โทนสีจากโลโก้ศิริกุล: ดำ + เขียวใบไม้ */
-    --bg:#f3f6f1; --card:#ffffff; --ink:#151d14; --mute:#5f6b5c; --line:#e0e7dc; --input:#ffffff;
-    --pri:#2a7a0e; --on-pri:#ffffff; --pri-soft:#e8f6de; --brand:#42e700;
-    --ok:#1d7f3c; --ok-bg:#def3e2; --warn:#b45309; --warn-bg:#fff1d6; --bad:#c2271f; --bad-bg:#fde4e2;
-    --shadow:0 1px 2px rgba(20,30,18,.06), 0 8px 22px rgba(20,30,18,.07);
-    --hdr:linear-gradient(135deg,#0e130d 0%,#1a2c14 55%,#24501a 100%);
-    color-scheme: light;
-  }
-  :root[data-theme="dark"] {
-    --bg:#0c110b; --card:#151d14; --ink:#e7eee4; --mute:#97a593; --line:#263323; --input:#0f160e;
-    --pri:#63e22f; --on-pri:#0b1607; --pri-soft:#1d3317; --brand:#42e700;
-    --ok:#4fd88a; --ok-bg:#12341f; --warn:#f6b24d; --warn-bg:#3a2b10; --bad:#ff7d74; --bad-bg:#3d1a19;
-    --shadow:0 1px 2px rgba(0,0,0,.45), 0 8px 22px rgba(0,0,0,.3);
-    --hdr:linear-gradient(135deg,#070a07 0%,#122010 60%,#1a3a12 100%);
-    color-scheme: dark;
-  }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html { background: var(--bg); }
-  body { margin:0; font-family:"Sarabun","Noto Sans Thai",system-ui,sans-serif; background:var(--bg); color:var(--ink); font-size:16px; line-height:1.45; padding-bottom:84px; transition:background .2s, color .2s; }
-  header { background:var(--hdr); color:#fff; border-bottom:3px solid var(--brand); padding:12px 16px; position:sticky; top:0; z-index:5; display:flex; align-items:center; justify-content:space-between; gap:10px; box-shadow:0 2px 12px rgba(0,0,0,.18); }
-  .brand { display:flex; align-items:center; gap:10px; min-width:0; }
-  .logo { width:38px; height:38px; border-radius:12px; background:rgba(255,255,255,.18); display:grid; place-items:center; flex:none; }
-  header h1 { margin:0; font-size:17px; font-weight:800; line-height:1.2; }
-  header small { opacity:.85; font-size:12.5px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .seg { display:flex; background:rgba(255,255,255,.18); border-radius:12px; padding:3px; flex:none; }
-  .seg button { margin:0; width:auto; background:transparent; color:#fff; padding:6px 10px; font-size:13px; border-radius:9px; display:flex; align-items:center; gap:4px; font-weight:600; }
-  .seg button.on { background:#fff; color:#1a2c14; }
-  main { padding:14px 16px; max-width:640px; margin:0 auto; }
-  .card { background:var(--card); border-radius:16px; padding:16px; margin-bottom:14px; box-shadow:var(--shadow); border:1px solid var(--line); animation:up .25s ease both; }
-  @keyframes up { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
-  @media (prefers-reduced-motion: reduce) { .card { animation:none; } body { transition:none; } }
-  h2 { font-size:16px; margin:0 0 10px; font-weight:700; }
-  label { display:block; font-size:13.5px; color:var(--mute); margin:12px 0 5px; font-weight:600; }
-  input, select, textarea { width:100%; padding:12px; font-size:16px; border:1.5px solid var(--line); border-radius:12px; background:var(--input); color:var(--ink); font-family:inherit; }
-  input:focus, select:focus, textarea:focus { outline:none; border-color:var(--pri); box-shadow:0 0 0 3px var(--pri-soft); }
-  input[type=file] { padding:10px; }
-  button { font-family:inherit; font-size:16px; font-weight:700; border:0; border-radius:14px; padding:13px 16px; background:var(--pri); color:var(--on-pri); width:100%; margin-top:14px; cursor:pointer; transition:transform .08s, opacity .15s; }
-  button:active { transform:scale(.98); }
-  button:disabled { opacity:.5; }
-  button.ghost { background:var(--pri-soft); color:var(--pri); }
-  button.line { background:transparent; color:var(--pri); border:1.5px solid var(--pri); }
-  button.small { width:auto; margin:0; padding:6px 12px; font-size:14px; }
-  .ic { display:block; flex:none; }
-  nav { position:fixed; bottom:0; left:0; right:0; display:flex; background:var(--card); border-top:1px solid var(--line); z-index:5; padding-bottom:env(safe-area-inset-bottom); }
-  nav button { flex:1; margin:0; border-radius:0; background:transparent; color:var(--mute); padding:8px 4px 9px; font-size:12px; font-weight:600; display:flex; flex-direction:column; align-items:center; gap:3px; }
-  nav button.on { color:var(--pri); }
-  nav button.on span { font-weight:800; }
-  .menu { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
-  .menu button { margin:0; background:var(--card); color:var(--ink); border:1px solid var(--line); box-shadow:var(--shadow); padding:14px 6px 12px; display:flex; flex-direction:column; align-items:center; gap:6px; font-size:14px; font-weight:700; }
-  .menu button .ic { color:var(--pri); }
-  .menu button.on { background:var(--pri); color:var(--on-pri); border-color:var(--pri); }
-  .menu button.on .ic { color:var(--on-pri); }
-  .alert { padding:9px 12px; border-radius:12px; margin-bottom:7px; font-size:14px; background:var(--warn-bg); color:var(--warn); font-weight:600; }
-  .alert.bad { background:var(--bad-bg); color:var(--bad); }
-  .row { border-bottom:1px solid var(--line); padding:10px 0; font-size:14px; }
-  .row:last-child { border:0; padding-bottom:0; }
-  .row b { font-size:15px; }
-  .kv { display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--line); font-size:15px; }
-  .kv:last-child { border:0; }
-  .kv > span:first-child { color:var(--mute); flex:none; }
-  .kv > span:last-child { text-align:right; word-break:break-word; }
-  .mute { color:var(--mute); }
-  a { color:var(--pri); }
-  .thumbs { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
-  .thumbs img { width:64px; height:64px; object-fit:cover; border-radius:10px; }
-  #msg { position:fixed; left:16px; right:16px; bottom:92px; padding:13px; border-radius:14px; color:#fff; display:none; z-index:20; text-align:center; font-weight:700; box-shadow:0 8px 24px rgba(0,0,0,.3); }
-  #msg.ok { background:#0c8a5c; } #msg.err { background:#c2271f; }
-  .hide { display:none; }
-  .center { text-align:center; padding:40px 16px; }
-  /* ทักทาย + รถทั้งหมด */
-  .hello { margin:2px 2px 14px; }
-  .hello b { font-size:21px; font-weight:800; display:block; }
-  .hello span { color:var(--mute); font-size:14px; }
-  .tiles { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .tile { margin:0; background:var(--card); color:var(--ink); border:1px solid var(--line); box-shadow:var(--shadow); border-radius:16px; padding:12px; text-align:left; font-weight:400; display:flex; flex-direction:column; gap:7px; align-items:flex-start; }
-  .tile .mdl { font-size:13px; color:var(--mute); }
-  /* ป้ายทะเบียน */
-  .plate { display:inline-block; min-width:140px; background:#fff; border:3px solid #111; border-radius:11px; padding:3px 12px 5px; box-shadow:0 0 0 2px #fff, 0 0 0 3px #9ca3af; text-align:center; }
-  .plate .no { font-size:29px; font-weight:800; letter-spacing:1px; line-height:1.15; color:#111; white-space:nowrap; }
-  .plate .pv { font-size:13px; font-weight:700; color:#374151; min-height:17px; }
-  .plate.sm { min-width:0; padding:1px 8px 2px; border-width:2px; border-radius:8px; box-shadow:none; }
-  .plate.sm .no { font-size:18px; }
-  .plate.sm .pv { font-size:10.5px; min-height:13px; }
-  /* หัวหน้ารถ */
-  .hd { display:grid; grid-template-columns:auto 1fr; gap:14px; align-items:center; }
-  .hdl { text-align:center; }
-  .hdl .chip { margin-top:10px; }
-  .hdl button { margin-top:9px; padding:7px 8px; font-size:13px; }
-  .cdrow { padding:6px 0; border-bottom:1px solid var(--line); }
-  .cdrow:last-child { border:0; }
-  .cdrow .t { display:flex; justify-content:space-between; gap:6px; font-size:14px; flex-wrap:wrap; align-items:baseline; }
-  .cdrow .t > span:first-child { font-weight:700; }
-  .cdrow .d { font-size:12px; color:var(--mute); text-align:right; }
-  .cdrow .ins { font-size:12.5px; color:var(--ink); text-align:right; font-weight:600; }
-  .cd-ok { color:var(--ok); font-weight:800; } .cd-warn { color:var(--warn); font-weight:800; } .cd-bad { color:var(--bad); font-weight:800; } .cd-na { color:var(--mute); }
-  .exp-bad { color:var(--bad); font-weight:700; } .exp-warn { color:var(--warn); font-weight:700; }
-  .pick { font-size:14px; padding:10px; margin-bottom:12px; }
-  .chip, .badge { display:inline-block; padding:3px 10px; border-radius:99px; font-size:12.5px; font-weight:700; background:var(--bad-bg); color:var(--bad); }
-  .chip.free, .badge.free { background:var(--ok-bg); color:var(--ok); }
-  .chip.warn { background:var(--warn-bg); color:var(--warn); }
-  .tblwrap { overflow-x:auto; margin:0 -4px; }
-  table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
-  .tbl th, .tbl td { padding:8px 6px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; }
-  .tbl th:first-child, .tbl td:first-child { text-align:left; }
-  .tbl thead th { color:var(--mute); font-weight:700; }
-  .tbl tfoot td { font-weight:800; border-bottom:0; }
-  /* ===== หน้าแอดมิน (ออกแบบสำหรับคอมพิวเตอร์) ===== */
-  body.admin { padding-bottom:0; }
-  body.admin main { max-width:none; padding:0; }
-  .adm { display:grid; grid-template-columns:250px minmax(0, 1fr); min-height:calc(100vh - 62px); }
-  .side { background:var(--card); border-right:1px solid var(--line); padding:16px 12px; position:sticky; top:62px; height:calc(100vh - 62px); overflow:auto; display:flex; flex-direction:column; gap:3px; }
-  .side .sec { font-size:12px; color:var(--mute); font-weight:700; letter-spacing:.06em; padding:6px 12px 6px; }
-  .side button, .side-link { margin:0; width:100%; background:transparent; color:var(--ink); display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:11px; font-size:15px; font-weight:600; text-align:left; text-decoration:none; }
-  .side button:hover, .side-link:hover { background:var(--pri-soft); }
-  .side button.on { background:var(--pri); color:var(--on-pri); }
-  .side .cnt { margin-left:auto; background:var(--bad-bg); color:var(--bad); border-radius:99px; padding:1px 9px; font-size:12px; font-weight:800; }
-  .side button.on .cnt { background:rgba(255,255,255,.28); color:inherit; }
-  .side-foot { margin-top:auto; border-top:1px solid var(--line); padding-top:10px; display:flex; flex-direction:column; gap:3px; }
-  .side-foot button { color:var(--mute); font-size:14px; }
-  .adm-main { padding:26px 32px 48px; min-width:0; max-width:1320px; }
-  .ph { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:18px; flex-wrap:wrap; }
-  .ph h1 { font-size:26px; margin:0; font-weight:800; line-height:1.2; }
-  .ph p { margin:4px 0 0; color:var(--mute); font-size:14.5px; }
-  .ph .acts { display:flex; gap:10px; align-items:center; }
-  .ph .acts button { width:auto; margin:0; padding:11px 18px; font-size:15px; }
-  .ph .acts input { width:auto; padding:10px 12px; }
-  .kpis { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px; margin-bottom:18px; }
-  .kpi { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px 18px; box-shadow:var(--shadow); }
-  .kpi .l { color:var(--mute); font-size:13.5px; font-weight:700; }
-  .kpi .v { font-size:30px; font-weight:800; margin-top:2px; font-variant-numeric:tabular-nums; line-height:1.25; }
-  .kpi .s { font-size:13px; color:var(--mute); margin-top:2px; }
-  .kpi.bad .v { color:var(--bad); } .kpi.warn .v { color:var(--warn); } .kpi.ok .v { color:var(--ok); }
-  .split2 { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); gap:18px; align-items:start; margin-bottom:18px; }
-  .split2 > .card, .split > * > .card:last-child { margin-bottom:0; }
-  .split { display:grid; grid-template-columns:minmax(0, 1.6fr) minmax(360px, 1fr); gap:18px; align-items:start; }
-  .sticky { position:sticky; top:84px; }
-  .fgrid { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
-  .fgrid .full { grid-column:1 / -1; }
-  .fgrid input.filled, .fgrid select.filled { border-color:var(--ok); background:var(--ok-bg); }
-  .tblscroll { overflow-x:auto; }
-  table.dt { width:100%; border-collapse:collapse; font-size:14.5px; }
-  .dt th { text-align:left; color:var(--mute); font-weight:700; font-size:13px; padding:10px 12px; border-bottom:1.5px solid var(--line); white-space:nowrap; }
-  .dt td { padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:middle; }
-  .dt tbody tr:hover td { background:var(--bg); }
-  .dt tr.sel td { background:var(--pri-soft); }
-  .dt .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
-  .dt tfoot td { font-weight:800; border-bottom:0; }
-  .dt .sub { font-size:12px; color:var(--mute); margin-top:2px; }
-  .dt .acts { display:flex; gap:6px; justify-content:flex-end; }
-  .card.flush { padding:16px 6px 6px; }
-  .card.flush > h2 { padding:0 12px; }
-  .chip.na { background:var(--bg); color:var(--mute); }
-  .dt .chip, .dt .acts button, .dt .acts a { white-space:nowrap; }
-  .todo { margin:8px 0 0; width:100%; display:flex; justify-content:space-between; align-items:center; gap:10px; text-align:left; background:var(--warn-bg); color:var(--warn); font-size:14.5px; font-weight:600; padding:10px 14px; border-radius:11px; }
-  .todo.bad { background:var(--bad-bg); color:var(--bad); }
-  .adm-gate { max-width:420px; margin:60px auto; padding:0 16px; }
-  /* โลโก้ */
-  .logo.img { width:40px; height:40px; background:#fff; border-radius:11px; padding:3px; display:grid; place-items:center; overflow:hidden; }
-  .logo.img img { max-width:100%; max-height:100%; object-fit:contain; display:block; }
-  .hello { display:flex; align-items:center; gap:14px; }
-  .hello-logo { width:58px; height:58px; flex:none; background:#fff; border:1px solid var(--line); border-radius:16px; padding:5px; box-shadow:var(--shadow); display:grid; place-items:center; }
-  .hello-logo img { max-width:100%; max-height:100%; object-fit:contain; }
-  .hello .co { display:block; font-size:13px; font-weight:700; color:var(--pri); letter-spacing:.02em; }
-  .side-brand { display:flex; align-items:center; gap:10px; padding:4px 10px 14px; margin-bottom:6px; border-bottom:1px solid var(--line); }
-  .side-brand .lg { width:46px; height:46px; flex:none; background:#fff; border:1px solid var(--line); border-radius:12px; padding:4px; display:grid; place-items:center; }
-  .side-brand .lg img { max-width:100%; max-height:100%; object-fit:contain; }
-  .side-brand b { font-size:14.5px; line-height:1.3; }
-  .side-brand small { display:block; color:var(--mute); font-size:12px; }
-  .gate-logo { text-align:center; margin-bottom:12px; }
-  .gate-logo img { max-width:120px; max-height:90px; object-fit:contain; }
-  .qrcell .qlogo { height:34px; max-width:120px; object-fit:contain; display:block; margin:0 auto 4px; }
-  .qrcell .qco { display:block; font-size:12px; font-weight:700; color:#333; margin-bottom:6px; }
-  .logo-prev { width:160px; height:160px; border:1.5px dashed var(--line); border-radius:16px; background:#fff; display:grid; place-items:center; padding:10px; color:#8a93a6; font-size:13px; text-align:center; }
-  .logo-prev img { max-width:100%; max-height:100%; object-fit:contain; }
-  .ocrbox { border:1.5px dashed var(--pri); background:var(--pri-soft); border-radius:14px; padding:14px; margin:4px 0 6px; }
-  .ocrbox b { color:var(--pri); }
-  .desk-note { display:none; }
-  @media (max-width: 899px) {
-    .adm { grid-template-columns:1fr; }
-    .side { position:static; height:auto; flex-direction:row; overflow-x:auto; border-right:0; border-bottom:1px solid var(--line); padding:8px; }
-    .side .sec, .side-foot { display:none; }
-    .side button { width:auto; white-space:nowrap; }
-    .adm-main { padding:16px; }
-    .kpis { grid-template-columns:1fr 1fr; }
-    .split, .split2, .fgrid { grid-template-columns:1fr; }
-    .sticky { position:static; }
-    .desk-note { display:block; }
-  }
-  @media print {
-    body.admin .side, body.admin .ph .acts, body.admin .alert, body.admin .ph p { display:none !important; }
-    body.admin .adm { display:block; }
-    body.admin .adm-main { padding:0; }
-  }
-  details > summary { cursor:pointer; font-weight:700; color:var(--pri); }
-  /* QR (พื้นขาวเสมอเพื่อให้สแกนได้) */
-  .qrgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .qrcell { border:1px solid #d9dee8; border-radius:14px; padding:10px; text-align:center; background:#fff; color:#111; break-inside:avoid; }
-  .qrcell div.q { display:flex; justify-content:center; margin-bottom:6px; }
-  .qrcell b { font-size:18px; display:block; }
-  .qrcell small { color:#555; }
-  #modal { position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:30; display:none; padding:16px; overflow:auto; }
-  #modal .box { background:var(--card); border-radius:16px; padding:14px; max-width:640px; margin:0 auto; }
-  #modal img { width:100%; height:auto; border-radius:10px; }
-  @media print {
-    :root, :root[data-theme="dark"] { --bg:#fff; --card:#fff; --ink:#000; --line:#ddd; }
-    header, nav, #msg, #modal, .noprint { display:none !important; }
-    body { background:#fff; color:#000; padding:0; }
-    .card { box-shadow:none; padding:0; border:0; }
-  }
-</style>
-</head>
-<body>
-<header>
-  <div class="brand"><span class="logo" id="brandLogo" data-i="car"></span><div><h1>รถส่วนกลางศิริกุล</h1><small id="who">กำลังโหลด...</small></div></div>
-  <div class="seg" role="group" aria-label="ธีม">
-    <button data-th="light"><i data-i="sun" data-s="14"></i>ปกติ</button>
-    <button data-th="dark"><i data-i="moon" data-s="14"></i>มืด</button>
-  </div>
-</header>
-<main id="app"><div class="center mute">กำลังโหลด...</div></main>
-<div id="msg"></div>
-<div id="modal"><div class="box"><div id="modalBody"></div><button class="ghost" id="modalClose">ปิด</button></div></div>
-<nav id="nav" class="hide">
-  <button data-t="home" class="on"><i data-i="home"></i><span>หน้าแรก</span></button>
-  <button data-t="car"><i data-i="car"></i><span>รถ</span></button>
-  <button data-t="expense"><i data-i="receipt"></i><span>ค่าใช้จ่าย</span></button>
-</nav>
-
-<script type="application/json" id="boot"><?!= JSON.stringify({ car: initialCar, plate: initialPlate, admin: adminMode }) ?></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script>
-/* ===== ที่อยู่ของระบบ =====
-   หน้าเว็บนี้ใช้ได้ 2 แบบ: (1) เปิดผ่าน Apps Script โดยตรง (2) เปิดจาก GitHub Pages แล้วเรียก Apps Script ผ่าน API
-   ถ้าสร้าง deployment ใหม่ใน Apps Script จนลิงก์เปลี่ยน ให้แก้ API_URL ตรงนี้ */
+/* ===== ระบบรถส่วนกลางศิริกุล — หน้าเว็บ (GitHub Pages) =====
+   หน้าจอและการคำนวณทั้งหมดอยู่ในไฟล์นี้ ข้อมูลเก็บใน Google Sheets / Drive ผ่าน Apps Script (API_URL)
+   ถ้าสร้าง deployment ใหม่ใน Apps Script จนลิงก์ /exec เปลี่ยน ให้แก้ API_URL */
 var API_URL = 'https://script.google.com/macros/s/AKfycbwzROKf1b1TM17Gr4dtmhMWgJ_DL5V5xPrOKWj29mIYMp3e-oif8mOkeDYN-Hd-4xKJ/exec';
-var PUBLIC_URL = 'https://sirikulacc-tech.github.io/-sirikul/'; // ลิงก์ที่ใส่ใน QR
-var IN_GAS = !!(window.google && google.script && google.script.run);
+var PUBLIC_URL = location.href.split(/[?#]/)[0]; // ลิงก์หน้าเว็บนี้ ใช้ทำ QR
 var QS = new URLSearchParams(location.search);
 var INITIAL_CAR = (QS.get('car') || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 40);
 var INITIAL_PLATE = (QS.get('plate') || '').replace(/[^\wก-๙\- ]/g, '').slice(0, 20);
 var ADMIN_MODE = QS.get('admin') === '1'; // หน้าแอดมิน = ลิงก์ + ?admin=1
-try { // ค่าที่ Apps Script ส่งมา (เมื่อเปิดผ่าน Apps Script ซึ่งอ่าน location.search ของแอปไม่ได้)
-  var BOOT = JSON.parse(document.getElementById('boot').textContent);
-  INITIAL_CAR = BOOT.car || INITIAL_CAR; INITIAL_PLATE = BOOT.plate || INITIAL_PLATE; ADMIN_MODE = !!BOOT.admin || ADMIN_MODE;
-} catch (e) { /* เปิดจาก GitHub Pages: ใช้ค่าจากลิงก์ */ }
-var S = { company:'', logo:'', removed:[], name:'', profiles:{}, dlist:null, pin:'', pinRequired:false, asub:'overview', carForm:false, rmonth:'', report:null, exportUrl:'', exportName:'', drivers:[], cars:[], types:[], mtypes:[], alerts:[], usage:[], expenses:[], open:[], appUrl:'',
+var S = { company:'', logo:'', removed:[], name:'', profiles:{}, dlist:null, pin:'', pinRequired:false, asub:'overview', carForm:false, rmonth:'', report:null, reportData:null, allUsage:[], maint:[], drivers:[], cars:[], types:[], mtypes:[], alerts:[], usage:[], expenses:[], open:[], appUrl:'',
           plate:'', sub:'trip', tab:'home', edit:'', hist:{}, mopen:false, mdef:'', busy:false };
 var $ = function (s) { return document.querySelector(s); };
 
@@ -283,20 +27,12 @@ function toast(text, kind) {
   var m = $('#msg'); m.textContent = text; m.className = kind; m.style.display = 'block';
   setTimeout(function () { m.style.display = 'none'; }, 3500);
 }
+// ส่งคำขอไป Apps Script แบบ text/plain (ไม่ต้องขออนุญาต CORS ล่วงหน้า) และไม่ส่งคุกกี้ Google
 function call(action, payload) {
-  if (!IN_GAS) {
-    // GitHub Pages: ส่งเป็น text/plain เพื่อไม่ให้เบราว์เซอร์ต้องขออนุญาต CORS ล่วงหน้า และไม่ส่งคุกกี้ Google
-    return fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: action, payload: payload || {} }), credentials: 'omit', redirect: 'follow' })
-      .then(function (r) { if (!r.ok) throw new Error('เชื่อมต่อระบบไม่ได้ (' + r.status + ')'); return r.json(); })
-      .catch(function (e) { throw new Error(/Failed to fetch|NetworkError|Load failed/.test(e.message) ? 'เชื่อมต่ออินเทอร์เน็ตไม่ได้ ลองใหม่อีกครั้ง' : e.message); })
-      .then(function (r) { if (r && r.ok) return r.data; throw new Error(r ? r.error : 'ไม่มีการตอบกลับ'); });
-  }
-  return new Promise(function (resolve, reject) {
-    google.script.run
-      .withSuccessHandler(function (r) { r && r.ok ? resolve(r.data) : reject(new Error(r ? r.error : 'ไม่มีการตอบกลับ')); })
-      .withFailureHandler(function (e) { reject(new Error(e.message || String(e))); })
-      .api(action, payload);
-  });
+  return fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: action, payload: payload || {} }), credentials: 'omit', redirect: 'follow' })
+    .then(function (r) { if (!r.ok) throw new Error('เชื่อมต่อระบบไม่ได้ (' + r.status + ')'); return r.json(); })
+    .catch(function (e) { throw new Error(/Failed to fetch|NetworkError|Load failed|JSON/.test(e.message) ? 'เชื่อมต่อระบบไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่' : e.message); })
+    .then(function (r) { if (r && r.ok) return r.data; throw new Error(r ? r.error : 'ไม่มีการตอบกลับ'); });
 }
 // ที่เก็บในเครื่อง (อาจถูกบล็อกในบางเบราว์เซอร์ จึงครอบ try ไว้ทุกครั้ง)
 function sget(store, k) { try { return window[store].getItem(k) || ''; } catch (e) { return ''; } }
@@ -568,19 +304,19 @@ function viewTrip(car, t) {
   }
 }
 
-function histOf(plate) { var x = S.hist[plate]; return x && x !== 'loading' ? x : null; }
-function ensureHist() {
-  var plate = S.plate;
-  if (S.hist[plate]) return;
-  S.hist[plate] = 'loading';
-  call('carHistory', { plate: plate }).then(function (d) { S.hist[plate] = d; render(); })
-    .catch(function (e) { delete S.hist[plate]; toast(e.message, 'err'); });
+// ประวัติของรถคำนวณจากข้อมูลที่โหลดมาแล้ว (การใช้รถย้อนหลัง 12 เดือน, ซ่อมบำรุงทั้งหมด)
+function histOf(plate) {
+  return {
+    usage: S.allUsage.filter(function (u) { return u.plate === plate; }).slice().reverse().slice(0, 100),
+    maint: S.maint.filter(function (m) { return m.plate === plate; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 100)
+  };
 }
+function ensureHist() { /* ไม่ต้องโหลดเพิ่ม */ }
 
 function viewHistory(car) {
   var d = histOf(car.plate);
   if (!d) return '<div class="card center mute">กำลังโหลดประวัติ...</div>';
-  return '<div class="card"><h2>ประวัติการใช้รถ (ล่าสุด ' + d.usage.length + ' รายการ)</h2>' + (d.usage.length ? d.usage.map(function (u) {
+  return '<div class="card"><h2>ประวัติการใช้รถ 12 เดือนล่าสุด (' + d.usage.length + ' รายการ)</h2>' + (d.usage.length ? d.usage.map(function (u) {
     var km = u.status === 'open' ? '<span class="badge">ยังไม่คืนรถ</span>' : u.status === 'cancelled' ? '<span class="badge">' + esc(u.returnName || 'ยกเลิก') + '</span>' : (u.odoEnd - u.odoStart) + ' กม. · คืน ' + thTime(u.returnTs) + (u.returnName && u.returnName !== u.name ? ' โดย ' + esc(u.returnName) : '');
     return '<div class="row"><b>' + esc(u.name) + '</b> · ' + thTime(u.ts) + '<br>ไปที่: ' + esc(u.purpose) +
       '<br><span class="mute">ไมล์ ' + esc(u.odoStart) + (u.odoEnd !== '' ? ' → ' + esc(u.odoEnd) : '') + ' · ' + km + '</span>' +
@@ -589,6 +325,50 @@ function viewHistory(car) {
 }
 
 var SERVICE = 'ตรวจเช็คตามระยะ';
+
+/* ---------- แยกข้อมูลจากข้อความสำเนาทะเบียน (ผล OCR อาจวางค่าไว้บรรทัดเดียวกับหัวข้อ หรือบรรทัดถัดไป) ---------- */
+var PROVINCES = ['กรุงเทพมหานคร', 'กระบี่', 'กาญจนบุรี', 'กาฬสินธุ์', 'กำแพงเพชร', 'ขอนแก่น', 'จันทบุรี', 'ฉะเชิงเทรา', 'ชลบุรี', 'ชัยนาท',
+  'ชัยภูมิ', 'ชุมพร', 'เชียงราย', 'เชียงใหม่', 'ตรัง', 'ตราด', 'ตาก', 'นครนายก', 'นครปฐม', 'นครพนม', 'นครราชสีมา', 'นครศรีธรรมราช',
+  'นครสวรรค์', 'นนทบุรี', 'นราธิวาส', 'น่าน', 'บึงกาฬ', 'บุรีรัมย์', 'ปทุมธานี', 'ประจวบคีรีขันธ์', 'ปราจีนบุรี', 'ปัตตานี',
+  'พระนครศรีอยุธยา', 'พะเยา', 'พังงา', 'พัทลุง', 'พิจิตร', 'พิษณุโลก', 'เพชรบุรี', 'เพชรบูรณ์', 'แพร่', 'ภูเก็ต', 'มหาสารคาม',
+  'มุกดาหาร', 'แม่ฮ่องสอน', 'ยโสธร', 'ยะลา', 'ร้อยเอ็ด', 'ระนอง', 'ระยอง', 'ราชบุรี', 'ลพบุรี', 'ลำปาง', 'ลำพูน', 'เลย', 'ศรีสะเกษ',
+  'สกลนคร', 'สงขลา', 'สตูล', 'สมุทรปราการ', 'สมุทรสงคราม', 'สมุทรสาคร', 'สระแก้ว', 'สระบุรี', 'สิงห์บุรี', 'สุโขทัย', 'สุพรรณบุรี',
+  'สุราษฎร์ธานี', 'สุรินทร์', 'หนองคาย', 'หนองบัวลำภู', 'อ่างทอง', 'อำนาจเจริญ', 'อุดรธานี', 'อุตรดิตถ์', 'อุทัยธานี', 'อุบลราชธานี'];
+function parseRegText(raw) {
+  var text = String(raw || '').replace(/\r/g, '');
+  var lines = text.split('\n').map(function (l) { return l.replace(/\s+/g, ' ').trim(); }).filter(Boolean);
+  var pick = function (labelRe, valueRe) {
+    for (var i = 0; i < lines.length; i++) {
+      var lm = labelRe.exec(lines[i]);
+      if (!lm) continue;
+      var cands = [lines[i].slice(lm.index + lm[0].length), lines[i + 1] || '', lines[i + 2] || ''];
+      for (var j = 0; j < cands.length; j++) {
+        var v = valueRe.exec(cands[j].replace(/^[\s:.\-]+/, ''));
+        if (v) return String(v[1] || v[0]).trim();
+      }
+    }
+    return '';
+  };
+  var provRe = new RegExp('(' + PROVINCES.join('|') + ')');
+  var plateRe = /((?:[0-9]\s?)?[ก-ฮ]{1,3}\s?-?\s?[0-9]{1,4})(?![0-9])/;
+  var out = {};
+  var plate = pick(/เลขทะเบียน/, plateRe) || (plateRe.exec(text) || [])[1] || '';
+  out.plate = plate.replace(/\s*-\s*/, ' ').replace(/^([0-9])\s+([ก-ฮ])/, '$1$2').replace(/([ก-ฮ])\s*([0-9])/, '$1 $2');
+  out.province = pick(/จังหวัด/, provRe) || (provRe.exec(text) || [])[1] || (/กรุงเทพ/.test(text) ? 'กรุงเทพมหานคร' : '');
+  var brand = pick(/ยี่ห้อรถ|ยี่ห้อ(?!เครื่อง)/, /([A-Za-z][A-Za-z\- ]{1,20})/).toUpperCase();
+  var model = pick(/แบบ(?!รถ)|รุ่น(?!ปี)/, /([A-Za-z0-9][A-Za-z0-9\- ]{0,25})/).toUpperCase();
+  if (brand && model.indexOf(brand) === 0) model = model.slice(brand.length).trim();
+  out.model = [brand, model].filter(Boolean).join(' ');
+  var yr = pick(/รุ่นปี|ปี\s*ค\.?\s*ศ/, /((?:19|20|25)[0-9]{2})/);
+  out.year = yr ? String(Number(yr) > 2400 ? Number(yr) - 543 : Number(yr)) : '';
+  out.color = pick(/(?:^|\s)สี(?![ก-๙]*เครื่อง)/, /([ก-๙]{2,}(?: ?[ก-๙]{2,})?)/);
+  out.vin = (pick(/เลขตัวรถ|เลขตัวถัง|เลขถัง/, /([A-HJ-NPR-Z0-9]{8,20})/i) || (/\b([A-HJ-NPR-Z0-9]{17})\b/i.exec(text) || [])[1] || '').toUpperCase();
+  out.engineNo = pick(/เลขเครื่องยนต์|เลขเครื่อง/, /([A-Z0-9][A-Z0-9\-]{4,20})/i).toUpperCase();
+  out.fuel = pick(/เชื้อเพลิง/, /(เบนซิน|ดีเซล|ไฟฟ้า|ไฮบริด|LPG|NGV|แก๊ส[ก-๙]*)/i);
+  Object.keys(out).forEach(function (k) { if (!out[k]) delete out[k]; });
+  return out;
+}
+
 var OCR_LABELS = { plate: 'ทะเบียน', province: 'จังหวัด', model: 'ยี่ห้อ/รุ่น', year: 'ปี', color: 'สี', fuel: 'เชื้อเพลิง', vin: 'เลขตัวถัง', engineNo: 'เลขเครื่อง' };
 var INSURERS = ['วิริยะประกันภัย', 'ทิพยประกันภัย', 'กรุงเทพประกันภัย', 'สินมั่นคงประกันภัย', 'เมืองไทยประกันภัย', 'ไทยศรีประกันภัย', 'ไทยประกันภัย', 'อินทรประกันภัย', 'ชับบ์สามัคคีประกันภัย', 'แอลเอ็มจี ประกันภัย', 'เอเชียประกันภัย 1950', 'นวกิจประกันภัย', 'ไทยวิวัฒน์ประกันภัย', 'ธนชาตประกันภัย', 'โตเกียวมารีนประกันภัย'];
 
@@ -855,9 +635,8 @@ function admReport() {
     : '<div class="mute" style="padding:0 12px 12px">ไม่มีข้อมูลในเดือนนี้</div>') + '</div>';
   h += '<div class="split2" style="margin-top:18px"><div class="card flush"><h2>ต่อคนขับ</h2>' + (r.byDriver.length ? dt(['ชื่อ', 'เที่ยว', 'ระยะทาง (กม.)', 'ยังไม่คืน'],
     r.byDriver.map(function (x) { return [esc(x.name), x.trips, km(x.km), x.open || '-']; }), [1, 2, 3]) : '<div class="mute" style="padding:0 12px 12px">ไม่มีการใช้รถในเดือนนี้</div>') + '</div>';
-  h += '<div class="card"><h2>ไฟล์รายงาน</h2><div class="mute" style="font-size:14px">สร้างเป็น Google Sheet ในโฟลเดอร์ "รถส่วนกลางศิริกุล/รายงาน" มีแท็บสรุปต่อคัน ต่อคนขับ รายการใช้รถ ค่าใช้จ่าย และซ่อมบำรุง ดาวน์โหลดเป็น Excel ได้</div>' +
-    '<button class="ghost" data-act="export">สร้างไฟล์ Google Sheet</button>' +
-    (S.exportUrl ? '<div style="margin-top:10px"><a href="' + esc(S.exportUrl) + '" target="_blank" rel="noopener">เปิดไฟล์ ' + esc(S.exportName) + '</a><div class="mute" style="font-size:13px">ต้องล็อกอินบัญชี Google ที่เป็นเจ้าของ Drive จึงจะเปิดได้</div></div>' : '') + '</div></div>';
+  h += '<div class="card"><h2>ไฟล์รายงาน</h2><div class="mute" style="font-size:14px">ดาวน์โหลดเป็นไฟล์ Excel มีแท็บสรุปต่อคัน ต่อคนขับ รายการใช้รถ ค่าใช้จ่าย และซ่อมบำรุง</div>' +
+    '<button class="ghost" data-act="export">ดาวน์โหลด Excel</button></div></div>';
   return h;
 }
 
@@ -901,6 +680,7 @@ function bindForms() {
       if (file.type === 'application/pdf' && file.size > 4 * 1024 * 1024) throw new Error('ไฟล์ PDF ใหญ่เกิน 4 MB');
       pendingReg = data; // เก็บเป็นสำเนาทะเบียนเมื่อกดบันทึก
       var r = await call('ocrRegDoc', { file: data, pin: S.pin });
+      r.fields = parseRegText(r.text);
       var editing = !!E['id'].value, got = [];
       Object.keys(OCR_LABELS).forEach(function (k) {
         var v = r.fields[k];
@@ -1043,12 +823,67 @@ async function runReport(btn) {
   var m = ($('#rMonth').value || '').slice(0, 7);
   if (!/^\d{4}-\d{2}$/.test(m)) return toast('กรุณาเลือกเดือน', 'err');
   S.rmonth = m;
-  try { S.report = await busyCall(btn, 'report', { month: m, pin: S.pin }); S.exportUrl = ''; render(); }
+  try { S.reportData = await busyCall(btn, 'monthData', { month: m, pin: S.pin }); S.report = buildReport(m, S.reportData); render(); }
   catch (e) { toast(e.message, 'err'); }
 }
+
+// สรุปรายงานรายเดือนจากข้อมูลดิบของเดือนนั้น (ไม่นับรายการที่ยกเลิก)
+function buildReport(month, d) {
+  var cars = {}, drivers = {};
+  var car = function (pl) { return cars[pl] || (cars[pl] = { plate: pl, trips: 0, km: 0, fuel: 0, other: 0, maint: 0 }); };
+  var drv = function (n) { return drivers[n] || (drivers[n] = { name: n, trips: 0, km: 0, open: 0 }); };
+  d.usage.forEach(function (u) {
+    if (u.status === 'cancelled') return;
+    var k = u.status === 'closed' && u.odoEnd !== '' ? Number(u.odoEnd) - Number(u.odoStart) : 0;
+    var c = car(u.plate); c.trips++; c.km += k;
+    var r = drv(u.name || '(ไม่ระบุ)'); r.trips++; r.km += k; if (u.status === 'open') r.open++;
+  });
+  d.expenses.forEach(function (e) { var c = car(e.plate); if (e.type === 'น้ำมัน') c.fuel += Number(e.amount) || 0; else c.other += Number(e.amount) || 0; });
+  d.maint.forEach(function (m) { car(m.plate).maint += Number(m.cost) || 0; });
+  var byCar = Object.keys(cars).sort().map(function (k) { var c = cars[k]; c.total = c.fuel + c.other + c.maint; c.perKm = c.km > 0 ? c.total / c.km : null; return c; });
+  var totals = byCar.reduce(function (t, c) { ['trips', 'km', 'fuel', 'other', 'maint', 'total'].forEach(function (k) { t[k] += c[k]; }); return t; }, { trips: 0, km: 0, fuel: 0, other: 0, maint: 0, total: 0 });
+  totals.perKm = totals.km > 0 ? totals.total / totals.km : null;
+  return { month: month, byCar: byCar, byDriver: Object.keys(drivers).map(function (k) { return drivers[k]; }).sort(function (a, b) { return b.km - a.km; }), totals: totals };
+}
+
+// ดาวน์โหลดรายงานเป็น Excel (โหลดตัวสร้างไฟล์เมื่อกดเท่านั้น)
+function loadXlsx() {
+  if (window.XLSX) return Promise.resolve();
+  return new Promise(function (resolve, reject) {
+    var sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    sc.onload = function () { resolve(); }; sc.onerror = function () { reject(new Error('โหลดตัวสร้างไฟล์ Excel ไม่ได้')); };
+    document.head.appendChild(sc);
+  });
+}
 async function exportReport(btn) {
-  try { var d = await busyCall(btn, 'exportReport', { month: S.report.month, pin: S.pin }); S.exportUrl = d.url; S.exportName = d.name; render(); toast('สร้างไฟล์รายงานแล้ว', 'ok'); }
-  catch (e) { toast(e.message, 'err'); }
+  var r = S.report, d = S.reportData; if (!r || !d) return;
+  var txt = btn.textContent; btn.disabled = true; btn.textContent = 'กำลังสร้างไฟล์...';
+  try {
+    await loadXlsx();
+    var n2 = function (v) { return v == null ? '' : Math.round(v * 100) / 100; };
+    var wb = XLSX.utils.book_new();
+    var add = function (name, rows) { var ws = XLSX.utils.aoa_to_sheet(rows); ws['!cols'] = rows[0].map(function () { return { wch: 16 }; }); XLSX.utils.book_append_sheet(wb, ws, name); };
+    add('สรุปต่อคัน', [['ทะเบียน', 'จำนวนเที่ยว', 'ระยะทาง (กม.)', 'ค่าน้ำมัน', 'ค่าใช้จ่ายอื่น', 'ค่าซ่อมบำรุง', 'รวม', 'ต้นทุนต่อ กม.']]
+      .concat(r.byCar.map(function (c) { return [c.plate, c.trips, c.km, n2(c.fuel), n2(c.other), n2(c.maint), n2(c.total), n2(c.perKm)]; }))
+      .concat([['รวม', r.totals.trips, r.totals.km, n2(r.totals.fuel), n2(r.totals.other), n2(r.totals.maint), n2(r.totals.total), n2(r.totals.perKm)]]));
+    add('สรุปต่อคนขับ', [['ชื่อ', 'จำนวนเที่ยว', 'ระยะทาง (กม.)', 'ยังไม่คืนรถ']].concat(r.byDriver.map(function (x) { return [x.name, x.trips, x.km, x.open]; })));
+    add('รายการใช้รถ', [['เวลาเบิก', 'ทะเบียน', 'ผู้เบิก', 'ไปที่ไหน/ทำอะไร', 'ไมล์ก่อน', 'ไมล์หลัง', 'ระยะทาง', 'เวลาคืน', 'ผู้คืน', 'สถานะ']]
+      .concat(d.usage.map(function (u) {
+        return [u.ts, u.plate, u.name, u.purpose, u.odoStart, u.odoEnd, u.odoEnd !== '' ? Number(u.odoEnd) - Number(u.odoStart) : '', u.returnTs, u.returnName,
+          u.status === 'open' ? 'ยังไม่คืน' : u.status === 'cancelled' ? 'ยกเลิก' : 'คืนแล้ว'];
+      })));
+    add('ค่าใช้จ่าย', [['วันที่', 'ทะเบียน', 'ประเภท', 'จำนวนเงิน', 'หมายเหตุ', 'ผู้บันทึก']].concat(d.expenses.map(function (e) { return [e.date, e.plate, e.type, Number(e.amount) || 0, e.note, e.name]; })));
+    add('ซ่อมบำรุง', [['วันที่', 'ทะเบียน', 'ประเภท', 'รายละเอียด', 'อู่/ร้าน', 'เลขไมล์', 'ค่าใช้จ่าย', 'ผู้บันทึก']].concat(d.maint.map(function (m) { return [m.date, m.plate, m.type, m.detail, m.shop, m.odo, m.cost, m.name]; })));
+    var out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    var url = URL.createObjectURL(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    var a = document.createElement('a');
+    a.href = url; a.download = 'Sirikul-car-report-' + (Number(r.month.slice(0, 4)) + 543) + '-' + r.month.slice(5, 7) + '.xlsx'; // ชื่อไฟล์ภาษาอังกฤษ ดาวน์โหลดได้ทุกเบราว์เซอร์
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+    toast('ดาวน์โหลดไฟล์ Excel แล้ว', 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+  btn.disabled = false; btn.textContent = txt;
 }
 
 function hook(sel, action, build, okMsg, after, check) {
@@ -1075,7 +910,7 @@ function hook(sel, action, build, okMsg, after, check) {
   });
 }
 
-function carUrl(c) { return (PUBLIC_URL || S.appUrl) + '?car=' + encodeURIComponent(c.id); }
+function carUrl(c) { return PUBLIC_URL + '?car=' + encodeURIComponent(c.id); }
 function drawQr() {
   var g = $('#qrgrid'); if (!g || !window.QRCode || !S.appUrl) return;
   S.cars.forEach(function (c) {
@@ -1093,13 +928,44 @@ function drawQr() {
   });
 }
 
+// โหลดข้อมูลดิบ แล้วคำนวณสถานะรถ เลขไมล์ล่าสุด แจ้งเตือน และรายการล่าสุดบนหน้าเว็บ
 async function load() {
-  var d = await call('bootstrap');
+  var d = await call('data');
   S.company = (d.settings && d.settings.company) || ''; S.logo = (d.settings && d.settings.logo) || '';
-  S.removed = d.removedCars || []; S.drivers = d.drivers || []; S.pinRequired = !!d.pinRequired; if (!S.pinRequired) S.pin = ''; S.cars = d.cars; S.types = d.expenseTypes; S.mtypes = d.maintTypes; S.alerts = d.alerts;
-  S.usage = d.recentUsage; S.expenses = d.recentExpenses; S.open = d.openTrips; S.appUrl = PUBLIC_URL || d.appUrl;
+  S.pinRequired = !!d.pinRequired; if (!S.pinRequired) S.pin = '';
+  S.types = d.expenseTypes; S.mtypes = d.maintTypes;
+  S.allUsage = d.usage; S.maint = d.maintenance;
+  var last = {};
+  d.usage.forEach(function (u) { if (u.status !== 'cancelled') last[u.plate] = u.odoEnd !== '' ? u.odoEnd : u.odoStart; });
+  S.cars = d.cars.filter(function (c) { return c.active !== 'N'; }).map(function (c) { c.lastOdo = last[c.plate] == null ? '' : last[c.plate]; return c; });
+  S.removed = d.cars.filter(function (c) { return c.active === 'N'; });
+  S.open = d.usage.filter(function (u) { return u.status === 'open'; });
+  S.usage = d.usage.slice().reverse().slice(0, 10);
+  S.expenses = d.expenses.slice().reverse().slice(0, 10);
+  S.alerts = buildAlerts(S.cars, S.maint);
+  var seen = {}; S.drivers = [];
+  d.driverNames.concat(d.usage.slice(-300).map(function (u) { return u.name; })).forEach(function (n) { if (n && !seen[n]) { seen[n] = 1; S.drivers.push(String(n)); } });
+  S.appUrl = PUBLIC_URL;
   showWho();
   $('#nav').classList.remove('hide');
+}
+
+// แจ้งเตือน พ.ร.บ./ภาษี/ประกัน และกำหนดซ่อมครั้งต่อไป ภายใน 30 วัน
+function buildAlerts(cars, maint) {
+  var t = today(), limit = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10), out = [], plates = {};
+  cars.forEach(function (c) {
+    plates[c.plate] = true;
+    [['พ.ร.บ.', c.actExp], ['ภาษี', c.taxExp], ['ประกัน', c.insExp]].forEach(function (p) {
+      if (p[1] && p[1] <= limit) out.push({ plate: c.plate, what: p[0], date: p[1], expired: p[1] < t });
+    });
+  });
+  var latest = {};
+  maint.forEach(function (m) { var k = m.plate + '|' + m.type; if (!latest[k] || m.date >= latest[k].date) latest[k] = m; });
+  Object.keys(latest).forEach(function (k) {
+    var m = latest[k];
+    if (plates[m.plate] && m.nextDate && m.nextDate <= limit) out.push({ plate: m.plate, what: 'ซ่อมบำรุง: ' + m.type, date: m.nextDate, expired: m.nextDate < t });
+  });
+  return out.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
 }
 
 document.querySelectorAll('.seg button').forEach(function (b) {
@@ -1124,6 +990,3 @@ load().then(function () {
   $('#who').textContent = '';
   $('#app').innerHTML = '<div class="card"><h2>เข้าใช้งานไม่ได้</h2>' + esc(e.message) + '</div>';
 });
-</script>
-</body>
-</html>

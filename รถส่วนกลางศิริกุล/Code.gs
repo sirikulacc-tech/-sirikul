@@ -1,5 +1,8 @@
 /**
- * ระบบบันทึกรถส่วนกลางศิริกุล
+ * ระบบรถส่วนกลางศิริกุล — ส่วนหลังบ้าน (ประตูเก็บข้อมูล)
+ * - หน้าเว็บและการคำนวณทั้งหมดอยู่บน GitHub Pages: https://sirikulacc-tech.github.io/-sirikul/
+ * - ไฟล์นี้ทำหน้าที่: อ่าน/เขียน Google Sheet, เก็บรูปลง Drive, และตรวจกฎที่เลี่ยงไม่ได้
+ *   (กันเบิกซ้อน, รหัสแอดมิน, ตรวจข้อมูลก่อนบันทึก, ไม่มีคำสั่งลบข้อมูล)
  * - ข้อมูลเก็บใน Google Sheet (สร้างอัตโนมัติด้วย setup())
  * - ใน Drive มีโฟลเดอร์ "รถส่วนกลางศิริกุล" เก็บ Sheet และโฟลเดอร์ย่อย "รูปภาพ" (แยกรายเดือน)
  * - ใครมีลิงก์ก็ใช้ได้ (ไม่ต้องล็อกอิน) คนขับกรอกชื่อเอง
@@ -8,6 +11,7 @@
  */
 
 const TZ = 'Asia/Bangkok';
+const PUBLIC_URL = 'https://sirikulacc-tech.github.io/-sirikul/'; // ที่อยู่หน้าเว็บของระบบ
 const MAX_IMAGES = 5;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024; // ต่อรูป หลัง decode
 const MAINT_TYPES = ['เปลี่ยนน้ำมันเครื่อง', 'ยาง', 'แบตเตอรี่', 'เบรก', 'ตรวจเช็คตามระยะ', 'ซ่อมทั่วไป', 'ตรวจสภาพ', 'อื่นๆ'];
@@ -123,15 +127,16 @@ function disableAdminPin() {
 
 /* ---------- Web app ---------- */
 function doGet(e) {
-  // QR ใช้รหัสประจำรถ (?car=...) ซึ่งไม่เปลี่ยนแม้แก้ทะเบียน (?plate=... ยังรองรับ)
-  // กรองเหลือเฉพาะตัวอักษรที่ปลอดภัยก่อนฝังลงหน้า
+  // หน้าเว็บย้ายไป GitHub Pages แล้ว ลิงก์นี้พาไปหน้าใหม่ (ส่งต่อ ?car= / ?admin= ให้ด้วย)
   const q = (e && e.parameter) || {};
-  const t = HtmlService.createTemplateFromFile('index');
-  t.initialCar = String(q.car || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 40);
-  t.initialPlate = String(q.plate || '').replace(/[^\wก-๙\- ]/g, '').slice(0, 20);
-  t.adminMode = q.admin === '1'; // หน้าแอดมิน (คอมพิวเตอร์) = ลิงก์แอป + ?admin=1
-  return t.evaluate()
-    .setTitle(t.adminMode ? 'แอดมิน · รถส่วนกลางศิริกุล' : 'รถส่วนกลางศิริกุล')
+  const qs = ['car', 'plate', 'admin'].filter(function (k) { return q[k]; })
+    .map(function (k) { return k + '=' + encodeURIComponent(String(q[k]).slice(0, 40)); }).join('&');
+  const url = PUBLIC_URL + (qs ? '?' + qs : '');
+  return HtmlService.createHtmlOutput(
+    '<div style="font-family:sans-serif;text-align:center;padding:40px 16px">' +
+    '<h2>ระบบรถส่วนกลางศิริกุลย้ายไปที่ลิงก์ใหม่</h2>' +
+    '<p><a href="' + url + '" target="_top" style="font-size:20px">กดที่นี่เพื่อเปิดระบบ</a></p></div>')
+    .setTitle('รถส่วนกลางศิริกุล')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
@@ -153,22 +158,23 @@ function api(action, payload) {
   try {
     payload = payload || {};
     switch (action) {
-      case 'bootstrap': return ok_(bootstrap_());
+      // อ่านข้อมูล (หน้าเว็บนำไปคำนวณเอง)
+      case 'data': return ok_(data_());
+      case 'getRegDoc': return ok_(getRegDoc_(payload));
+      // บันทึกของคนขับ
       case 'checkout': return ok_(checkout_(payload));
       case 'returnCar': return ok_(returnCar_(payload));
       case 'addExpense': return ok_(addExpense_(payload));
-      case 'carHistory': return ok_(carHistory_(payload));
       case 'addMaintenance': return ok_(addMaintenance_(payload));
-      case 'getRegDoc': return ok_(getRegDoc_(payload));
+      // งานแอดมิน (ต้องผ่านรหัสแอดมินเมื่อเปิดใช้)
       case 'checkPin': requirePin_(payload.pin); return ok_(true);
+      case 'monthData': requirePin_(payload.pin); return ok_(monthDataClean_(payload.month));
+      case 'listDrivers': requirePin_(payload.pin); return ok_(listDrivers_());
       case 'saveCar': requirePin_(payload.pin); return ok_(saveCar_(payload));
       case 'setCarActive': requirePin_(payload.pin); return ok_(setCarActive_(payload));
-      case 'ocrRegDoc': requirePin_(payload.pin); return ok_(ocrRegDoc_(payload));
-      case 'saveSettings': requirePin_(payload.pin); return ok_(saveSettings_(payload));
       case 'cancelTrip': requirePin_(payload.pin); return ok_(cancelTrip_(payload));
-      case 'report': requirePin_(payload.pin); return ok_(report_(payload));
-      case 'exportReport': requirePin_(payload.pin); return ok_(exportReport_(payload));
-      case 'listDrivers': requirePin_(payload.pin); return ok_(listDrivers_());
+      case 'saveSettings': requirePin_(payload.pin); return ok_(saveSettings_(payload));
+      case 'ocrRegDoc': requirePin_(payload.pin); return ok_(ocrRegDoc_(payload));
       default: throw new Error('ไม่รู้จักคำสั่ง');
     }
   } catch (e) {
@@ -199,73 +205,42 @@ function name_(v) {
   return n;
 }
 
-/* ---------- เริ่มต้น ---------- */
-function bootstrap_() {
+/* ---------- อ่านข้อมูลให้หน้าเว็บ ---------- */
+// ส่งข้อมูลดิบ: รถทุกคัน, การใช้รถ 12 เดือนล่าสุด (+ รายการที่ยังไม่คืน + รายการล่าสุดของแต่ละคันเพื่อหาเลขไมล์),
+// ค่าใช้จ่าย 12 เดือน, ซ่อมบำรุงทั้งหมด, รายชื่อคนขับ (ชื่ออย่างเดียว ไม่มีเบอร์โทร), ตั้งค่า
+function data_() {
+  const since = Utilities.formatDate(new Date(Date.now() - 365 * 86400000), TZ, 'yyyy-MM-dd');
   const usage = readRows_('usage');
-  const last = {};
-  usage.forEach(function (u) { if (u.status !== 'cancelled') last[u.plate] = u.odoEnd !== '' ? u.odoEnd : u.odoStart; });
-  const allCars = readRows_('cars');
-  const removed = allCars.filter(function (c) { return c.active === 'N'; })
-    .map(function (c) { return { id: c.id, plate: c.plate, model: c.model }; });
-  const cars = allCars.filter(function (c) { return c.active !== 'N'; }).map(function (c) {
-    c.lastOdo = last[c.plate] == null ? '' : last[c.plate];
-    return c;
-  });
-  const open = usage.filter(function (u) { return u.status === 'open'; }).map(function (u) {
-    return { id: u.id, plate: u.plate, name: u.name, ts: u.ts, odoStart: u.odoStart, purpose: u.purpose };
-  });
+  const latest = {};
+  usage.forEach(function (u, i) { latest[u.plate] = i; });
   return {
-    drivers: driverNames_(usage),
-    pinRequired: !!PropertiesService.getScriptProperties().getProperty('ADMIN_PIN'),
-    cars: cars,
-    removedCars: removed,
+    cars: readRows_('cars').map(clean_),
+    usage: usage.filter(function (u, i) { return String(u.ts).slice(0, 10) >= since || u.status === 'open' || latest[u.plate] === i; }).map(clean_),
+    expenses: readRows_('expenses').filter(function (e) { return String(e.date) >= since; }).map(clean_),
+    maintenance: readRows_('maintenance').map(clean_),
+    driverNames: readRows_('drivers').filter(function (d) { return d.active !== 'N' && d.name; }).map(function (d) { return String(d.name); }),
     settings: settings_(),
-    openTrips: open,
-    appUrl: ScriptApp.getService().getUrl(),
+    pinRequired: !!PropertiesService.getScriptProperties().getProperty('ADMIN_PIN'),
     expenseTypes: EXPENSE_TYPES,
-    maintTypes: MAINT_TYPES,
-    alerts: buildAlerts_(cars, readRows_('maintenance')),
-    recentUsage: listUsage_({ limit: 10 }),
-    recentExpenses: listExpenses_({ limit: 10 })
+    maintTypes: MAINT_TYPES
   };
 }
 
-// รายชื่อให้เลือก: จากแท็บ "รายชื่อคนขับ" + ชื่อที่เคยเบิกรถ
-function driverNames_(usage) {
-  const seen = {};
-  const out = [];
-  readRows_('drivers').forEach(function (d) { if (d.active !== 'N' && d.name && !seen[d.name]) { seen[d.name] = 1; out.push(String(d.name)); } });
-  usage.slice(-300).forEach(function (u) { if (u.name && !seen[u.name]) { seen[u.name] = 1; out.push(String(u.name)); } });
-  return out;
+// ตัดข้อมูลภายในที่หน้าเว็บไม่ต้องใช้
+function clean_(r) {
+  const o = Object.assign({}, r);
+  delete o._row;
+  delete o.email;
+  return o;
 }
 
-function buildAlerts_(cars, maint) {
-  const today = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
-  const limit = Utilities.formatDate(new Date(Date.now() + 30 * 86400000), TZ, 'yyyy-MM-dd');
-  const out = [];
-  const plates = {};
-  cars.forEach(function (c) {
-    plates[c.plate] = true;
-    [['พ.ร.บ.', c.actExp], ['ภาษี', c.taxExp], ['ประกัน', c.insExp]].forEach(function (p) {
-      if (p[1] && p[1] <= limit) {
-        out.push({ plate: c.plate, what: p[0], date: p[1], expired: p[1] < today });
-      }
-    });
-  });
-  // ซ่อมบำรุง: ดูเฉพาะรายการล่าสุดของแต่ละทะเบียน+ประเภท
-  const latest = {};
-  maint.forEach(function (m) {
-    const k = m.plate + '|' + m.type;
-    if (!latest[k] || m.date >= latest[k].date) latest[k] = m;
-  });
-  Object.keys(latest).forEach(function (k) {
-    const m = latest[k];
-    if (plates[m.plate] && m.nextDate && m.nextDate <= limit) {
-      out.push({ plate: m.plate, what: 'ซ่อมบำรุง: ' + m.type, date: m.nextDate, expired: m.nextDate < today });
-    }
-  });
-  return out.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+function monthDataClean_(month) {
+  const d = monthData_(month);
+  return { usage: d.usage.map(clean_), expenses: d.expenses.map(clean_), maint: d.maint.map(clean_) };
 }
+
+
+
 
 /* ---------- เบิกรถ / คืนรถ ---------- */
 function checkout_(p) {
@@ -328,10 +303,6 @@ function returnCar_(p) {
   });
 }
 
-function listUsage_(p) {
-  const rows = readRows_('usage');
-  return rows.reverse().slice(0, Math.min(Number(p.limit) || 50, 200));
-}
 
 /* ---------- ค่าใช้จ่าย ---------- */
 function addExpense_(p) {
@@ -352,10 +323,6 @@ function addExpense_(p) {
   });
 }
 
-function listExpenses_(p) {
-  const rows = readRows_('expenses');
-  return rows.reverse().slice(0, Math.min(Number(p.limit) || 50, 200));
-}
 
 /* ---------- จัดการรถ (admin) ---------- */
 // แก้ไขอ้างอิงด้วยรหัสประจำรถ (id) จึงแก้เลขทะเบียนได้ โดย QR/ลิงก์เดิมยังใช้ได้
@@ -478,15 +445,8 @@ function saveSettings_(p) {
   return settings_();
 }
 
-/* ---------- อ่านสำเนาทะเบียนด้วย OCR ของ Google Drive (ฟรี) ---------- */
+/* ---------- อ่านสำเนาทะเบียนด้วย OCR ของ Google Drive (ฟรี) — ส่งข้อความกลับ หน้าเว็บแยกข้อมูลเอง ---------- */
 // ต้องเปิดบริการ Drive API (v3) ในโปรเจกต์ (appsscript.json เปิดไว้ให้แล้ว)
-const PROVINCES = ['กรุงเทพมหานคร', 'กระบี่', 'กาญจนบุรี', 'กาฬสินธุ์', 'กำแพงเพชร', 'ขอนแก่น', 'จันทบุรี', 'ฉะเชิงเทรา', 'ชลบุรี', 'ชัยนาท',
-  'ชัยภูมิ', 'ชุมพร', 'เชียงราย', 'เชียงใหม่', 'ตรัง', 'ตราด', 'ตาก', 'นครนายก', 'นครปฐม', 'นครพนม', 'นครราชสีมา', 'นครศรีธรรมราช',
-  'นครสวรรค์', 'นนทบุรี', 'นราธิวาส', 'น่าน', 'บึงกาฬ', 'บุรีรัมย์', 'ปทุมธานี', 'ประจวบคีรีขันธ์', 'ปราจีนบุรี', 'ปัตตานี',
-  'พระนครศรีอยุธยา', 'พะเยา', 'พังงา', 'พัทลุง', 'พิจิตร', 'พิษณุโลก', 'เพชรบุรี', 'เพชรบูรณ์', 'แพร่', 'ภูเก็ต', 'มหาสารคาม',
-  'มุกดาหาร', 'แม่ฮ่องสอน', 'ยโสธร', 'ยะลา', 'ร้อยเอ็ด', 'ระนอง', 'ระยอง', 'ราชบุรี', 'ลพบุรี', 'ลำปาง', 'ลำพูน', 'เลย', 'ศรีสะเกษ',
-  'สกลนคร', 'สงขลา', 'สตูล', 'สมุทรปราการ', 'สมุทรสงคราม', 'สมุทรสาคร', 'สระแก้ว', 'สระบุรี', 'สิงห์บุรี', 'สุโขทัย', 'สุพรรณบุรี',
-  'สุราษฎร์ธานี', 'สุรินทร์', 'หนองคาย', 'หนองบัวลำภู', 'อ่างทอง', 'อำนาจเจริญ', 'อุดรธานี', 'อุตรดิตถ์', 'อุทัยธานี', 'อุบลราชธานี'];
 
 function ocrRegDoc_(p) {
   const m = /^data:(image\/(?:jpeg|png|webp)|application\/pdf);base64,(.+)$/.exec(String(p.file || ''));
@@ -501,47 +461,12 @@ function ocrRegDoc_(p) {
       Utilities.newBlob(bytes, m[1], 'ocr'), { ocrLanguage: 'th' });
     docId = f.id;
     const text = DocumentApp.openById(docId).getBody().getText();
-    return { fields: parseRegText_(text), text: text.slice(0, 3000) };
+    return { text: text.slice(0, 5000) };
   } finally {
     if (docId) { try { DriveApp.getFileById(docId).setTrashed(true); } catch (e) { /* ลบไฟล์ชั่วคราวไม่สำเร็จ ไม่กระทบผล */ } }
   }
 }
 
-// แยกข้อมูลจากข้อความหน้า "รายการจดทะเบียน" (ผล OCR อาจวางค่าไว้บรรทัดเดียวกับหัวข้อ หรือบรรทัดถัดไป)
-function parseRegText_(raw) {
-  const text = String(raw || '').replace(/\r/g, '');
-  const lines = text.split('\n').map(function (l) { return l.replace(/\s+/g, ' ').trim(); }).filter(Boolean);
-  const pick = function (labelRe, valueRe) {
-    for (let i = 0; i < lines.length; i++) {
-      const lm = labelRe.exec(lines[i]);
-      if (!lm) continue;
-      const cands = [lines[i].slice(lm.index + lm[0].length), lines[i + 1] || '', lines[i + 2] || ''];
-      for (let j = 0; j < cands.length; j++) {
-        const v = valueRe.exec(cands[j].replace(/^[\s:.\-]+/, ''));
-        if (v) return String(v[1] || v[0]).trim();
-      }
-    }
-    return '';
-  };
-  const provRe = new RegExp('(' + PROVINCES.join('|') + ')');
-  const plateRe = /((?:[0-9]\s?)?[ก-ฮ]{1,3}\s?-?\s?[0-9]{1,4})(?![0-9])/;
-  const out = {};
-  let plate = pick(/เลขทะเบียน/, plateRe) || (plateRe.exec(text) || [])[1] || '';
-  out.plate = plate.replace(/\s*-\s*/, ' ').replace(/^([0-9])\s+([ก-ฮ])/, '$1$2').replace(/([ก-ฮ])\s*([0-9])/, '$1 $2');
-  out.province = pick(/จังหวัด/, provRe) || (provRe.exec(text) || [])[1] || (/กรุงเทพ/.test(text) ? 'กรุงเทพมหานคร' : '');
-  const brand = pick(/ยี่ห้อรถ|ยี่ห้อ(?!เครื่อง)/, /([A-Za-z][A-Za-z\- ]{1,20})/).toUpperCase();
-  let model = pick(/แบบ(?!รถ)|รุ่น(?!ปี)/, /([A-Za-z0-9][A-Za-z0-9\- ]{0,25})/).toUpperCase();
-  if (brand && model.indexOf(brand) === 0) model = model.slice(brand.length).trim();
-  out.model = [brand, model].filter(Boolean).join(' ');
-  const yr = pick(/รุ่นปี|ปี\s*ค\.?\s*ศ/, /((?:19|20|25)[0-9]{2})/);
-  out.year = yr ? String(Number(yr) > 2400 ? Number(yr) - 543 : Number(yr)) : '';
-  out.color = pick(/(?:^|\s)สี(?![ก-๙]*เครื่อง)/, /([ก-๙]{2,}(?: ?[ก-๙]{2,})?)/);
-  out.vin = (pick(/เลขตัวรถ|เลขตัวถัง|เลขถัง/, /([A-HJ-NPR-Z0-9]{8,20})/i) || (/\b([A-HJ-NPR-Z0-9]{17})\b/i.exec(text) || [])[1] || '').toUpperCase();
-  out.engineNo = pick(/เลขเครื่องยนต์|เลขเครื่อง/, /([A-Z0-9][A-Z0-9\-]{4,20})/i).toUpperCase();
-  out.fuel = pick(/เชื้อเพลิง/, /(เบนซิน|ดีเซล|ไฟฟ้า|ไฮบริด|LPG|NGV|แก๊ส[ก-๙]*)/i);
-  Object.keys(out).forEach(function (k) { if (!out[k]) delete out[k]; });
-  return out;
-}
 
 /* ---------- สำเนาทะเบียนรถ ---------- */
 function saveRegDoc_(dataUrl, plate) {
@@ -582,7 +507,7 @@ function cancelTrip_(p) {
   });
 }
 
-/* ---------- รายงานรายเดือน (แอดมิน) ---------- */
+/* ---------- ข้อมูลรายเดือน (แอดมิน ใช้ทำรายงานบนหน้าเว็บ) ---------- */
 function monthData_(month) {
   if (!/^\d{4}-\d{2}$/.test(String(month || ''))) throw new Error('เดือนไม่ถูกต้อง');
   const inM = function (v) { return String(v || '').slice(0, 7) === month; };
@@ -593,93 +518,10 @@ function monthData_(month) {
   };
 }
 
-function report_(p) {
-  const d = monthData_(p.month);
-  const cars = {}, drivers = {};
-  const car = function (pl) { return cars[pl] || (cars[pl] = { plate: pl, trips: 0, km: 0, fuel: 0, other: 0, maint: 0 }); };
-  const drv = function (n) { return drivers[n] || (drivers[n] = { name: n, trips: 0, km: 0, open: 0 }); };
-  d.usage.forEach(function (u) {
-    const km = u.status === 'closed' && u.odoEnd !== '' ? Number(u.odoEnd) - Number(u.odoStart) : 0;
-    const c = car(u.plate); c.trips++; c.km += km;
-    const r = drv(u.name || '(ไม่ระบุ)'); r.trips++; r.km += km; if (u.status === 'open') r.open++;
-  });
-  d.expenses.forEach(function (e) {
-    const c = car(e.plate);
-    if (e.type === 'น้ำมัน') c.fuel += Number(e.amount) || 0; else c.other += Number(e.amount) || 0;
-  });
-  d.maint.forEach(function (m) { car(m.plate).maint += Number(m.cost) || 0; });
-  const byCar = Object.keys(cars).sort().map(function (k) {
-    const c = cars[k];
-    c.total = c.fuel + c.other + c.maint;
-    c.perKm = c.km > 0 ? c.total / c.km : null;
-    return c;
-  });
-  const byDriver = Object.keys(drivers).map(function (k) { return drivers[k]; })
-    .sort(function (a, b) { return b.km - a.km; });
-  const totals = byCar.reduce(function (t, c) {
-    ['trips', 'km', 'fuel', 'other', 'maint', 'total'].forEach(function (k) { t[k] += c[k]; });
-    return t;
-  }, { trips: 0, km: 0, fuel: 0, other: 0, maint: 0, total: 0 });
-  totals.perKm = totals.km > 0 ? totals.total / totals.km : null;
-  return { month: p.month, byCar: byCar, byDriver: byDriver, totals: totals };
-}
 
-// สร้างไฟล์ Google Sheet รายงานในโฟลเดอร์ "รายงาน" (เปิดแล้วดาวน์โหลดเป็น Excel ได้)
-function exportReport_(p) {
-  const r = report_(p);
-  const d = monthData_(p.month);
-  const main = DriveApp.getFolderById(PropertiesService.getScriptProperties().getProperty('MAIN_FOLDER_ID'));
-  const dir = getOrCreateFolder_(main, 'รายงาน');
-  const name = 'รายงานรถส่วนกลาง ' + (Number(p.month.slice(0, 4)) + 543) + '-' + p.month.slice(5, 7);
-  const old = dir.getFilesByName(name);
-  while (old.hasNext()) old.next().setTrashed(true);
-  const ss = SpreadsheetApp.create(name);
-  DriveApp.getFileById(ss.getId()).moveTo(dir);
-  const n2 = function (v) { return v == null ? '' : Math.round(v * 100) / 100; };
-  writeTable_(ss.getSheets()[0], 'สรุปต่อคัน',
-    ['ทะเบียน', 'จำนวนเที่ยว', 'ระยะทาง (กม.)', 'ค่าน้ำมัน', 'ค่าใช้จ่ายอื่น', 'ค่าซ่อมบำรุง', 'รวม', 'ต้นทุนต่อ กม.'],
-    r.byCar.map(function (c) { return [c.plate, c.trips, c.km, n2(c.fuel), n2(c.other), n2(c.maint), n2(c.total), n2(c.perKm)]; })
-      .concat([['รวม', r.totals.trips, r.totals.km, n2(r.totals.fuel), n2(r.totals.other), n2(r.totals.maint), n2(r.totals.total), n2(r.totals.perKm)]]));
-  writeTable_(ss.insertSheet(), 'สรุปต่อคนขับ', ['ชื่อ', 'จำนวนเที่ยว', 'ระยะทาง (กม.)', 'ยังไม่คืนรถ'],
-    r.byDriver.map(function (x) { return [x.name, x.trips, x.km, x.open]; }));
-  writeTable_(ss.insertSheet(), 'รายการใช้รถ', ['เวลาเบิก', 'ทะเบียน', 'ผู้เบิก', 'ไปที่ไหน/ทำอะไร', 'ไมล์ก่อน', 'ไมล์หลัง', 'ระยะทาง', 'เวลาคืน', 'ผู้คืน', 'สถานะ'],
-    d.usage.map(function (u) {
-      return [u.ts, u.plate, u.name, u.purpose, u.odoStart, u.odoEnd, u.odoEnd !== '' ? Number(u.odoEnd) - Number(u.odoStart) : '',
-        u.returnTs, u.returnName, u.status === 'open' ? 'ยังไม่คืน' : 'คืนแล้ว'];
-    }));
-  writeTable_(ss.insertSheet(), 'ค่าใช้จ่าย', ['วันที่', 'ทะเบียน', 'ประเภท', 'จำนวนเงิน', 'หมายเหตุ', 'ผู้บันทึก'],
-    d.expenses.map(function (e) { return [e.date, e.plate, e.type, Number(e.amount) || 0, e.note, e.name]; }));
-  writeTable_(ss.insertSheet(), 'ซ่อมบำรุง', ['วันที่', 'ทะเบียน', 'ประเภท', 'รายละเอียด', 'อู่/ร้าน', 'เลขไมล์', 'ค่าใช้จ่าย', 'ผู้บันทึก'],
-    d.maint.map(function (m) { return [m.date, m.plate, m.type, m.detail, m.shop, m.odo, m.cost, m.name]; }));
-  return { url: ss.getUrl(), name: name };
-}
 
-function writeTable_(sh, title, header, rows) {
-  sh.setName(title);
-  const all = [header].concat(rows);
-  sh.getRange(1, 1, all.length, header.length).setValues(all);
-  sh.getRange(1, 1, 1, header.length).setFontWeight('bold').setBackground('#e8f6de');
-  sh.setFrozenRows(1);
-  sh.autoResizeColumns(1, header.length);
-}
 
 /* ---------- ประวัติรถ / ซ่อมบำรุง ---------- */
-// ทุกคนที่มีลิงก์ดูประวัติการใช้และซ่อมบำรุงของรถแต่ละคันได้
-function carHistory_(p) {
-  const car = findCar_(p.plate);
-  const usage = readRows_('usage').filter(function (u) { return u.plate === car.plate; }).reverse().slice(0, 100)
-    .map(function (u) {
-      return { ts: u.ts, name: u.name, odoStart: u.odoStart, odoEnd: u.odoEnd, purpose: u.purpose,
-        returnTs: u.returnTs, status: u.status, images: u.images, returnImages: u.returnImages, returnName: u.returnName };
-    });
-  const maint = readRows_('maintenance').filter(function (m) { return m.plate === car.plate; })
-    .sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 100)
-    .map(function (m) {
-      return { date: m.date, odo: m.odo, type: m.type, detail: m.detail, shop: m.shop, cost: m.cost,
-        nextDate: m.nextDate, nextOdo: m.nextOdo, images: m.images, name: m.name };
-    });
-  return { usage: usage, maint: maint };
-}
 
 function addMaintenance_(p) {
   const car = findCar_(p.plate);
