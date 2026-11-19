@@ -117,6 +117,12 @@
   .chip, .badge { display:inline-block; padding:3px 10px; border-radius:99px; font-size:12.5px; font-weight:700; background:var(--bad-bg); color:var(--bad); }
   .chip.free, .badge.free { background:var(--ok-bg); color:var(--ok); }
   .chip.warn { background:var(--warn-bg); color:var(--warn); }
+  .tblwrap { overflow-x:auto; margin:0 -4px; }
+  table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
+  .tbl th, .tbl td { padding:8px 6px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; }
+  .tbl th:first-child, .tbl td:first-child { text-align:left; }
+  .tbl thead th { color:var(--mute); font-weight:700; }
+  .tbl tfoot td { font-weight:800; border-bottom:0; }
   details > summary { cursor:pointer; font-weight:700; color:var(--pri); }
   /* QR (พื้นขาวเสมอเพื่อให้สแกนได้) */
   .qrgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
@@ -150,13 +156,13 @@
   <button data-t="home" class="on"><i data-i="home"></i><span>หน้าแรก</span></button>
   <button data-t="car"><i data-i="car"></i><span>รถ</span></button>
   <button data-t="expense"><i data-i="receipt"></i><span>ค่าใช้จ่าย</span></button>
-  <button data-t="cars" id="navCars"><i data-i="sliders"></i><span>จัดการ</span></button>
+  <button data-t="cars" id="navCars"><i data-i="sliders"></i><span>แอดมิน</span></button>
 </nav>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 var INITIAL_PLATE = <?!= JSON.stringify(initialPlate) ?>;
-var S = { name:'', pin:'', drivers:[], cars:[], types:[], mtypes:[], alerts:[], usage:[], expenses:[], open:[], appUrl:'',
+var S = { name:'', pin:'', pinRequired:false, asub:'cars', rmonth:'', report:null, exportUrl:'', exportName:'', drivers:[], cars:[], types:[], mtypes:[], alerts:[], usage:[], expenses:[], open:[], appUrl:'',
           plate:'', sub:'trip', tab:'home', edit:'', hist:{}, mopen:false, mdef:'', busy:false };
 var $ = function (s) { return document.querySelector(s); };
 
@@ -187,7 +193,7 @@ function call(action, payload) {
 // ที่เก็บในเครื่อง (อาจถูกบล็อกในบางเบราว์เซอร์ จึงครอบ try ไว้ทุกครั้ง)
 function sget(store, k) { try { return window[store].getItem(k) || ''; } catch (e) { return ''; } }
 function sset(store, k, v) { try { v ? window[store].setItem(k, v) : window[store].removeItem(k); } catch (e) {} }
-function isAdmin() { return !!S.pin; }
+function isAdmin() { return !S.pinRequired || !!S.pin; }
 function showWho() { $('#who').textContent = S.name ? 'คุณ' + S.name + (S.pin ? ' · แอดมิน' : '') : (S.pin ? 'โหมดแอดมิน' : 'ใช้งานได้ทันที ไม่ต้องล็อกอิน'); }
 function nameField(label) {
   return '<label>' + label + '</label><input name="name" list="drivers" maxlength="60" required autocomplete="name" value="' + esc(S.name) + '" placeholder="พิมพ์หรือเลือกชื่อ">' +
@@ -231,6 +237,8 @@ var ICON = {
   sliders:'<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
   sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/>',
   moon:'<path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/>',
+  qr:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM21 14v.01M14 21h.01M17 21h4v-4"/>',
+  chart:'<path d="M4 20V11M10 20V5M16 20v-7M2 20h20"/>',
   shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>'
 };
 function ic(n, size) {
@@ -246,13 +254,35 @@ function setTheme(t, save) {
   document.querySelectorAll('.seg button').forEach(function (b) { b.classList.toggle('on', b.dataset.th === t); });
 }
 
+/* ---------- ตัวช่วย: ค้างเบิก / เดือน / กล่องยืนยัน ---------- */
+var ODO_GAP = 300, TRIP_MAX = 800; // เกณฑ์เตือนเลขไมล์ผิดปกติ (กม.)
+function hoursSince(ts) { var t = new Date(String(ts).replace(' ', 'T') + '+07:00').getTime(); return isNaN(t) ? 0 : (Date.now() - t) / 3600000; }
+function overdue(ts) { var h = hoursSince(ts); return h >= 24 ? 'ค้าง ' + Math.floor(h / 24) + ' วัน' : ''; }
+var MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+function monthTh(m) { return MONTHS[Number(m.slice(5, 7)) - 1] + ' ' + (Number(m.slice(0, 4)) + 543); }
+function km(n) { return Number(n || 0).toLocaleString('th-TH'); }
+function askConfirm(msg, okText, withReason) {
+  return new Promise(function (resolve) {
+    $('#modal').style.display = 'block'; $('#modalClose').style.display = 'none';
+    $('#modalBody').innerHTML = '<h2>ตรวจสอบอีกครั้ง</h2><div>' + esc(msg) + '</div>' +
+      (withReason ? '<label>เหตุผล</label><input id="mReason" maxlength="150" placeholder="เช่น กดเบิกผิดคัน">' : '') +
+      '<button id="mOk">' + esc(okText || 'ยืนยัน') + '</button><button class="ghost" id="mNo">' + (withReason ? 'ยกเลิก' : 'กลับไปแก้') + '</button>';
+    var done = function (v) { $('#modal').style.display = 'none'; $('#modalClose').style.display = ''; resolve(v); };
+    $('#mOk').onclick = function () {
+      if (!withReason) return done(true);
+      var r = $('#mReason').value.trim(); if (!r) return toast('กรุณาระบุเหตุผล', 'err'); done(r);
+    };
+    $('#mNo').onclick = function () { done(false); };
+  });
+}
+
 /* ---------- เฟรมหลัก ---------- */
 function render() {
   var h = '';
   if (S.tab === 'home') h = viewHome();
   else if (S.tab === 'car') h = viewCar();
   else if (S.tab === 'expense') h = viewExpense();
-  else if (S.tab === 'cars') h = viewManage();
+  else if (S.tab === 'cars') h = viewAdmin();
   $('#app').innerHTML = h;
   document.querySelectorAll('nav button').forEach(function (b) { b.classList.toggle('on', b.dataset.t === S.tab); });
   bindForms();
@@ -295,9 +325,15 @@ function viewHome() {
       return '<button class="tile" data-act="opencar" data-p="' + esc(c.plate) + '">' +
         '<div class="plate sm"><div class="no">' + esc(c.plate) + '</div><div class="pv">' + esc(c.province) + '</div></div>' +
         '<div class="mdl">' + esc(c.model) + '</div>' +
-        (t ? '<span class="chip">ถูกเบิกโดย ' + esc(t.name) + '</span>' : '<span class="chip free">ว่าง พร้อมใช้</span>') +
+        (t ? '<span class="chip">ถูกเบิกโดย ' + esc(t.name) + (overdue(t.ts) ? ' · ' + overdue(t.ts) : '') + '</span>' : '<span class="chip free">ว่าง พร้อมใช้</span>') +
         (sn && sn.n <= 30 ? '<span class="chip ' + cls + '">' + sn.what + ' ' + cdText(sn.n) + '</span>' : '') + '</button>';
     }).join('') + '</div>';
+  }
+  var od = S.open.filter(function (t) { return overdue(t.ts); });
+  if (od.length) {
+    h += '<div class="card"><h2>ลืมคืนรถหรือเปล่า?</h2>' + od.map(function (t) {
+      return '<div class="alert bad">' + esc(t.plate) + ' · ' + esc(t.name) + ' · ' + overdue(t.ts) + '</div>';
+    }).join('') + '<div class="mute" style="font-size:13px">เบิกค้างเกิน 24 ชั่วโมง ให้กดที่รถเพื่อคืนรถ หรือแจ้งแอดมินยกเลิกถ้าเบิกผิด</div></div>';
   }
   if (S.alerts.length) {
     h += '<div class="card"><h2>แจ้งเตือนวันครบกำหนด</h2>' + S.alerts.map(function (a) {
@@ -307,11 +343,11 @@ function viewHome() {
   }
   if (S.open.length) {
     h += '<div class="card"><h2>รถที่ถูกเบิกอยู่</h2>' + S.open.map(function (t) {
-      return '<div class="row"><b>' + esc(t.plate) + '</b> · ' + esc(t.name) + '<br><span class="mute">' + thTime(t.ts) + ' · ' + esc(t.purpose) + '</span></div>';
+      return '<div class="row"><b>' + esc(t.plate) + '</b> · ' + esc(t.name) + (overdue(t.ts) ? ' <span class="chip">' + overdue(t.ts) + '</span>' : '') + '<br><span class="mute">' + thTime(t.ts) + ' · ' + esc(t.purpose) + '</span></div>';
     }).join('') + '</div>';
   }
   h += '<div class="card"><h2>การใช้รถล่าสุด</h2>' + (S.usage.length ? S.usage.map(function (u) {
-    var km = u.status === 'open' ? 'ยังไม่คืนรถ' : (u.odoEnd - u.odoStart) + ' กม.';
+    var km = u.status === 'open' ? 'ยังไม่คืนรถ' : u.status === 'cancelled' ? esc(u.returnName || 'ยกเลิก') : (u.odoEnd - u.odoStart) + ' กม.';
     return '<div class="row"><b>' + esc(u.plate) + '</b> · ' + esc(u.name) + '<br>' + esc(u.purpose) +
       '<br><span class="mute">' + thTime(u.ts) + ' · ' + km + '</span>' + links(u.images) + links(u.returnImages) + '</div>';
   }).join('') : '<div class="mute">ยังไม่มีรายการ</div>') + '</div>';
@@ -394,7 +430,7 @@ function viewHistory(car) {
   var d = histOf(car.plate);
   if (!d) return '<div class="card center mute">กำลังโหลดประวัติ...</div>';
   return '<div class="card"><h2>ประวัติการใช้รถ (ล่าสุด ' + d.usage.length + ' รายการ)</h2>' + (d.usage.length ? d.usage.map(function (u) {
-    var km = u.status === 'open' ? '<span class="badge">ยังไม่คืนรถ</span>' : (u.odoEnd - u.odoStart) + ' กม. · คืน ' + thTime(u.returnTs) + (u.returnName && u.returnName !== u.name ? ' โดย ' + esc(u.returnName) : '');
+    var km = u.status === 'open' ? '<span class="badge">ยังไม่คืนรถ</span>' : u.status === 'cancelled' ? '<span class="badge">' + esc(u.returnName || 'ยกเลิก') + '</span>' : (u.odoEnd - u.odoStart) + ' กม. · คืน ' + thTime(u.returnTs) + (u.returnName && u.returnName !== u.name ? ' โดย ' + esc(u.returnName) : '');
     return '<div class="row"><b>' + esc(u.name) + '</b> · ' + thTime(u.ts) + '<br>ไปที่: ' + esc(u.purpose) +
       '<br><span class="mute">ไมล์ ' + esc(u.odoStart) + (u.odoEnd !== '' ? ' → ' + esc(u.odoEnd) : '') + ' · ' + km + '</span>' +
       links(u.images) + links(u.returnImages) + '</div>';
@@ -483,24 +519,33 @@ function viewExpense() {
 }
 
 /* ---------- จัดการรถ (ผู้จัดการ/แอดมิน) ---------- */
-function viewManage() {
-  if (!S.pin) {
+function aBtn(k, label, icon) { return '<button data-act="asub" data-s="' + k + '" class="' + (S.asub === k ? 'on' : '') + '">' + ic(icon, 24) + '<span>' + label + '</span></button>'; }
+
+function viewAdmin() {
+  if (S.pinRequired && !S.pin) {
     return '<form class="card" id="fPin"><h2>โหมดแอดมิน</h2><div class="mute" style="font-size:14px">ใส่ PIN แอดมินเพื่อแก้ข้อมูลรถ อัปโหลดสำเนาทะเบียน และพิมพ์ QR (การเบิก/คืนรถทั่วไปไม่ต้องใช้ PIN)</div>' +
       '<label>PIN แอดมิน</label><input name="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" required>' +
       '<button type="submit">เข้าโหมดแอดมิน</button></form>';
   }
+  var h = S.pinRequired ? '' : '<div class="alert">ยังไม่เปิดใช้รหัสแอดมิน ใครมีลิงก์ก็เข้าหน้านี้ได้ เมื่อพร้อมใช้งานจริงให้เปิดใช้รหัส (ดู README)</div>';
+  h += '<div class="menu">' + aBtn('cars', 'จัดการรถ', 'car') + aBtn('qr', 'QR ติดรถ', 'qr') +
+    aBtn('open', 'ค้างเบิก' + (S.open.length ? ' (' + S.open.length + ')' : ''), 'clock') + aBtn('report', 'รายงานรายเดือน', 'chart') + '</div>';
+  if (S.asub === 'qr') h += viewQr();
+  else if (S.asub === 'open') h += viewOpen();
+  else if (S.asub === 'report') h += viewReport();
+  else h += viewCarsAdmin();
+  if (S.pinRequired) h += '<button class="line noprint" data-act="logout">ออกจากโหมดแอดมิน</button>';
+  return h;
+}
+
+function viewCarsAdmin() {
   var h = '<div class="card"><h2>รถทั้งหมด</h2>' + (S.cars.length ? S.cars.map(function (c) {
     return '<div class="row"><b>' + esc(c.plate) + '</b> ' + esc(c.model) + ' ' + esc(c.year) +
       '<br><span class="mute">พ.ร.บ. ' + thDate(c.actExp) + ' · ภาษี ' + thDate(c.taxExp) + ' · ประกัน ' + thDate(c.insExp) + '</span>' +
       (c.regDocId ? '' : '<br><span class="exp-warn">ยังไม่มีสำเนาทะเบียน</span>') +
-      (isAdmin() ? '<br><button class="small ghost" data-act="editcar" data-p="' + esc(c.plate) + '" style="margin-top:6px">แก้ไข</button>' : '') + '</div>';
-  }).join('') : '<div class="mute">ยังไม่มีรถ</div>') + '</div>';
-  if (S.cars.length) {
-    h += '<div class="card"><h2>QR Code ติดรถ</h2><div class="mute noprint" style="font-size:14px;margin-bottom:8px">พิมพ์แล้วติดไว้ในรถแต่ละคัน คนขับสแกนเพื่อเบิก/คืนรถ ดูประวัติ และดูสำเนาทะเบียน</div>' +
-      '<div class="qrgrid" id="qrgrid"></div><button class="noprint ghost" onclick="window.print()">พิมพ์ QR ทั้งหมด</button></div>';
-  }
-  h += '<button class="line noprint" data-act="logout" style="margin:0 0 14px">ออกจากโหมดแอดมิน</button>';
-  if (isAdmin()) {
+      '<br><button class="small ghost" data-act="editcar" data-p="' + esc(c.plate) + '" style="margin-top:6px">แก้ไข</button></div>';
+  }).join('') : '<div class="mute">ยังไม่มีรถ เพิ่มรถคันแรกด้านล่าง</div>') + '</div>';
+  {
     var e = S.cars.filter(function (c) { return c.plate === S.edit; })[0] || {};
     var v = function (k) { return esc(e[k]); };
     h += '<form class="card noprint" id="fCar"><h2>' + (e.plate ? 'แก้ไขรถ ' + esc(e.plate) : 'เพิ่มรถใหม่ (ทะเบียนซ้ำ = แก้ไข)') + '</h2>' +
@@ -522,6 +567,47 @@ function viewManage() {
       '<input type="file" id="regFile" accept="image/*,application/pdf">' +
       '<button type="submit">บันทึกรถ</button>' + (e.plate ? '<button type="button" class="ghost" data-act="newcar">ยกเลิกการแก้ไข</button>' : '') + '</form>';
   }
+  return h;
+}
+
+function viewQr() {
+  if (!S.cars.length) return '<div class="card mute">ยังไม่มีรถ</div>';
+  return '<div class="card"><h2>QR Code ติดรถ</h2><div class="mute noprint" style="font-size:14px;margin-bottom:8px">พิมพ์แล้วติดไว้ในรถแต่ละคัน คนขับสแกนเพื่อเบิก/คืนรถ ดูประวัติ และดูสำเนาทะเบียน</div>' +
+    '<div class="qrgrid" id="qrgrid"></div><button class="noprint ghost" onclick="window.print()">พิมพ์ QR ทั้งหมด</button></div>';
+}
+
+function viewOpen() {
+  if (!S.open.length) return '<div class="card mute">ไม่มีรถที่ถูกเบิกค้างอยู่</div>';
+  var list = S.open.slice().sort(function (a, b) { return a.ts < b.ts ? -1 : 1; });
+  return '<div class="card"><h2>รถที่ยังไม่คืน (' + list.length + ')</h2>' + list.map(function (t) {
+    return '<div class="row"><b>' + esc(t.plate) + '</b> · ' + esc(t.name) + (overdue(t.ts) ? ' <span class="chip">' + overdue(t.ts) + '</span>' : '') +
+      '<br><span class="mute">เบิก ' + thTime(t.ts) + ' · ไมล์ ' + esc(t.odoStart) + '<br>' + esc(t.purpose) + '</span>' +
+      '<div style="display:flex;gap:8px;margin-top:8px"><button class="small ghost" data-act="opencar" data-p="' + esc(t.plate) + '">ไปหน้าคืนรถ</button>' +
+      '<button class="small line" data-act="cancel" data-id="' + esc(t.id) + '">ยกเลิก (เบิกผิด)</button></div></div>';
+  }).join('') + '<div class="mute" style="font-size:13px;margin-top:8px">"ยกเลิก" ใช้เมื่อกดเบิกผิด รายการจะไม่นับในรายงานและไม่ใช้เป็นไมล์ล่าสุด ถ้าใช้รถจริงแต่ลืมคืน ให้กด "ไปหน้าคืนรถ"</div></div>';
+}
+
+function viewReport() {
+  if (!S.rmonth) S.rmonth = today().slice(0, 7);
+  var h = '<div class="card noprint"><h2>รายงานรายเดือน</h2><label>เดือน</label><input type="month" id="rMonth" value="' + esc(S.rmonth) + '">' +
+    '<button data-act="runreport">ดูรายงาน</button></div>';
+  var r = S.report;
+  if (!r) return h;
+  var t = r.totals;
+  function kv(k, v) { return '<div class="kv"><span>' + k + '</span><span><b>' + v + '</b></span></div>'; }
+  h += '<div class="card"><h2>สรุป ' + monthTh(r.month) + '</h2>' + kv('จำนวนเที่ยว', km(t.trips)) + kv('ระยะทางรวม', km(t.km) + ' กม.') +
+    kv('ค่าน้ำมัน', baht(t.fuel) + ' บาท') + kv('ค่าใช้จ่ายอื่น', baht(t.other) + ' บาท') + kv('ค่าซ่อมบำรุง', baht(t.maint) + ' บาท') +
+    kv('รวมทั้งหมด', baht(t.total) + ' บาท') + kv('ต้นทุนเฉลี่ยต่อ กม.', t.perKm == null ? '-' : baht(t.perKm) + ' บาท') + '</div>';
+  h += '<div class="card"><h2>ต่อคัน</h2>' + (r.byCar.length ? '<div class="tblwrap"><table class="tbl"><thead><tr><th>ทะเบียน</th><th>เที่ยว</th><th>กม.</th><th>น้ำมัน</th><th>อื่นๆ</th><th>ซ่อม</th><th>รวม</th><th>บาท/กม.</th></tr></thead><tbody>' +
+    r.byCar.map(function (c) {
+      return '<tr><td>' + esc(c.plate) + '</td><td>' + c.trips + '</td><td>' + km(c.km) + '</td><td>' + baht(c.fuel) + '</td><td>' + baht(c.other) + '</td><td>' + baht(c.maint) + '</td><td>' + baht(c.total) + '</td><td>' + (c.perKm == null ? '-' : baht(c.perKm)) + '</td></tr>';
+    }).join('') + '</tbody></table></div>' : '<div class="mute">ไม่มีข้อมูลในเดือนนี้</div>') + '</div>';
+  h += '<div class="card"><h2>ต่อคนขับ</h2>' + (r.byDriver.length ? '<div class="tblwrap"><table class="tbl"><thead><tr><th>ชื่อ</th><th>เที่ยว</th><th>กม.</th><th>ยังไม่คืน</th></tr></thead><tbody>' +
+    r.byDriver.map(function (x) { return '<tr><td>' + esc(x.name) + '</td><td>' + x.trips + '</td><td>' + km(x.km) + '</td><td>' + (x.open || '-') + '</td></tr>'; }).join('') +
+    '</tbody></table></div>' : '<div class="mute">ไม่มีการใช้รถในเดือนนี้</div>') + '</div>';
+  h += '<div class="card noprint"><h2>ไฟล์รายงาน</h2><div class="mute" style="font-size:14px">สร้างเป็น Google Sheet ในโฟลเดอร์ "รถส่วนกลางศิริกุล/รายงาน" มีแท็บสรุปต่อคัน ต่อคนขับ รายการใช้รถ ค่าใช้จ่าย และซ่อมบำรุง เปิดแล้วดาวน์โหลดเป็น Excel ได้</div>' +
+    '<button class="ghost" data-act="export">สร้างไฟล์ Google Sheet</button>' +
+    (S.exportUrl ? '<div style="margin-top:10px"><a href="' + esc(S.exportUrl) + '" target="_blank" rel="noopener">เปิดไฟล์ ' + esc(S.exportName) + '</a><div class="mute" style="font-size:13px">ต้องล็อกอินบัญชี Google ที่เป็นเจ้าของ Drive จึงจะเปิดได้</div></div>' : '') + '</div>';
   return h;
 }
 
@@ -549,8 +635,18 @@ function bindForms() {
     } catch (e) { toast(e.message, 'err'); }
   });
   var after = function (tab, sub) { return function () { S.hist = {}; S.tab = tab; if (sub) S.sub = sub; }; };
-  hook('#fCheckout', 'checkout', function (d) { return { name: d.name, plate: d.plate, odoStart: d.odoStart, purpose: d.purpose, images: pendingImages }; }, 'เบิกรถเรียบร้อย', after('home'));
-  hook('#fReturn', 'returnCar', function (d) { return { name: d.name, id: d.id, odoEnd: d.odoEnd, images: pendingImages }; }, 'คืนรถเรียบร้อย', after('home'));
+  hook('#fCheckout', 'checkout', function (d) { return { name: d.name, plate: d.plate, odoStart: d.odoStart, purpose: d.purpose, images: pendingImages }; }, 'เบิกรถเรียบร้อย', after('home'), function (d) {
+    var car = curCar(), last = car.lastOdo, v = Number(d.odoStart);
+    if (last === '' || last == null) return '';
+    if (v < Number(last)) return 'เลขไมล์ที่กรอก (' + km(v) + ') น้อยกว่าไมล์ล่าสุดของรถ (' + km(last) + ') กรุณาตรวจสอบหน้าปัดอีกครั้ง';
+    if (v - Number(last) > ODO_GAP) return 'เลขไมล์ห่างจากครั้งล่าสุด (' + km(last) + ') ถึง ' + km(v - Number(last)) + ' กม. อาจกรอกผิด หรือมีการใช้รถที่ไม่ได้บันทึก';
+    return '';
+  });
+  hook('#fReturn', 'returnCar', function (d) { return { name: d.name, id: d.id, odoEnd: d.odoEnd, images: pendingImages }; }, 'คืนรถเรียบร้อย', after('home'), function (d) {
+    var t = openTripOf(S.plate); if (!t) return '';
+    var dist = Number(d.odoEnd) - Number(t.odoStart);
+    return dist > TRIP_MAX ? 'ระยะทางเที่ยวนี้ ' + km(dist) + ' กม. มากผิดปกติ กรุณาตรวจสอบเลขไมล์อีกครั้ง' : '';
+  });
   hook('#fMaint', 'addMaintenance', function (d) {
     return { name: d.name, plate: S.plate, date: d.date, type: d.type, detail: d.detail, odo: d.odo, shop: d.shop, cost: d.cost, nextDate: d.nextDate, nextOdo: d.nextOdo, images: pendingImages };
   }, 'บันทึกประวัติซ่อมบำรุงแล้ว', function () { S.hist = {}; S.tab = 'car'; S.sub = 'maint'; S.mopen = false; S.mdef = ''; });
@@ -585,30 +681,61 @@ function bindForms() {
       var a = b.dataset.act;
       if (a === 'sub') { S.sub = b.dataset.s; S.mopen = false; S.mdef = ''; render(); }
       else if (a === 'reg') showReg();
+      else if (a === 'asub') { S.asub = b.dataset.s; render(); }
+      else if (a === 'cancel') cancelTrip(b.dataset.id);
+      else if (a === 'runreport') runReport(b);
+      else if (a === 'export') exportReport(b);
       else if (a === 'logout') { S.pin = ''; S.edit = ''; sset('sessionStorage', 'adminPin', ''); showWho(); render(); }
       else if (a === 'opencar') { S.plate = b.dataset.p; S.sub = 'trip'; S.tab = 'car'; render(); window.scrollTo(0, 0); }
-      else if (a === 'edit') { S.edit = S.plate; S.tab = 'cars'; render(); window.scrollTo(0, 99999); }
+      else if (a === 'edit') { S.edit = S.plate; S.tab = 'cars'; S.asub = 'cars'; render(); window.scrollTo(0, 99999); }
       else if (a === 'editcar') { S.edit = b.dataset.p; render(); window.scrollTo(0, 99999); }
       else if (a === 'newcar') { S.edit = ''; render(); }
       else if (a === 'addservice') { S.mopen = true; S.mdef = SERVICE; render(); var f = $('#fMaint'); if (f) f.scrollIntoView(); }
     });
   });
 }
-function hook(sel, action, build, okMsg, after) {
+async function busyCall(btn, action, payload) {
+  var txt = btn.textContent; btn.disabled = true; btn.textContent = 'กำลังทำงาน...';
+  try { return await call(action, payload); }
+  finally { btn.disabled = false; btn.textContent = txt; }
+}
+async function cancelTrip(id) {
+  var t = S.open.filter(function (x) { return x.id === id; })[0]; if (!t) return;
+  var reason = await askConfirm('ยกเลิกการเบิก ' + t.plate + ' ของ ' + t.name + ' (' + thTime(t.ts) + ') รายการนี้จะไม่ถูกนับในรายงาน', 'ยืนยันยกเลิก', true);
+  if (!reason) return;
+  try { await call('cancelTrip', { id: id, reason: reason, pin: S.pin }); toast('ยกเลิกรายการแล้ว', 'ok'); S.hist = {}; await load(); render(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+async function runReport(btn) {
+  var m = ($('#rMonth').value || '').slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(m)) return toast('กรุณาเลือกเดือน', 'err');
+  S.rmonth = m;
+  try { S.report = await busyCall(btn, 'report', { month: m, pin: S.pin }); S.exportUrl = ''; render(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+async function exportReport(btn) {
+  try { var d = await busyCall(btn, 'exportReport', { month: S.report.month, pin: S.pin }); S.exportUrl = d.url; S.exportName = d.name; render(); toast('สร้างไฟล์รายงานแล้ว', 'ok'); }
+  catch (e) { toast(e.message, 'err'); }
+}
+
+function hook(sel, action, build, okMsg, after, check) {
   var f = $(sel); if (!f) return;
   f.addEventListener('submit', async function (ev) {
     ev.preventDefault();
     if (S.busy) return;
-    var btn = f.querySelector('button[type=submit]'); S.busy = true; btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+    var btn = f.querySelector('button[type=submit]'), orig = btn.textContent;
+    var d = {}; new FormData(f).forEach(function (v, k) { if (typeof v === 'string') d[k] = v; });
+    var warn = check ? check(d) : '';
+    if (warn && !(await askConfirm(warn, 'ถูกต้อง บันทึกต่อ'))) return;
+    S.busy = true; btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
     try {
-      var d = {}; new FormData(f).forEach(function (v, k) { if (typeof v === 'string') d[k] = v; });
       await call(action, build(d));
       if (d.name) { S.name = d.name.trim(); sset('localStorage', 'driverName', S.name); }
       toast(okMsg || 'บันทึกเรียบร้อย', 'ok');
       after(); await load(); render(); window.scrollTo(0, 0);
     } catch (e) {
-      if (action === 'saveCar' && /PIN/.test(e.message)) { S.pin = ''; sset('sessionStorage', 'adminPin', ''); }
-      toast(e.message, 'err'); btn.disabled = false; btn.textContent = 'ลองอีกครั้ง';
+      if (/PIN/.test(e.message)) { S.pin = ''; sset('sessionStorage', 'adminPin', ''); }
+      toast(e.message, 'err'); btn.disabled = false; btn.textContent = orig;
     }
     S.busy = false;
   });
@@ -628,7 +755,7 @@ function drawQr() {
 
 async function load() {
   var d = await call('bootstrap');
-  S.drivers = d.drivers || []; S.cars = d.cars; S.types = d.expenseTypes; S.mtypes = d.maintTypes; S.alerts = d.alerts;
+  S.drivers = d.drivers || []; S.pinRequired = !!d.pinRequired; if (!S.pinRequired) S.pin = ''; S.cars = d.cars; S.types = d.expenseTypes; S.mtypes = d.maintTypes; S.alerts = d.alerts;
   S.usage = d.recentUsage; S.expenses = d.recentExpenses; S.open = d.openTrips; S.appUrl = d.appUrl;
   showWho();
   $('#nav').classList.remove('hide');

@@ -3,7 +3,8 @@
  * - ข้อมูลเก็บใน Google Sheet (สร้างอัตโนมัติด้วย setup())
  * - ใน Drive มีโฟลเดอร์ "รถส่วนกลางศิริกุล" เก็บ Sheet และโฟลเดอร์ย่อย "รูปภาพ" (แยกรายเดือน)
  * - ใครมีลิงก์ก็ใช้ได้ (ไม่ต้องล็อกอิน) คนขับกรอกชื่อเอง
- * - งานแอดมิน (แก้ข้อมูลรถ/อัปโหลดสำเนาทะเบียน) ต้องใส่ PIN ที่เก็บใน Script Properties: ADMIN_PIN
+ * - หน้าแอดมิน (จัดการรถ, QR, ค้างเบิก, รายงาน) ยังไม่ต้องใส่รหัส จนกว่าจะรัน enableAdminPin()
+ *   รหัสเก็บใน Script Properties: ADMIN_PIN (ไม่มีค่า = ไม่ต้องใส่รหัส)
  */
 
 const TZ = 'Asia/Bangkok';
@@ -96,13 +97,28 @@ function setup() {
   }
   const sheetFile = DriveApp.getFileById(ss.getId());
   if (!main.getFilesByName(sheetFile.getName()).hasNext()) sheetFile.moveTo(main);
-  // PIN แอดมิน 6 หลัก (ดู/เปลี่ยนได้ที่ การตั้งค่าโปรเจกต์ → คุณสมบัติของสคริปต์ → ADMIN_PIN)
+  Logger.log(props.getProperty('ADMIN_PIN')
+    ? 'รหัสแอดมิน: เปิดใช้อยู่'
+    : 'รหัสแอดมิน: ยังไม่เปิดใช้ (หน้าแอดมินเข้าได้ทุกคน) เมื่อพร้อมใช้งานจริงให้รัน enableAdminPin()');
+  Logger.log('Sheet: ' + ss.getUrl());
+  Logger.log('Folder: ' + DriveApp.getFolderById(props.getProperty('FOLDER_ID')).getUrl());
+}
+
+/* ---------- รหัสแอดมิน (รันมือจากตัวแก้ไข Apps Script) ---------- */
+// เปิดใช้รหัสแอดมิน: สร้างรหัส 6 หลักแล้วแสดงใน "บันทึกการดำเนินการ"
+// อยากตั้งรหัสเอง: การตั้งค่าโปรเจกต์ → คุณสมบัติของสคริปต์ → แก้ค่า ADMIN_PIN
+function enableAdminPin() {
+  const props = PropertiesService.getScriptProperties();
   if (!props.getProperty('ADMIN_PIN')) {
     props.setProperty('ADMIN_PIN', String(Math.floor(100000 + Math.random() * 900000)));
   }
-  Logger.log('PIN แอดมิน: ' + props.getProperty('ADMIN_PIN'));
-  Logger.log('Sheet: ' + ss.getUrl());
-  Logger.log('Folder: ' + DriveApp.getFolderById(props.getProperty('FOLDER_ID')).getUrl());
+  Logger.log('เปิดใช้รหัสแอดมินแล้ว รหัสคือ: ' + props.getProperty('ADMIN_PIN'));
+}
+
+// ปิดรหัสแอดมิน (หน้าแอดมินเข้าได้ทุกคนอีกครั้ง)
+function disableAdminPin() {
+  PropertiesService.getScriptProperties().deleteProperty('ADMIN_PIN');
+  Logger.log('ปิดรหัสแอดมินแล้ว');
 }
 
 /* ---------- Web app ---------- */
@@ -130,6 +146,9 @@ function api(action, payload) {
       case 'getRegDoc': return ok_(getRegDoc_(payload));
       case 'checkPin': requirePin_(payload.pin); return ok_(true);
       case 'saveCar': requirePin_(payload.pin); return ok_(saveCar_(payload));
+      case 'cancelTrip': requirePin_(payload.pin); return ok_(cancelTrip_(payload));
+      case 'report': requirePin_(payload.pin); return ok_(report_(payload));
+      case 'exportReport': requirePin_(payload.pin); return ok_(exportReport_(payload));
       default: throw new Error('ไม่รู้จักคำสั่ง');
     }
   } catch (e) {
@@ -143,7 +162,7 @@ function ok_(data) { return { ok: true, data: data }; }
 // งานแอดมินเท่านั้นที่ต้องใช้ PIN การใช้งานทั่วไปไม่ต้องล็อกอิน
 function requirePin_(pin) {
   const real = PropertiesService.getScriptProperties().getProperty('ADMIN_PIN');
-  if (!real) throw new Error('ยังไม่ได้ตั้ง PIN แอดมิน (รัน setup())');
+  if (!real) return; // ยังไม่เปิดใช้รหัสแอดมิน
   const cache = CacheService.getScriptCache();
   const fails = Number(cache.get('pinFails') || 0);
   if (fails >= 10) throw new Error('ใส่ PIN ผิดหลายครั้ง กรุณารอ 10 นาที');
@@ -164,7 +183,7 @@ function name_(v) {
 function bootstrap_() {
   const usage = readRows_('usage');
   const last = {};
-  usage.forEach(function (u) { last[u.plate] = u.odoEnd !== '' ? u.odoEnd : u.odoStart; });
+  usage.forEach(function (u) { if (u.status !== 'cancelled') last[u.plate] = u.odoEnd !== '' ? u.odoEnd : u.odoStart; });
   const cars = readRows_('cars').filter(function (c) { return c.active !== 'N'; }).map(function (c) {
     c.lastOdo = last[c.plate] == null ? '' : last[c.plate];
     return c;
@@ -174,6 +193,7 @@ function bootstrap_() {
   });
   return {
     drivers: driverNames_(usage),
+    pinRequired: !!PropertiesService.getScriptProperties().getProperty('ADMIN_PIN'),
     cars: cars,
     openTrips: open,
     appUrl: ScriptApp.getService().getUrl(),
@@ -343,6 +363,103 @@ function getRegDoc_(p) {
   const mime = car.regDocMime || file.getMimeType();
   if (mime === 'application/pdf') return { mime: mime, url: file.getUrl() };
   return { mime: mime, dataUrl: 'data:' + mime + ';base64,' + Utilities.base64Encode(file.getBlob().getBytes()) };
+}
+
+/* ---------- ยกเลิกรายการเบิกที่ผิด (แอดมิน) ---------- */
+function cancelTrip_(p) {
+  const reason = str_(p.reason, 150);
+  if (!reason) throw new Error('กรุณาระบุเหตุผลที่ยกเลิก');
+  return lock_(function () {
+    const t = readRows_('usage').filter(function (u) { return u.id === p.id; })[0];
+    if (!t) throw new Error('ไม่พบรายการ');
+    if (t.status !== 'open') throw new Error('ยกเลิกได้เฉพาะรายการที่ยังไม่คืนรถ');
+    t.status = 'cancelled';
+    t.returnTs = now_();
+    t.returnName = 'ยกเลิก: ' + reason;
+    writeRow_(sheet_('usage'), t._row, 'usage', t);
+    return { id: t.id };
+  });
+}
+
+/* ---------- รายงานรายเดือน (แอดมิน) ---------- */
+function monthData_(month) {
+  if (!/^\d{4}-\d{2}$/.test(String(month || ''))) throw new Error('เดือนไม่ถูกต้อง');
+  const inM = function (v) { return String(v || '').slice(0, 7) === month; };
+  return {
+    usage: readRows_('usage').filter(function (u) { return inM(u.ts) && u.status !== 'cancelled'; }),
+    expenses: readRows_('expenses').filter(function (e) { return inM(e.date); }),
+    maint: readRows_('maintenance').filter(function (m) { return inM(m.date); })
+  };
+}
+
+function report_(p) {
+  const d = monthData_(p.month);
+  const cars = {}, drivers = {};
+  const car = function (pl) { return cars[pl] || (cars[pl] = { plate: pl, trips: 0, km: 0, fuel: 0, other: 0, maint: 0 }); };
+  const drv = function (n) { return drivers[n] || (drivers[n] = { name: n, trips: 0, km: 0, open: 0 }); };
+  d.usage.forEach(function (u) {
+    const km = u.status === 'closed' && u.odoEnd !== '' ? Number(u.odoEnd) - Number(u.odoStart) : 0;
+    const c = car(u.plate); c.trips++; c.km += km;
+    const r = drv(u.name || '(ไม่ระบุ)'); r.trips++; r.km += km; if (u.status === 'open') r.open++;
+  });
+  d.expenses.forEach(function (e) {
+    const c = car(e.plate);
+    if (e.type === 'น้ำมัน') c.fuel += Number(e.amount) || 0; else c.other += Number(e.amount) || 0;
+  });
+  d.maint.forEach(function (m) { car(m.plate).maint += Number(m.cost) || 0; });
+  const byCar = Object.keys(cars).sort().map(function (k) {
+    const c = cars[k];
+    c.total = c.fuel + c.other + c.maint;
+    c.perKm = c.km > 0 ? c.total / c.km : null;
+    return c;
+  });
+  const byDriver = Object.keys(drivers).map(function (k) { return drivers[k]; })
+    .sort(function (a, b) { return b.km - a.km; });
+  const totals = byCar.reduce(function (t, c) {
+    ['trips', 'km', 'fuel', 'other', 'maint', 'total'].forEach(function (k) { t[k] += c[k]; });
+    return t;
+  }, { trips: 0, km: 0, fuel: 0, other: 0, maint: 0, total: 0 });
+  totals.perKm = totals.km > 0 ? totals.total / totals.km : null;
+  return { month: p.month, byCar: byCar, byDriver: byDriver, totals: totals };
+}
+
+// สร้างไฟล์ Google Sheet รายงานในโฟลเดอร์ "รายงาน" (เปิดแล้วดาวน์โหลดเป็น Excel ได้)
+function exportReport_(p) {
+  const r = report_(p);
+  const d = monthData_(p.month);
+  const main = DriveApp.getFolderById(PropertiesService.getScriptProperties().getProperty('MAIN_FOLDER_ID'));
+  const dir = getOrCreateFolder_(main, 'รายงาน');
+  const name = 'รายงานรถส่วนกลาง ' + (Number(p.month.slice(0, 4)) + 543) + '-' + p.month.slice(5, 7);
+  const old = dir.getFilesByName(name);
+  while (old.hasNext()) old.next().setTrashed(true);
+  const ss = SpreadsheetApp.create(name);
+  DriveApp.getFileById(ss.getId()).moveTo(dir);
+  const n2 = function (v) { return v == null ? '' : Math.round(v * 100) / 100; };
+  writeTable_(ss.getSheets()[0], 'สรุปต่อคัน',
+    ['ทะเบียน', 'จำนวนเที่ยว', 'ระยะทาง (กม.)', 'ค่าน้ำมัน', 'ค่าใช้จ่ายอื่น', 'ค่าซ่อมบำรุง', 'รวม', 'ต้นทุนต่อ กม.'],
+    r.byCar.map(function (c) { return [c.plate, c.trips, c.km, n2(c.fuel), n2(c.other), n2(c.maint), n2(c.total), n2(c.perKm)]; })
+      .concat([['รวม', r.totals.trips, r.totals.km, n2(r.totals.fuel), n2(r.totals.other), n2(r.totals.maint), n2(r.totals.total), n2(r.totals.perKm)]]));
+  writeTable_(ss.insertSheet(), 'สรุปต่อคนขับ', ['ชื่อ', 'จำนวนเที่ยว', 'ระยะทาง (กม.)', 'ยังไม่คืนรถ'],
+    r.byDriver.map(function (x) { return [x.name, x.trips, x.km, x.open]; }));
+  writeTable_(ss.insertSheet(), 'รายการใช้รถ', ['เวลาเบิก', 'ทะเบียน', 'ผู้เบิก', 'ไปที่ไหน/ทำอะไร', 'ไมล์ก่อน', 'ไมล์หลัง', 'ระยะทาง', 'เวลาคืน', 'ผู้คืน', 'สถานะ'],
+    d.usage.map(function (u) {
+      return [u.ts, u.plate, u.name, u.purpose, u.odoStart, u.odoEnd, u.odoEnd !== '' ? Number(u.odoEnd) - Number(u.odoStart) : '',
+        u.returnTs, u.returnName, u.status === 'open' ? 'ยังไม่คืน' : 'คืนแล้ว'];
+    }));
+  writeTable_(ss.insertSheet(), 'ค่าใช้จ่าย', ['วันที่', 'ทะเบียน', 'ประเภท', 'จำนวนเงิน', 'หมายเหตุ', 'ผู้บันทึก'],
+    d.expenses.map(function (e) { return [e.date, e.plate, e.type, Number(e.amount) || 0, e.note, e.name]; }));
+  writeTable_(ss.insertSheet(), 'ซ่อมบำรุง', ['วันที่', 'ทะเบียน', 'ประเภท', 'รายละเอียด', 'อู่/ร้าน', 'เลขไมล์', 'ค่าใช้จ่าย', 'ผู้บันทึก'],
+    d.maint.map(function (m) { return [m.date, m.plate, m.type, m.detail, m.shop, m.odo, m.cost, m.name]; }));
+  return { url: ss.getUrl(), name: name };
+}
+
+function writeTable_(sh, title, header, rows) {
+  sh.setName(title);
+  const all = [header].concat(rows);
+  sh.getRange(1, 1, all.length, header.length).setValues(all);
+  sh.getRange(1, 1, 1, header.length).setFontWeight('bold').setBackground('#e8f0fe');
+  sh.setFrozenRows(1);
+  sh.autoResizeColumns(1, header.length);
 }
 
 /* ---------- ประวัติรถ / ซ่อมบำรุง ---------- */
