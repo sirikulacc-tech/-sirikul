@@ -7,7 +7,7 @@ var QS = new URLSearchParams(location.search);
 var INITIAL_CAR = (QS.get('car') || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 40);
 var INITIAL_PLATE = (QS.get('plate') || '').replace(/[^\wก-๙\- ]/g, '').slice(0, 20);
 var ADMIN_MODE = QS.get('admin') === '1'; // หน้าแอดมิน = ลิงก์ + ?admin=1
-var S = { company:'', logo:'', removed:[], name:'', profiles:{}, dlist:null, pin:'', pinRequired:false, asub:'overview', carForm:false, rmonth:'', report:null, reportData:null, allUsage:[], maint:[], drivers:[], cars:[], types:[], mtypes:[], alerts:[], usage:[], expenses:[], open:[], appUrl:'',
+var S = { known:[], drvLic:{}, forceExtra:false, company:'', logo:'', removed:[], name:'', profiles:{}, dlist:null, pin:'', pinRequired:false, asub:'overview', carForm:false, rmonth:'', report:null, reportData:null, allUsage:[], maint:[], drivers:[], cars:[], types:[], mtypes:[], alerts:[], usage:[], expenses:[], open:[], appUrl:'',
           plate:'', sub:'trip', tab:'home', edit:'', hist:{}, mopen:false, mdef:'', busy:false };
 var $ = function (s) { return document.querySelector(s); };
 
@@ -51,11 +51,37 @@ function licNote(d) {
   if (n <= 30) return '<span class="cd-warn">ใบขับขี่จะหมดอายุในอีก ' + n + ' วัน อย่าลืมต่ออายุ</span>';
   return '<span class="cd-ok">ใบขับขี่ใช้ได้อีก ' + n + ' วัน</span>';
 }
+// ช่องเบอร์โทร/ใบขับขี่ ซ่อนไว้ จะเด้งขึ้นเมื่อพิมพ์ชื่อที่ยังไม่มีในระบบ
 function driverFields() {
   var pf = profile(S.name);
-  return '<label>เบอร์โทร</label><input name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="12" required value="' + esc(pf.phone || '') + '" placeholder="เช่น 0812345678">' +
-    '<label>ใบขับขี่หมดอายุ</label><input name="licenseExp" type="date" required value="' + esc(pf.lic || '') + '">' +
-    '<div id="licNote" style="font-size:13.5px;margin-top:6px">' + licNote(pf.lic) + '</div>';
+  return '<div id="drvNote" class="drv-note"></div>' +
+    '<div id="drvExtra" class="drv-extra hide"><div class="drv-new">ชื่อใหม่ กรุณากรอกเบอร์โทรและวันหมดอายุใบขับขี่ (กรอกครั้งเดียว)</div>' +
+    '<label>เบอร์โทร</label><input name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="12" value="' + esc(pf.phone || '') + '" placeholder="เช่น 0812345678">' +
+    '<label>ใบขับขี่หมดอายุ</label><input name="licenseExp" type="date" value="' + esc(pf.lic || '') + '"></div>' +
+    '<div id="licNote" style="font-size:13.5px;margin-top:6px"></div>';
+}
+function isKnownDriver(n) { return S.known.indexOf(String(n || '').trim()) >= 0; }
+function showDriverExtra(show) {
+  var x = $('#drvExtra'); if (!x) return;
+  x.classList.toggle('hide', !show);
+  x.querySelectorAll('input').forEach(function (i) { i.required = show; });
+}
+function updateDriverUI() {
+  var f = $('#fCheckout'); if (!f) return;
+  var n = f.elements['name'].value.trim(), note = $('#drvNote');
+  if (!n) { showDriverExtra(false); note.innerHTML = ''; $('#licNote').innerHTML = ''; return; }
+  if (isKnownDriver(n) && !S.forceExtra) {
+    showDriverExtra(false);
+    note.innerHTML = '<span class="cd-ok">✓ พบชื่อในระบบแล้ว ไม่ต้องกรอกข้อมูลเพิ่ม</span>';
+    if (S.drvLic[n] !== undefined) $('#licNote').innerHTML = licNote(S.drvLic[n]);
+    else call('driverCheck', { name: n }).then(function (r) {
+      S.drvLic[n] = (r && r.licenseExp) || '';
+      var cur = $('#fCheckout'); if (cur && cur.elements['name'].value.trim() === n) $('#licNote').innerHTML = licNote(S.drvLic[n]);
+    }).catch(function () { /* เช็กไม่ได้ก็เบิกต่อได้ */ });
+  } else {
+    showDriverExtra(true); note.innerHTML = '';
+    $('#licNote').innerHTML = licNote(f.elements['licenseExp'].value);
+  }
 }
 function nameField(label) {
   return '<label>' + label + '</label><input name="name" list="drivers" maxlength="60" required autocomplete="name" value="' + esc(S.name) + '" placeholder="พิมพ์หรือเลือกชื่อ">' +
@@ -779,10 +805,11 @@ function bindForms() {
     } catch (e) { toast(e.message, 'err'); }
   });
   var after = function (tab, sub) { return function () { S.hist = {}; S.tab = tab; S.sub = sub || ''; S.lastSheet = ''; try { if (history.state && history.state.sheet) history.replaceState(null, ''); } catch (e) {} }; };
-  hook('#fCheckout', 'checkout', function (d) { return { name: d.name, phone: d.phone, licenseExp: d.licenseExp, plate: d.plate, odoStart: d.odoStart, purpose: d.purpose, images: pendingImages }; }, 'เบิกรถเรียบร้อย', after('home'), function (d) {
+  hook('#fCheckout', 'checkout', function (d) { var extra = !$('#drvExtra').classList.contains('hide'); return { name: d.name, phone: extra ? d.phone : '', licenseExp: extra ? d.licenseExp : '', plate: d.plate, odoStart: d.odoStart, purpose: d.purpose, images: pendingImages }; }, 'เบิกรถเรียบร้อย', after('home'), function (d) {
     var w = [], car = curCar(), last = car.lastOdo, v = Number(d.odoStart);
-    var ln = daysLeft(d.licenseExp);
-    if (ln !== null && ln < 0) w.push('ใบขับขี่หมดอายุแล้ว ' + (-ln) + ' วัน (' + thDate(d.licenseExp) + ') ไม่ควรขับรถจนกว่าจะต่ออายุ');
+    var lic = !$('#drvExtra').classList.contains('hide') ? d.licenseExp : (S.drvLic[String(d.name).trim()] || '');
+    var ln = daysLeft(lic);
+    if (ln !== null && ln < 0) w.push('ใบขับขี่หมดอายุแล้ว ' + (-ln) + ' วัน (' + thDate(lic) + ') ไม่ควรขับรถจนกว่าจะต่ออายุ');
     if (last !== '' && last != null) {
       if (v < Number(last)) w.push('เลขไมล์ที่กรอก (' + km(v) + ') น้อยกว่าไมล์ล่าสุดของรถ (' + km(last) + ') กรุณาตรวจสอบหน้าปัดอีกครั้ง');
       else if (v - Number(last) > ODO_GAP) w.push('เลขไมล์ห่างจากครั้งล่าสุด (' + km(last) + ') ถึง ' + km(v - Number(last)) + ' กม. อาจกรอกผิด หรือมีการใช้รถที่ไม่ได้บันทึก');
@@ -808,13 +835,17 @@ function bindForms() {
 
   var fc = $('#fCheckout');
   if (fc) {
-    var EC = fc.elements;
-    EC['name'].addEventListener('change', function () {
+    var EC = fc.elements, tmr = null;
+    var onName = function () {
       var pf = profile(EC['name'].value.trim());
-      EC['phone'].value = pf.phone || ''; EC['licenseExp'].value = pf.lic || '';
-      $('#licNote').innerHTML = licNote(pf.lic);
-    });
+      if (pf.phone && !EC['phone'].value) EC['phone'].value = pf.phone;
+      if (pf.lic && !EC['licenseExp'].value) EC['licenseExp'].value = pf.lic;
+      updateDriverUI();
+    };
+    EC['name'].addEventListener('input', function () { clearTimeout(tmr); tmr = setTimeout(onName, 350); });
+    EC['name'].addEventListener('change', onName);
     EC['licenseExp'].addEventListener('change', function () { $('#licNote').innerHTML = licNote(EC['licenseExp'].value); });
+    updateDriverUI();
   }
   var fm = $('#fMaint');
   if (fm) {
@@ -978,10 +1009,12 @@ function hook(sel, action, build, okMsg, after, check) {
     try {
       await call(action, build(d));
       if (d.name) { S.name = d.name.trim(); sset('localStorage', 'driverName', S.name); }
-      if (d.name && d.phone) saveProfile(S.name, d.phone.trim(), d.licenseExp);
+      if (d.name && d.phone && d.licenseExp) saveProfile(S.name, d.phone.trim(), d.licenseExp);
+      if (action === 'checkout') { S.forceExtra = false; S.drvLic = {}; }
       toast(okMsg || 'บันทึกเรียบร้อย', 'ok');
       after(); await load(); render(); window.scrollTo(0, 0);
     } catch (e) {
+      if (action === 'checkout' && /เบอร์โทร|ใบขับขี่/.test(e.message)) { S.forceExtra = true; showDriverExtra(true); $('#drvNote').innerHTML = ''; }
       if (/PIN/.test(e.message)) { S.pin = ''; sset('sessionStorage', 'adminPin', ''); }
       toast(e.message, 'err'); btn.disabled = false; btn.textContent = orig;
     }
@@ -1022,6 +1055,7 @@ async function load() {
   S.usage = d.usage.slice().reverse().slice(0, 10);
   S.expenses = d.expenses.slice().reverse().slice(0, 10);
   S.alerts = buildAlerts(S.cars, S.maint);
+  S.known = (d.driverNames || []).map(function (n) { return String(n).trim(); });
   var seen = {}; S.drivers = [];
   d.driverNames.concat(d.usage.slice(-300).map(function (u) { return u.name; })).forEach(function (n) { if (n && !seen[n]) { seen[n] = 1; S.drivers.push(String(n)); } });
   S.appUrl = PUBLIC_URL;

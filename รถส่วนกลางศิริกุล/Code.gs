@@ -161,6 +161,7 @@ function api(action, payload) {
       // อ่านข้อมูล (หน้าเว็บนำไปคำนวณเอง)
       case 'data': return ok_(data_());
       case 'getRegDoc': return ok_(getRegDoc_(payload));
+      case 'driverCheck': return ok_(driverCheck_(payload));
       // บันทึกของคนขับ
       case 'checkout': return ok_(checkout_(payload));
       case 'returnCar': return ok_(returnCar_(payload));
@@ -246,9 +247,12 @@ function monthDataClean_(month) {
 function checkout_(p) {
   const car = findCar_(p.plate);
   const name = name_(p.name);
+  // คนขับที่มีชื่อในระบบแล้วไม่ต้องกรอกเบอร์โทร/วันหมดอายุใบขับขี่ซ้ำ คนขับใหม่ต้องกรอก
   const phone = String(p.phone || '').replace(/[^\d]/g, '');
-  if (phone.length < 9 || phone.length > 10) throw new Error('กรุณากรอกเบอร์โทร 9-10 หลัก');
-  const licenseExp = dateStr_(p.licenseExp);
+  const licenseExp = p.licenseExp ? dateStr_(p.licenseExp) : '';
+  const known = readRows_('drivers').some(function (r) { return String(r.name) === name; });
+  if (!known && (!phone || !licenseExp)) throw new Error('คนขับใหม่ กรุณากรอกเบอร์โทรและวันหมดอายุใบขับขี่');
+  if (phone && (phone.length < 9 || phone.length > 10)) throw new Error('กรุณากรอกเบอร์โทร 9-10 หลัก');
   const odoStart = num_(p.odoStart, 'ไมล์ก่อน');
   const purpose = str_(p.purpose, 200);
   if (!purpose) throw new Error('กรุณากรอกปลายทาง/วัตถุประสงค์');
@@ -262,7 +266,7 @@ function checkout_(p) {
       returnTs: '', returnImages: '', status: 'open', returnName: ''
     };
     appendRow_('usage', row);
-    upsertDriver_(name, phone, licenseExp);
+    if (phone || licenseExp) upsertDriver_(name, phone, licenseExp);
     return { id: row.id };
   });
 }
@@ -270,8 +274,15 @@ function checkout_(p) {
 // เก็บ/อัปเดตเบอร์โทรและวันหมดอายุใบขับขี่ในแท็บ "รายชื่อคนขับ" (เรียกภายใน lock)
 function upsertDriver_(name, phone, licenseExp) {
   const d = readRows_('drivers').filter(function (r) { return String(r.name) === name; })[0];
-  const rec = { name: name, active: d && d.active === 'N' ? 'N' : 'Y', phone: phone, licenseExp: licenseExp, updated: now_() };
+  const rec = { name: name, active: d && d.active === 'N' ? 'N' : 'Y', phone: phone || (d ? d.phone : ''), licenseExp: licenseExp || (d ? d.licenseExp : ''), updated: now_() };
   if (d) writeRow_(sheet_('drivers'), d._row, 'drivers', rec); else appendRow_('drivers', rec);
+}
+
+// เช็กว่ามีชื่อคนขับนี้ในระบบหรือยัง (ส่งกลับแค่วันหมดอายุใบขับขี่ เพื่อเตือนตอนเบิกรถ ไม่ส่งเบอร์โทร)
+function driverCheck_(p) {
+  const n = str_(p.name, 60);
+  const d = readRows_('drivers').filter(function (r) { return String(r.name) === n && r.active !== 'N'; })[0];
+  return d ? { exists: true, licenseExp: d.licenseExp || '' } : { exists: false };
 }
 
 // สำหรับหน้าแอดมินเท่านั้น (มีเบอร์โทร)
