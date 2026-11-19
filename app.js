@@ -38,7 +38,7 @@ function call(action, payload) {
 function sget(store, k) { try { return window[store].getItem(k) || ''; } catch (e) { return ''; } }
 function sset(store, k, v) { try { v ? window[store].setItem(k, v) : window[store].removeItem(k); } catch (e) {} }
 function isAdmin() { return !S.pinRequired || !!S.pin; }
-function showWho() { if (ADMIN_MODE) { $('#who').textContent = 'หน้าแอดมิน' + (S.pin ? ' · เข้าสู่ระบบแล้ว' : ''); return; } $('#who').textContent = S.name ? 'คุณ' + S.name + (S.pin ? ' · แอดมิน' : '') : (S.pin ? 'โหมดแอดมิน' : 'ใช้งานได้ทันที ไม่ต้องล็อกอิน'); }
+function showWho() { /* แถบด้านบนแสดงตามหน้า (ดู headerLeft) */ }
 function profile(n) { return S.profiles[n] || {}; }
 function saveProfile(n, phone, lic) {
   S.profiles[n] = { phone: phone, lic: lic };
@@ -233,6 +233,23 @@ function askConfirm(msg, okText, withReason) {
   });
 }
 
+/* ---------- แถบด้านบน: หน้ารถแสดงป้ายทะเบียน + พ.ร.บ./ภาษี/ประกัน หน้าอื่นแสดงชื่อหน้า ---------- */
+function headerLeft() {
+  if (ADMIN_MODE) return '<div class="htitle">หน้าแอดมิน</div>';
+  if (S.tab === 'car' && S.cars.length) {
+    var car = curCar(), t = openTripOf(car.plate);
+    return '<div class="hcar"><div class="hplate"><div class="plate"><div class="no">' + esc(car.plate) + '</div><div class="pv">' + esc(car.province) + '</div></div>' +
+      (t ? '<span class="hchip busy">ถูกเบิกอยู่</span>' : '<span class="hchip free">ว่าง</span>') + '</div>' +
+      '<div class="hexp">' + hexpRow('พ.ร.บ.', car.actExp) + hexpRow('ภาษีรถ', car.taxExp) + hexpRow('ประกันภัย', car.insExp, car.insurer) + '</div></div>';
+  }
+  return '<div class="htitle">' + (S.tab === 'expense' ? 'บันทึกค่าใช้จ่าย' : S.tab === 'car' ? 'รถ' : 'หน้าแรก') + '</div>';
+}
+function hexpRow(label, d, sub) {
+  var n = daysLeft(d), cls = n === null ? 'na' : n < 0 ? 'bad' : n <= 30 ? 'warn' : 'ok';
+  return '<div class="hx"><div class="hx-t"><span>' + label + '</span><b class="' + cls + '">' + cdText(n) + '</b></div>' +
+    '<div class="hx-d">' + (d ? thDate(d) : '') + (sub ? ' · ' + esc(sub) : '') + '</div></div>';
+}
+
 /* ---------- เฟรมหลัก ---------- */
 function render() {
   var h = '';
@@ -244,6 +261,8 @@ function render() {
   else if (S.tab === 'expense') h = viewExpense();
   else h = viewHome();
   $('#app').innerHTML = h;
+  $('#hLeft').innerHTML = headerLeft();
+  document.querySelector('header').classList.toggle('carhead', !ADMIN_MODE && S.tab === 'car' && S.cars.length > 0);
   document.querySelectorAll('nav button').forEach(function (b) { b.classList.toggle('on', b.dataset.t === S.tab); });
   bindForms();
   paintIcons();
@@ -341,11 +360,7 @@ function viewCar() {
   if (!S.cars.length) return '<div class="card">ยังไม่มีรถในระบบ ให้แอดมินเพิ่มในแท็บ "จัดการ"</div>';
   var car = curCar(); S.plate = car.plate;
   var t = openTripOf(car.plate);
-  var h = '<div class="card hd"><div class="hdl">' +
-    '<div class="plate"><div class="no">' + esc(car.plate) + '</div><div class="pv">' + esc(car.province) + '</div></div><br>' +
-    (t ? '<span class="chip">ถูกเบิกอยู่</span>' : '<span class="chip free">ว่าง</span>') +
-    '<button class="line" data-act="reg">ดูสำเนาทะเบียน</button></div>' +
-    '<div class="hdr">' + cdRow('พ.ร.บ.', car.actExp) + cdRow('ภาษีรถ', car.taxExp) + cdRow('ประกันภัย', car.insExp, car.insurer ? '<div class="ins">' + esc(car.insurer) + '</div>' : '<div class="d">ยังไม่ระบุบริษัทประกัน</div>') + '</div></div>';
+  var h = '<button class="line regbtn" data-act="reg">ดูสำเนาทะเบียนรถ</button>';
   h += '<div class="menu">' +
     menuBtn('trip', t ? 'คืนรถ' : 'เบิกรถ') + menuBtn('history', 'ประวัติการใช้งาน') +
     menuBtn('info', 'ข้อมูลรถ') + menuBtn('maint', 'ประวัติการซ่อมบำรุง') + '</div>';
@@ -1102,6 +1117,6 @@ load().then(function () {
   else if (INITIAL_CAR || INITIAL_PLATE) toast('ไม่พบรถคันนี้ในระบบ (อาจถูกนำออกแล้ว) เลือกรถจากหน้าแรกได้', 'err');
   render();
 }).catch(function (e) {
-  $('#who').textContent = '';
+  $('#hLeft').innerHTML = '<div class="htitle">เข้าใช้งานไม่ได้</div>';
   $('#app').innerHTML = '<div class="card"><h2>เข้าใช้งานไม่ได้</h2>' + esc(e.message) + '</div>';
 });
