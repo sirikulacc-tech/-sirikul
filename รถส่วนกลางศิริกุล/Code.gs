@@ -123,12 +123,15 @@ function disableAdminPin() {
 
 /* ---------- Web app ---------- */
 function doGet(e) {
-  // ทะเบียนจาก QR (?plate=...) กรองเหลือเฉพาะตัวอักษรที่ปลอดภัยก่อนฝังลงหน้า
-  const plate = String((e && e.parameter && e.parameter.plate) || '').replace(/[^\wก-๙\- ]/g, '').slice(0, 20);
+  // QR ใช้รหัสประจำรถ (?car=...) ซึ่งไม่เปลี่ยนแม้แก้ทะเบียน (?plate=... ยังรองรับ)
+  // กรองเหลือเฉพาะตัวอักษรที่ปลอดภัยก่อนฝังลงหน้า
+  const q = (e && e.parameter) || {};
   const t = HtmlService.createTemplateFromFile('index');
-  t.initialPlate = plate;
+  t.initialCar = String(q.car || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 40);
+  t.initialPlate = String(q.plate || '').replace(/[^\wก-๙\- ]/g, '').slice(0, 20);
+  t.adminMode = q.admin === '1'; // หน้าแอดมิน (คอมพิวเตอร์) = ลิงก์แอป + ?admin=1
   return t.evaluate()
-    .setTitle('รถส่วนกลางศิริกุล')
+    .setTitle(t.adminMode ? 'แอดมิน · รถส่วนกลางศิริกุล' : 'รถส่วนกลางศิริกุล')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
@@ -146,6 +149,8 @@ function api(action, payload) {
       case 'getRegDoc': return ok_(getRegDoc_(payload));
       case 'checkPin': requirePin_(payload.pin); return ok_(true);
       case 'saveCar': requirePin_(payload.pin); return ok_(saveCar_(payload));
+      case 'setCarActive': requirePin_(payload.pin); return ok_(setCarActive_(payload));
+      case 'ocrRegDoc': requirePin_(payload.pin); return ok_(ocrRegDoc_(payload));
       case 'cancelTrip': requirePin_(payload.pin); return ok_(cancelTrip_(payload));
       case 'report': requirePin_(payload.pin); return ok_(report_(payload));
       case 'exportReport': requirePin_(payload.pin); return ok_(exportReport_(payload));
@@ -185,7 +190,10 @@ function bootstrap_() {
   const usage = readRows_('usage');
   const last = {};
   usage.forEach(function (u) { if (u.status !== 'cancelled') last[u.plate] = u.odoEnd !== '' ? u.odoEnd : u.odoStart; });
-  const cars = readRows_('cars').filter(function (c) { return c.active !== 'N'; }).map(function (c) {
+  const allCars = readRows_('cars');
+  const removed = allCars.filter(function (c) { return c.active === 'N'; })
+    .map(function (c) { return { id: c.id, plate: c.plate, model: c.model }; });
+  const cars = allCars.filter(function (c) { return c.active !== 'N'; }).map(function (c) {
     c.lastOdo = last[c.plate] == null ? '' : last[c.plate];
     return c;
   });
@@ -196,6 +204,7 @@ function bootstrap_() {
     drivers: driverNames_(usage),
     pinRequired: !!PropertiesService.getScriptProperties().getProperty('ADMIN_PIN'),
     cars: cars,
+    removedCars: removed,
     openTrips: open,
     appUrl: ScriptApp.getService().getUrl(),
     expenseTypes: EXPENSE_TYPES,
@@ -334,13 +343,18 @@ function listExpenses_(p) {
 }
 
 /* ---------- จัดการรถ (admin) ---------- */
+// แก้ไขอ้างอิงด้วยรหัสประจำรถ (id) จึงแก้เลขทะเบียนได้ โดย QR/ลิงก์เดิมยังใช้ได้
 function saveCar_(p) {
   const plate = str_(p.plate, 20);
   if (!plate) throw new Error('กรุณากรอกทะเบียน');
   const reg = p.regDoc ? saveRegDoc_(p.regDoc, plate) : null;
   return lock_(function () {
-    const old = readRows_('cars').filter(function (r) { return r.plate === plate; })[0];
-    const rec = old ? Object.assign({}, old) : { id: Utilities.getUuid(), regDocId: '', regDocMime: '' };
+    const cars = readRows_('cars');
+    const old = p.id ? cars.filter(function (r) { return r.id === p.id; })[0] : null;
+    if (p.id && !old) throw new Error('ไม่พบรถที่จะแก้ไข');
+    const dup = cars.filter(function (r) { return r.plate === plate && (!old || r.id !== old.id); })[0];
+    if (dup) throw new Error('ทะเบียน ' + plate + ' มีอยู่แล้วในระบบ' + (dup.active === 'N' ? ' (อยู่ในรายการรถที่นำออก กด "นำกลับมาใช้" แทน)' : ''));
+    const rec = old ? Object.assign({}, old) : { id: newCarId_(cars), regDocId: '', regDocMime: '', active: 'Y' };
     rec.plate = plate;
     rec.province = str_(p.province, 40);
     rec.insurer = str_(p.insurer, 60);
@@ -349,7 +363,6 @@ function saveCar_(p) {
     rec.actExp = p.actExp ? dateStr_(p.actExp) : '';
     rec.taxExp = p.taxExp ? dateStr_(p.taxExp) : '';
     rec.insExp = p.insExp ? dateStr_(p.insExp) : '';
-    rec.active = p.active === 'N' ? 'N' : 'Y';
     if (reg) {
       if (old && old.regDocId) {
         try { DriveApp.getFileById(old.regDocId).setTrashed(true); } catch (e) { /* ไฟล์เดิมอาจถูกลบไปแล้ว */ }
@@ -357,8 +370,112 @@ function saveCar_(p) {
       rec.regDocId = reg.id; rec.regDocMime = reg.mime;
     }
     if (old) writeRow_(sheet_('cars'), old._row, 'cars', rec); else appendRow_('cars', rec);
-    return { id: rec.id };
+    if (old && old.plate !== plate) renamePlate_(old.plate, plate);
+    return { id: rec.id, renamed: !!(old && old.plate !== plate) };
   });
+}
+
+// ย้ายประวัติทั้งหมดไปอยู่ใต้ทะเบียนใหม่ (เรียกภายใน lock)
+function renamePlate_(from, to) {
+  ['usage', 'expenses', 'maintenance'].forEach(function (k) {
+    const sh = sheet_(k);
+    const last = sh.getLastRow();
+    if (last < 2) return;
+    const col = SCHEMA[k].cols.map(function (c) { return c[0]; }).indexOf('plate') + 1;
+    const rng = sh.getRange(2, col, last - 1, 1);
+    const vals = rng.getValues();
+    let changed = false;
+    vals.forEach(function (r) { if (String(r[0]) === from) { r[0] = to; changed = true; } });
+    if (changed) rng.setValues(vals);
+  });
+}
+
+// รหัสประจำรถแบบสั้น 8 ตัว (ใช้ใน QR)
+function newCarId_(cars) {
+  let id;
+  do { id = Utilities.getUuid().replace(/-/g, '').slice(0, 8); }
+  while (cars.some(function (c) { return c.id === id; }));
+  return id;
+}
+
+// นำรถออก (active = N) หรือนำกลับมาใช้ (Y) ประวัติไม่ถูกลบ
+function setCarActive_(p) {
+  const active = p.active === 'N' ? 'N' : 'Y';
+  return lock_(function () {
+    const car = readRows_('cars').filter(function (c) { return c.id === p.id; })[0];
+    if (!car) throw new Error('ไม่พบรถ');
+    if (active === 'N' && readRows_('usage').some(function (u) { return u.plate === car.plate && u.status === 'open'; })) {
+      throw new Error('รถ ' + car.plate + ' ยังถูกเบิกอยู่ ให้คืนรถหรือยกเลิกรายการก่อน');
+    }
+    car.active = active;
+    writeRow_(sheet_('cars'), car._row, 'cars', car);
+    return { id: car.id };
+  });
+}
+
+/* ---------- อ่านสำเนาทะเบียนด้วย OCR ของ Google Drive (ฟรี) ---------- */
+// ต้องเปิดบริการ Drive API (v3) ในโปรเจกต์ (appsscript.json เปิดไว้ให้แล้ว)
+const PROVINCES = ['กรุงเทพมหานคร', 'กระบี่', 'กาญจนบุรี', 'กาฬสินธุ์', 'กำแพงเพชร', 'ขอนแก่น', 'จันทบุรี', 'ฉะเชิงเทรา', 'ชลบุรี', 'ชัยนาท',
+  'ชัยภูมิ', 'ชุมพร', 'เชียงราย', 'เชียงใหม่', 'ตรัง', 'ตราด', 'ตาก', 'นครนายก', 'นครปฐม', 'นครพนม', 'นครราชสีมา', 'นครศรีธรรมราช',
+  'นครสวรรค์', 'นนทบุรี', 'นราธิวาส', 'น่าน', 'บึงกาฬ', 'บุรีรัมย์', 'ปทุมธานี', 'ประจวบคีรีขันธ์', 'ปราจีนบุรี', 'ปัตตานี',
+  'พระนครศรีอยุธยา', 'พะเยา', 'พังงา', 'พัทลุง', 'พิจิตร', 'พิษณุโลก', 'เพชรบุรี', 'เพชรบูรณ์', 'แพร่', 'ภูเก็ต', 'มหาสารคาม',
+  'มุกดาหาร', 'แม่ฮ่องสอน', 'ยโสธร', 'ยะลา', 'ร้อยเอ็ด', 'ระนอง', 'ระยอง', 'ราชบุรี', 'ลพบุรี', 'ลำปาง', 'ลำพูน', 'เลย', 'ศรีสะเกษ',
+  'สกลนคร', 'สงขลา', 'สตูล', 'สมุทรปราการ', 'สมุทรสงคราม', 'สมุทรสาคร', 'สระแก้ว', 'สระบุรี', 'สิงห์บุรี', 'สุโขทัย', 'สุพรรณบุรี',
+  'สุราษฎร์ธานี', 'สุรินทร์', 'หนองคาย', 'หนองบัวลำภู', 'อ่างทอง', 'อำนาจเจริญ', 'อุดรธานี', 'อุตรดิตถ์', 'อุทัยธานี', 'อุบลราชธานี'];
+
+function ocrRegDoc_(p) {
+  const m = /^data:(image\/(?:jpeg|png|webp)|application\/pdf);base64,(.+)$/.exec(String(p.file || ''));
+  if (!m) throw new Error('ไฟล์ต้องเป็นรูปภาพหรือ PDF');
+  const bytes = Utilities.base64Decode(m[2]);
+  if (bytes.length > MAX_DOC_BYTES) throw new Error('ไฟล์ใหญ่เกิน 6 MB');
+  if (typeof Drive === 'undefined') throw new Error('ยังไม่ได้เปิดบริการ Drive API ในโปรเจกต์ Apps Script (ดู README)');
+  let docId = '';
+  try {
+    // อัปโหลดเป็น Google Docs พร้อม OCR ภาษาไทย แล้วอ่านข้อความ
+    const f = Drive.Files.create({ name: 'ocr-ชั่วคราว-รถส่วนกลาง', mimeType: 'application/vnd.google-apps.document' },
+      Utilities.newBlob(bytes, m[1], 'ocr'), { ocrLanguage: 'th' });
+    docId = f.id;
+    const text = DocumentApp.openById(docId).getBody().getText();
+    return { fields: parseRegText_(text), text: text.slice(0, 3000) };
+  } finally {
+    if (docId) { try { DriveApp.getFileById(docId).setTrashed(true); } catch (e) { /* ลบไฟล์ชั่วคราวไม่สำเร็จ ไม่กระทบผล */ } }
+  }
+}
+
+// แยกข้อมูลจากข้อความหน้า "รายการจดทะเบียน" (ผล OCR อาจวางค่าไว้บรรทัดเดียวกับหัวข้อ หรือบรรทัดถัดไป)
+function parseRegText_(raw) {
+  const text = String(raw || '').replace(/\r/g, '');
+  const lines = text.split('\n').map(function (l) { return l.replace(/\s+/g, ' ').trim(); }).filter(Boolean);
+  const pick = function (labelRe, valueRe) {
+    for (let i = 0; i < lines.length; i++) {
+      const lm = labelRe.exec(lines[i]);
+      if (!lm) continue;
+      const cands = [lines[i].slice(lm.index + lm[0].length), lines[i + 1] || '', lines[i + 2] || ''];
+      for (let j = 0; j < cands.length; j++) {
+        const v = valueRe.exec(cands[j].replace(/^[\s:.\-]+/, ''));
+        if (v) return String(v[1] || v[0]).trim();
+      }
+    }
+    return '';
+  };
+  const provRe = new RegExp('(' + PROVINCES.join('|') + ')');
+  const plateRe = /((?:[0-9]\s?)?[ก-ฮ]{1,3}\s?-?\s?[0-9]{1,4})(?![0-9])/;
+  const out = {};
+  let plate = pick(/เลขทะเบียน/, plateRe) || (plateRe.exec(text) || [])[1] || '';
+  out.plate = plate.replace(/\s*-\s*/, ' ').replace(/^([0-9])\s+([ก-ฮ])/, '$1$2').replace(/([ก-ฮ])\s*([0-9])/, '$1 $2');
+  out.province = pick(/จังหวัด/, provRe) || (provRe.exec(text) || [])[1] || (/กรุงเทพ/.test(text) ? 'กรุงเทพมหานคร' : '');
+  const brand = pick(/ยี่ห้อรถ|ยี่ห้อ(?!เครื่อง)/, /([A-Za-z][A-Za-z\- ]{1,20})/).toUpperCase();
+  let model = pick(/แบบ(?!รถ)|รุ่น(?!ปี)/, /([A-Za-z0-9][A-Za-z0-9\- ]{0,25})/).toUpperCase();
+  if (brand && model.indexOf(brand) === 0) model = model.slice(brand.length).trim();
+  out.model = [brand, model].filter(Boolean).join(' ');
+  const yr = pick(/รุ่นปี|ปี\s*ค\.?\s*ศ/, /((?:19|20|25)[0-9]{2})/);
+  out.year = yr ? String(Number(yr) > 2400 ? Number(yr) - 543 : Number(yr)) : '';
+  out.color = pick(/(?:^|\s)สี(?![ก-๙]*เครื่อง)/, /([ก-๙]{2,}(?: ?[ก-๙]{2,})?)/);
+  out.vin = (pick(/เลขตัวรถ|เลขตัวถัง|เลขถัง/, /([A-HJ-NPR-Z0-9]{8,20})/i) || (/\b([A-HJ-NPR-Z0-9]{17})\b/i.exec(text) || [])[1] || '').toUpperCase();
+  out.engineNo = pick(/เลขเครื่องยนต์|เลขเครื่อง/, /([A-Z0-9][A-Z0-9\-]{4,20})/i).toUpperCase();
+  out.fuel = pick(/เชื้อเพลิง/, /(เบนซิน|ดีเซล|ไฟฟ้า|ไฮบริด|LPG|NGV|แก๊ส[ก-๙]*)/i);
+  Object.keys(out).forEach(function (k) { if (!out[k]) delete out[k]; });
+  return out;
 }
 
 /* ---------- สำเนาทะเบียนรถ ---------- */
