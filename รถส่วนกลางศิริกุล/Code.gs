@@ -8,17 +8,22 @@
 const TZ = 'Asia/Bangkok';
 const MAX_IMAGES = 5;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024; // ต่อรูป หลัง decode
-const EXPENSE_TYPES = ['น้ำมัน', 'ซ่อมบำรุง', 'ล้างรถ', 'ทางด่วน/ที่จอด', 'ภาษี/พ.ร.บ.', 'ประกัน', 'อื่นๆ'];
+const MAINT_TYPES = ['เปลี่ยนน้ำมันเครื่อง', 'ยาง', 'แบตเตอรี่', 'เบรก', 'ตรวจเช็คตามระยะ', 'ซ่อมทั่วไป', 'ตรวจสภาพ', 'อื่นๆ'];
+const MAX_DOC_BYTES = 6 * 1024 * 1024;
+// ค่าซ่อมบำรุงบันทึกที่เมนูซ่อมบำรุง ไม่ซ้ำกับค่าใช้จ่ายทั่วไป
+const EXPENSE_TYPES = ['น้ำมัน', 'ล้างรถ', 'ทางด่วน/ที่จอด', 'ภาษี/พ.ร.บ.', 'ประกัน', 'อื่นๆ'];
 
 // ชื่อแท็บ + คอลัมน์ (key ใช้ในโค้ด, h คือหัวตารางที่เห็นใน Sheet)
 const SCHEMA = {
   cars: {
     title: 'รถ',
     cols: [
-      ['id', 'รหัส'], ['plate', 'ทะเบียน'], ['model', 'ยี่ห้อ/รุ่น'], ['year', 'ปี'],
-      ['actExp', 'พ.ร.บ.หมดอายุ'], ['taxExp', 'ภาษีหมดอายุ'], ['insExp', 'ประกันหมดอายุ'], ['active', 'ใช้งาน']
+      ['id', 'รหัส'], ['plate', 'ทะเบียน'], ['model', 'ยี่ห้อ/รุ่น'], ['year', 'ปี'], ['color', 'สี'], ['fuel', 'เชื้อเพลิง'],
+      ['vin', 'เลขตัวถัง'], ['engineNo', 'เลขเครื่อง'],
+      ['actExp', 'พ.ร.บ.หมดอายุ'], ['taxExp', 'ภาษีหมดอายุ'], ['insExp', 'ประกันหมดอายุ'], ['active', 'ใช้งาน'],
+      ['regDocId', 'ไฟล์สำเนาทะเบียน (Drive ID)'], ['regDocMime', 'ชนิดไฟล์สำเนาทะเบียน']
     ],
-    textCols: ['actExp', 'taxExp', 'insExp']
+    textCols: ['year', 'vin', 'engineNo', 'actExp', 'taxExp', 'insExp']
   },
   usage: {
     title: 'การใช้รถ',
@@ -36,6 +41,15 @@ const SCHEMA = {
       ['note', 'หมายเหตุ'], ['images', 'ลิงก์รูป'], ['email', 'อีเมลผู้บันทึก'], ['name', 'ชื่อผู้บันทึก']
     ],
     textCols: ['date']
+  },
+  maintenance: {
+    title: 'ซ่อมบำรุง',
+    cols: [
+      ['id', 'รหัส'], ['date', 'วันที่'], ['plate', 'ทะเบียน'], ['odo', 'เลขไมล์'], ['type', 'ประเภท'], ['detail', 'รายละเอียด'],
+      ['shop', 'อู่/ร้าน'], ['cost', 'ค่าใช้จ่าย'], ['nextDate', 'ครบกำหนดครั้งต่อไป (วันที่)'], ['nextOdo', 'ครบกำหนดครั้งต่อไป (ไมล์)'],
+      ['images', 'ลิงก์รูป'], ['email', 'อีเมลผู้บันทึก'], ['name', 'ชื่อผู้บันทึก']
+    ],
+    textCols: ['date', 'nextDate']
   },
   users: {
     title: 'ผู้ใช้',
@@ -111,6 +125,9 @@ function api(action, payload) {
       case 'checkout': return ok_(checkout_(me, payload));
       case 'returnCar': return ok_(returnCar_(me, payload));
       case 'addExpense': return ok_(addExpense_(me, payload));
+      case 'carHistory': return ok_(carHistory_(payload));
+      case 'addMaintenance': return ok_(addMaintenance_(me, payload));
+      case 'getRegDoc': return ok_(getRegDoc_(payload));
       case 'saveCar': requireRole_(me, ['admin']); return ok_(saveCar_(payload));
       case 'listUsage': return ok_(listUsage_(me, payload));
       case 'listExpenses': return ok_(listExpenses_(me, payload));
@@ -156,22 +173,37 @@ function bootstrap_(me) {
     openTrips: open,
     appUrl: ScriptApp.getService().getUrl(),
     expenseTypes: EXPENSE_TYPES,
-    alerts: isManager_(me) ? buildAlerts_(cars) : [],
+    maintTypes: MAINT_TYPES,
+    alerts: isManager_(me) ? buildAlerts_(cars, readRows_('maintenance')) : [],
     recentUsage: listUsage_(me, { limit: 10 }),
     recentExpenses: listExpenses_(me, { limit: 10 })
   };
 }
 
-function buildAlerts_(cars) {
+function buildAlerts_(cars, maint) {
   const today = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
   const limit = Utilities.formatDate(new Date(Date.now() + 30 * 86400000), TZ, 'yyyy-MM-dd');
   const out = [];
+  const plates = {};
   cars.forEach(function (c) {
+    plates[c.plate] = true;
     [['พ.ร.บ.', c.actExp], ['ภาษี', c.taxExp], ['ประกัน', c.insExp]].forEach(function (p) {
       if (p[1] && p[1] <= limit) {
         out.push({ plate: c.plate, what: p[0], date: p[1], expired: p[1] < today });
       }
     });
+  });
+  // ซ่อมบำรุง: ดูเฉพาะรายการล่าสุดของแต่ละทะเบียน+ประเภท
+  const latest = {};
+  maint.forEach(function (m) {
+    const k = m.plate + '|' + m.type;
+    if (!latest[k] || m.date >= latest[k].date) latest[k] = m;
+  });
+  Object.keys(latest).forEach(function (k) {
+    const m = latest[k];
+    if (plates[m.plate] && m.nextDate && m.nextDate <= limit) {
+      out.push({ plate: m.plate, what: 'ซ่อมบำรุง: ' + m.type, date: m.nextDate, expired: m.nextDate < today });
+    }
   });
   return out.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
 }
@@ -251,23 +283,87 @@ function listExpenses_(me, p) {
 function saveCar_(p) {
   const plate = str_(p.plate, 20);
   if (!plate) throw new Error('กรุณากรอกทะเบียน');
-  const rec = {
-    plate: plate, model: str_(p.model, 80), year: str_(p.year, 4),
-    actExp: p.actExp ? dateStr_(p.actExp) : '', taxExp: p.taxExp ? dateStr_(p.taxExp) : '',
-    insExp: p.insExp ? dateStr_(p.insExp) : '', active: p.active === 'N' ? 'N' : 'Y'
-  };
+  const reg = p.regDoc ? saveRegDoc_(p.regDoc, plate) : null;
   return lock_(function () {
-    const sh = sheet_('cars');
-    const rows = readRows_('cars');
-    const idx = rows.findIndex(function (r) { return r.plate === plate; });
-    if (idx >= 0) {
-      rec.id = rows[idx].id;
-      writeRow_(sh, rows[idx]._row, 'cars', rec);
-    } else {
-      rec.id = Utilities.getUuid();
-      appendRow_('cars', rec);
+    const old = readRows_('cars').filter(function (r) { return r.plate === plate; })[0];
+    const rec = old ? Object.assign({}, old) : { id: Utilities.getUuid(), regDocId: '', regDocMime: '' };
+    rec.plate = plate;
+    rec.model = str_(p.model, 80); rec.year = str_(p.year, 4); rec.color = str_(p.color, 30);
+    rec.fuel = str_(p.fuel, 30); rec.vin = str_(p.vin, 30); rec.engineNo = str_(p.engineNo, 30);
+    rec.actExp = p.actExp ? dateStr_(p.actExp) : '';
+    rec.taxExp = p.taxExp ? dateStr_(p.taxExp) : '';
+    rec.insExp = p.insExp ? dateStr_(p.insExp) : '';
+    rec.active = p.active === 'N' ? 'N' : 'Y';
+    if (reg) {
+      if (old && old.regDocId) {
+        try { DriveApp.getFileById(old.regDocId).setTrashed(true); } catch (e) { /* ไฟล์เดิมอาจถูกลบไปแล้ว */ }
+      }
+      rec.regDocId = reg.id; rec.regDocMime = reg.mime;
     }
+    if (old) writeRow_(sheet_('cars'), old._row, 'cars', rec); else appendRow_('cars', rec);
     return { id: rec.id };
+  });
+}
+
+/* ---------- สำเนาทะเบียนรถ ---------- */
+function saveRegDoc_(dataUrl, plate) {
+  const m = /^data:(image\/(?:jpeg|png|webp)|application\/pdf);base64,(.+)$/.exec(String(dataUrl));
+  if (!m) throw new Error('สำเนาทะเบียนต้องเป็นรูปภาพหรือ PDF');
+  const bytes = Utilities.base64Decode(m[2]);
+  if (bytes.length > MAX_DOC_BYTES) throw new Error('ไฟล์สำเนาทะเบียนใหญ่เกิน 6 MB');
+  const main = DriveApp.getFolderById(PropertiesService.getScriptProperties().getProperty('MAIN_FOLDER_ID'));
+  const dir = getOrCreateFolder_(main, 'เอกสารรถ');
+  const ext = m[1] === 'application/pdf' ? 'pdf' : (m[1] === 'image/jpeg' ? 'jpg' : m[1].split('/')[1]);
+  const file = dir.createFile(Utilities.newBlob(bytes, m[1], 'สำเนาทะเบียน_' + plate.replace(/[^\wก-๙-]/g, '') + '.' + ext));
+  return { id: file.getId(), mime: m[1] };
+}
+
+// ผู้ใช้ที่มีสิทธิ์ทุกคนดูได้ (คนขับต้องใช้เมื่อถูกตรวจ) รูปส่งผ่านแอป ไม่ต้องแชร์ไฟล์ใน Drive
+function getRegDoc_(p) {
+  const car = findCar_(p.plate);
+  if (!car.regDocId) throw new Error('ยังไม่มีสำเนาทะเบียนของรถคันนี้ ให้แอดมินอัปโหลดในแท็บ "จัดการ"');
+  const file = DriveApp.getFileById(car.regDocId);
+  const mime = car.regDocMime || file.getMimeType();
+  if (mime === 'application/pdf') return { mime: mime, url: file.getUrl() };
+  return { mime: mime, dataUrl: 'data:' + mime + ';base64,' + Utilities.base64Encode(file.getBlob().getBytes()) };
+}
+
+/* ---------- ประวัติรถ / ซ่อมบำรุง ---------- */
+// ทุกคนที่มีสิทธิ์ดูประวัติการใช้และซ่อมบำรุงของรถแต่ละคันได้
+function carHistory_(p) {
+  const car = findCar_(p.plate);
+  const usage = readRows_('usage').filter(function (u) { return u.plate === car.plate; }).reverse().slice(0, 100)
+    .map(function (u) {
+      return { ts: u.ts, name: u.name, odoStart: u.odoStart, odoEnd: u.odoEnd, purpose: u.purpose,
+        returnTs: u.returnTs, status: u.status, images: u.images, returnImages: u.returnImages };
+    });
+  const maint = readRows_('maintenance').filter(function (m) { return m.plate === car.plate; })
+    .sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 100)
+    .map(function (m) {
+      return { date: m.date, odo: m.odo, type: m.type, detail: m.detail, shop: m.shop, cost: m.cost,
+        nextDate: m.nextDate, nextOdo: m.nextOdo, images: m.images, name: m.name };
+    });
+  return { usage: usage, maint: maint };
+}
+
+function addMaintenance_(me, p) {
+  const car = findCar_(p.plate);
+  if (MAINT_TYPES.indexOf(p.type) < 0) throw new Error('ประเภทไม่ถูกต้อง');
+  const detail = str_(p.detail, 300);
+  if (!detail) throw new Error('กรุณากรอกรายละเอียด');
+  const links = saveImages_(p.images, car.plate, 'ซ่อมบำรุง');
+  return lock_(function () {
+    const row = {
+      id: Utilities.getUuid(), date: dateStr_(p.date), plate: car.plate,
+      odo: p.odo === '' || p.odo == null ? '' : num_(p.odo, 'เลขไมล์'),
+      type: p.type, detail: detail, shop: str_(p.shop, 100),
+      cost: p.cost === '' || p.cost == null ? '' : num_(p.cost, 'ค่าใช้จ่าย'),
+      nextDate: p.nextDate ? dateStr_(p.nextDate) : '',
+      nextOdo: p.nextOdo === '' || p.nextOdo == null ? '' : num_(p.nextOdo, 'ไมล์ครั้งต่อไป'),
+      images: links.join('\n'), email: me.email, name: me.name
+    };
+    appendRow_('maintenance', row);
+    return { id: row.id };
   });
 }
 
