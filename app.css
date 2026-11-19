@@ -388,3 +388,67 @@
     .hx .hx-d { font-size:10.5px; }
     .hx b { font-size:11px; padding:0 5px; }
   }
+
+  /* ===================== หน้ารถแบบใหม่ ===================== */
+  .carsum { position:relative; background:var(--card); border:1px solid var(--line); border-radius:20px; padding:16px 16px 14px 20px; margin-bottom:14px; box-shadow:var(--shadow); overflow:hidden; }
+  .carsum::before { content:""; position:absolute; left:0; top:0; bottom:0; width:6px; background:var(--brand); }
+  .carsum.busy::before { background:var(--bad); }
+  .cs-top { display:flex; align-items:center; gap:12px; }
+  .cs-ic { width:52px; height:52px; flex:none; border-radius:16px; background:var(--pri-soft); display:grid; place-items:center; font-size:28px; }
+  .cs-name { flex:1; min-width:0; line-height:1.2; }
+  .cs-name b { display:block; font-size:21px; font-weight:800; letter-spacing:.3px; }
+  .cs-name span { display:block; font-size:14px; color:var(--mute); overflow:hidden; text-overflow:ellipsis; }
+  .cs-st { flex:none; font-size:12.5px; font-weight:800; padding:5px 12px; border-radius:99px; max-width:46%; text-align:center; }
+  .cs-st.free { background:var(--ok-bg); color:var(--ok); } .cs-st.busy { background:var(--bad-bg); color:var(--bad); }
+  .cs-odo { display:flex; align-items:center; gap:8px; margin-top:14px; padding-top:12px; border-top:1px dashed var(--line); font-size:14.5px; }
+  .cs-odo > span:first-child { flex:1; color:var(--mute); }
+  .cs-odo em { font-style:normal; color:var(--mute); font-size:13px; }
+  .odo { display:inline-flex; gap:3px; }
+  .odo i { font-style:normal; width:24px; height:32px; display:grid; place-items:center; font-size:19px; font-weight:700; font-variant-numeric:tabular-nums;
+    background:var(--bg); border:1px solid var(--line); border-radius:6px; color:var(--ink); }
+  .cs-svc { margin-top:10px; font-size:13px; color:var(--mute); }
+  .mlist { display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
+  .mrow { margin:0; width:100%; display:flex; align-items:center; gap:14px; text-align:left; padding:16px 16px; border-radius:18px; background:var(--card); color:var(--ink);
+    border:1px solid var(--line); box-shadow:var(--shadow); font-weight:400; }
+  .mrow.primary { background:var(--grad); color:#fff; border-color:transparent; box-shadow:0 12px 24px -14px rgba(37,107,31,.9); }
+  :root[data-theme="dark"] .mrow.primary { color:#08160a; }
+  .mr-ic { font-size:28px; width:40px; text-align:center; flex:none; }
+  .mr-tx { flex:1; min-width:0; }
+  .mr-tx b { display:block; font-size:18px; font-weight:800; }
+  .mr-tx span { display:block; font-size:13.5px; opacity:.8; }
+  .mr-go { font-size:26px; opacity:.5; flex:none; }
+  .foot { text-align:center; padding:18px 0 8px; color:var(--mute); }
+  .foot-logo { width:56px; height:56px; margin:0 auto 6px; border-radius:50%; background:#fff; padding:5px; border:1px solid var(--line); }
+  .foot-logo img { width:100%; height:100%; object-fit:contain; }
+  .foot b { display:block; color:var(--ink); font-size:15px; } .foot span { font-size:12.5px; }
+  /* หน้าย่อย */
+  .subpage.slidein { animation:slidein .22s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes slidein { from { opacity:0; transform:translateX(28px); } to { opacity:1; transform:none; } }
+  @media (prefers-reduced-motion: reduce) { .subpage.slidein { animation:none; } }
+  .backlink { width:auto; margin:0 0 6px; padding:6px 2px; background:transparent; color:var(--pri); font-size:16px; font-weight:700; }
+  .sp-title { font-size:22px; margin:2px 2px 12px; }
+  .swipe-hint { text-align:center; font-size:12px; color:var(--mute); padding:6px 0 4px; }
+  @media (hover:hover) and (pointer:fine) { .swipe-hint { display:none; } }
+  /* ฟอร์มเบิกรถ: ปุ่มลัด */
+  .req { color:var(--bad); }
+  label small { font-weight:400; }
+  .qchips { display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 8px; }
+  .qchip { width:auto; margin:0; padding:8px 14px; border-radius:99px; font-size:14.5px; font-weight:700; background:var(--pri-soft); color:var(--pri); border:1.5px solid transparent; }
+  .qchip.on { background:var(--pri); color:var(--on-pri); }
+  .usebtn { margin:8px 0 0; background:transparent; color:var(--pri); border:1.5px dashed var(--pri-2); font-weight:700; }
+  .liccard { margin-top:10px; padding:14px 16px; border-radius:16px; border:2px solid var(--warn); background:var(--warn-bg); color:var(--ink); font-size:14.5px; }
+  .liccard.bad { border-color:var(--bad); background:var(--bad-bg); }
+  .lc-t { font-weight:700; } .lc-n { font-size:30px; font-weight:800; line-height:1.2; color:var(--warn); } .liccard.bad .lc-n { color:var(--bad); }
+  .lc-b { font-weight:800; margin-top:2px; }
+  .tripbox { background:var(--pri-soft); border-radius:14px; padding:12px 14px; font-size:14.5px; display:flex; flex-direction:column; gap:2px; }
+  /* แถบด้านบน: ป้ายประเภทรถ */
+  .hchip.type { color:#fff; background:rgba(255,255,255,.18); max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* สีป้ายทะเบียนตามประเภท */
+  .plate.pc-green { border-color:#0f6a26; box-shadow:inset 0 0 0 2px #fff, inset 0 0 0 2.6px rgba(15,106,38,.6), 0 6px 14px -10px rgba(0,0,0,.4); }
+  .plate.pc-green .no, .plate.pc-green .pv { color:#0f6a26; }
+  .plate.pc-blue { border-color:#1747a0; box-shadow:inset 0 0 0 2px #fff, inset 0 0 0 2.6px rgba(23,71,160,.6), 0 6px 14px -10px rgba(0,0,0,.4); }
+  .plate.pc-blue .no, .plate.pc-blue .pv { color:#1747a0; }
+  .plate.pc-red { background:linear-gradient(180deg,#f04a3f,#d8332a); border-color:#8f1c16; box-shadow:inset 0 0 0 2px #f04a3f, inset 0 0 0 2.6px rgba(0,0,0,.35), 0 6px 14px -10px rgba(0,0,0,.4); }
+  .plate.pc-red .no, .plate.pc-red .pv { color:#1a0b0a; text-shadow:none; } .plate.pc-red .pv { border-top-color:rgba(0,0,0,.2); }
+  .plate.sm.pc-green, .plate.sm.pc-blue, .hplate .plate.pc-green, .hplate .plate.pc-blue { box-shadow:inset 0 0 0 1.5px #fff, inset 0 0 0 2px currentColor, 0 4px 10px -8px rgba(0,0,0,.35); }
+  .plate.pc-green { color:#0f6a26; } .plate.pc-blue { color:#1747a0; }

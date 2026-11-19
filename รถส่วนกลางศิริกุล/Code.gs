@@ -17,6 +17,7 @@ const MAX_IMAGE_BYTES = 4 * 1024 * 1024; // ต่อรูป หลัง deco
 const MAINT_TYPES = ['เปลี่ยนน้ำมันเครื่อง', 'ยาง', 'แบตเตอรี่', 'เบรก', 'ตรวจเช็คตามระยะ', 'ซ่อมทั่วไป', 'ตรวจสภาพ', 'อื่นๆ'];
 const MAX_DOC_BYTES = 6 * 1024 * 1024;
 // ค่าซ่อมบำรุงบันทึกที่เมนูซ่อมบำรุง ไม่ซ้ำกับค่าใช้จ่ายทั่วไป
+const PLATE_COLORS = ['black', 'green', 'blue', 'red']; // ขาว-ดำ / ขาว-เขียว / ขาว-น้ำเงิน / ป้ายแดง
 const EXPENSE_TYPES = ['น้ำมัน', 'ล้างรถ', 'ทางด่วน/ที่จอด', 'ภาษี/พ.ร.บ.', 'ประกัน', 'อื่นๆ'];
 
 // ชื่อแท็บ + คอลัมน์ (key ใช้ในโค้ด, h คือหัวตารางที่เห็นใน Sheet)
@@ -27,7 +28,7 @@ const SCHEMA = {
       ['id', 'รหัส'], ['plate', 'ทะเบียน'], ['model', 'ยี่ห้อ/รุ่น'], ['year', 'ปี'], ['color', 'สี'], ['fuel', 'เชื้อเพลิง'],
       ['vin', 'เลขตัวถัง'], ['engineNo', 'เลขเครื่อง'],
       ['actExp', 'พ.ร.บ.หมดอายุ'], ['taxExp', 'ภาษีหมดอายุ'], ['insExp', 'ประกันหมดอายุ'], ['active', 'ใช้งาน'],
-      ['regDocId', 'ไฟล์สำเนาทะเบียน (Drive ID)'], ['regDocMime', 'ชนิดไฟล์สำเนาทะเบียน'], ['province', 'จังหวัด'], ['insurer', 'บริษัทประกันภัย']
+      ['regDocId', 'ไฟล์สำเนาทะเบียน (Drive ID)'], ['regDocMime', 'ชนิดไฟล์สำเนาทะเบียน'], ['province', 'จังหวัด'], ['insurer', 'บริษัทประกันภัย'], ['vtype', 'ประเภทรถ'], ['plateColor', 'สีป้ายทะเบียน']
     ],
     textCols: ['year', 'vin', 'engineNo', 'actExp', 'taxExp', 'insExp']
   },
@@ -36,7 +37,7 @@ const SCHEMA = {
     cols: [
       ['id', 'รหัส'], ['ts', 'เวลาเบิก'], ['plate', 'ทะเบียน'], ['email', 'อีเมล'], ['name', 'ชื่อผู้ใช้'],
       ['odoStart', 'ไมล์ก่อน'], ['odoEnd', 'ไมล์หลัง'], ['purpose', 'วัตถุประสงค์/ปลายทาง'], ['images', 'ลิงก์รูปตอนเบิก'],
-      ['returnTs', 'เวลาคืน'], ['returnImages', 'ลิงก์รูปตอนคืน'], ['status', 'สถานะ'], ['returnName', 'ผู้คืนรถ']
+      ['returnTs', 'เวลาคืน'], ['returnImages', 'ลิงก์รูปตอนคืน'], ['status', 'สถานะ'], ['returnName', 'ผู้คืนรถ'], ['dest', 'ปลายทาง']
     ],
     textCols: ['ts', 'returnTs']
   },
@@ -262,7 +263,7 @@ function checkout_(p) {
     if (held) throw new Error('รถคันนี้ถูกเบิกโดย ' + held.name + ' เมื่อ ' + String(held.ts).slice(0, 16) + ' ยังไม่ได้คืน');
     const row = {
       id: Utilities.getUuid(), ts: now_(), plate: car.plate, email: '', name: name,
-      odoStart: odoStart, odoEnd: '', purpose: purpose, images: links.join('\n'),
+      odoStart: odoStart, odoEnd: '', purpose: purpose, dest: str_(p.dest, 120), images: links.join('\n'),
       returnTs: '', returnImages: '', status: 'open', returnName: ''
     };
     appendRow_('usage', row);
@@ -350,6 +351,8 @@ function saveCar_(p) {
     const rec = old ? Object.assign({}, old) : { id: newCarId_(cars), regDocId: '', regDocMime: '', active: 'Y' };
     rec.plate = plate;
     rec.province = str_(p.province, 40);
+    rec.vtype = str_(p.vtype, 30);
+    rec.plateColor = PLATE_COLORS.indexOf(p.plateColor) >= 0 ? p.plateColor : 'black';
     rec.insurer = str_(p.insurer, 60);
     rec.model = str_(p.model, 80); rec.year = str_(p.year, 4); rec.color = str_(p.color, 30);
     rec.fuel = str_(p.fuel, 30); rec.vin = str_(p.vin, 30); rec.engineNo = str_(p.engineNo, 30);
@@ -615,13 +618,21 @@ function toArray_(key, obj) {
   });
 }
 
+// เพิ่มหัวคอลัมน์ใหม่ให้เอง เมื่อโค้ดมีคอลัมน์มากกว่าใน Sheet (ไม่ต้องรัน setup ซ้ำ)
+function ensureHeader_(key, sh) {
+  const cols = SCHEMA[key].cols;
+  if (sh.getLastColumn() < cols.length) sh.getRange(1, 1, 1, cols.length).setValues([cols.map(function (c) { return c[1]; })]);
+}
+
 function appendRow_(key, obj) {
   const sh = sheet_(key);
+  ensureHeader_(key, sh);
   const row = sh.getLastRow() + 1;
   sh.getRange(row, 1, 1, SCHEMA[key].cols.length).setValues([toArray_(key, obj)]);
 }
 
 function writeRow_(sh, rowNo, key, obj) {
+  ensureHeader_(key, sh);
   sh.getRange(rowNo, 1, 1, SCHEMA[key].cols.length).setValues([toArray_(key, obj)]);
 }
 
