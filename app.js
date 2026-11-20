@@ -393,22 +393,36 @@ function odoDigits(n) {
   var s = String(Math.round(Number(n))); while (s.length < 6) s = '0' + s;
   return '<span class="odo">' + s.split('').map(function (d) { return '<i>' + d + '</i>'; }).join('') + '</span>';
 }
+function serviceBlock(car) {
+  var sv = lastService(car.plate);
+  var head = function (right, cls) { return '<div class="sv-head"><span>🔧 เช็คระยะถัดไป</span><b class="' + (cls || '') + '">' + right + '</b></div>'; };
+  if (!sv) return '<div class="cs-svc">' + head('ยังไม่มีข้อมูล', 'na') + '</div>';
+  var nd = daysLeft(sv.nextDate), cur = car.lastOdo === '' ? null : Number(car.lastOdo);
+  var hasKm = sv.nextOdo !== '' && sv.odo !== '' && cur !== null && Number(sv.nextOdo) > Number(sv.odo);
+  var dayTxt = nd === null ? '' : (nd < 0 ? 'เกิน ' + (-nd) + ' วัน' : 'อีก ' + nd + ' วัน');
+  if (!hasKm) {
+    var dc = nd === null ? 'na' : nd < 0 ? 'bad' : nd <= 30 ? 'warn' : 'ok';
+    return '<div class="cs-svc">' + head(dayTxt || 'ไม่ได้กำหนด', dc) + '<div class="sv-cap">เช็คล่าสุด ' + thDate(sv.date) + (sv.odo !== '' ? ' ที่ ' + km(sv.odo) + ' กม.' : '') + '</div></div>';
+  }
+  var interval = Number(sv.nextOdo) - Number(sv.odo), used = Math.max(0, cur - Number(sv.odo)), left = Number(sv.nextOdo) - cur;
+  var pct = Math.min(100, Math.round(used / interval * 100));
+  var cls = left < 0 || (nd !== null && nd < 0) ? 'bad' : (left <= Math.max(500, interval * 0.1) || (nd !== null && nd <= 30)) ? 'warn' : 'ok';
+  return '<div class="cs-svc">' + head(left < 0 ? 'เกิน ' + km(-left) + ' กม.' : 'อีก ' + km(left) + ' กม.', cls) +
+    '<div class="sv-bar ' + cls + '"><i style="width:' + Math.max(pct, 3) + '%"></i><span>' + pct + '%</span></div>' +
+    '<div class="sv-cap">ใช้ไป ' + km(used) + ' / ' + km(interval) + ' กม. · เช็คล่าสุดที่ ' + km(sv.odo) + ' กม.' + (dayTxt ? ' · ' + dayTxt : '') + '</div></div>';
+}
 function viewCar() {
   if (!S.cars.length) return '<div class="card">ยังไม่มีรถในระบบ ให้แอดมินเพิ่มในหน้าแอดมิน</div>';
   var car = curCar(); S.plate = car.plate;
   var t = openTripOf(car.plate);
   if (S.sub) return subPage(car, t);
   var parts = String(car.model || '').trim().split(/\s+/), brand = parts.shift() || 'รถ', rest = parts.join(' ');
-  var sv = lastService(car.plate), svc;
-  if (sv) {
-    var nd = daysLeft(sv.nextDate), left = sv.nextOdo !== '' && car.lastOdo !== '' ? Number(sv.nextOdo) - Number(car.lastOdo) : null;
-    svc = '🔧 เช็คระยะล่าสุด ' + thDate(sv.date) + (left !== null ? ' · ครั้งต่อไป' + (left < 0 ? 'เกิน ' + km(-left) + ' กม.' : 'อีก ' + km(left) + ' กม.') : '') + (nd !== null ? ' · ' + (nd < 0 ? 'เกิน ' + (-nd) + ' วัน' : 'อีก ' + nd + ' วัน') : '');
-  } else svc = '🔧 ยังไม่มีข้อมูลเช็คระยะ';
+  var svc = serviceBlock(car);
   var h = '<div class="carsum ' + (t ? 'busy' : 'free') + '">' +
     '<div class="cs-top"><div class="cs-ic">' + vIcon(car.vtype) + '</div><div class="cs-name"><b>' + esc(brand) + '</b>' + (rest ? '<span>' + esc(rest) + '</span>' : '') + '</div>' +
     (t ? '<span class="cs-st busy">ถูกเบิกโดย ' + esc(t.name) + '</span>' : '<span class="cs-st free">ว่าง พร้อมใช้งาน</span>') + '</div>' +
     '<div class="cs-odo"><span>🛣️ ไมล์ล่าสุด</span>' + odoDigits(car.lastOdo) + '<em>กม.</em></div>' +
-    '<div class="cs-svc">' + svc + '</div></div>';
+    svc + '</div>';
   h += '<div class="mlist">' +
     mRow('trip', t ? '🔑' : '🚗', t ? 'คืนรถ' : 'เบิกรถ', t ? 'เบิกโดย ' + esc(t.name) + ' · ' + thTime(t.ts) : 'บันทึกการใช้รถก่อนออกเดินทาง', true) +
     mRow('info', '📋', 'ข้อมูลรถ', 'รายละเอียดรถ ภาษี พ.ร.บ. ประกัน สำเนาทะเบียน') +

@@ -406,7 +406,16 @@
   .odo { display:inline-flex; gap:3px; }
   .odo i { font-style:normal; width:24px; height:32px; display:grid; place-items:center; font-size:19px; font-weight:700; font-variant-numeric:tabular-nums;
     background:var(--bg); border:1px solid var(--line); border-radius:6px; color:var(--ink); }
-  .cs-svc { margin-top:10px; font-size:13px; color:var(--mute); }
+  .cs-svc { margin-top:12px; }
+  .sv-head { display:flex; align-items:center; gap:8px; font-size:14.5px; }
+  .sv-head span { flex:1; color:var(--mute); }
+  .sv-head b { font-size:17px; font-weight:800; }
+  .sv-head b.ok { color:var(--ok); } .sv-head b.warn { color:var(--warn); } .sv-head b.bad { color:var(--bad); } .sv-head b.na { color:var(--mute); font-size:14px; font-weight:600; }
+  .sv-bar { position:relative; height:18px; margin-top:8px; border-radius:99px; background:var(--line); overflow:hidden; }
+  .sv-bar i { position:absolute; left:0; top:0; bottom:0; border-radius:99px; background:linear-gradient(90deg,#3fae4a,#7bd957); }
+  .sv-bar.warn i { background:linear-gradient(90deg,#e08a12,#f6b24d); } .sv-bar.bad i { background:linear-gradient(90deg,#c2271f,#ff7d74); }
+  .sv-bar span { position:absolute; inset:0; display:grid; place-items:center; font-size:12px; font-weight:800; color:var(--ink); }
+  .sv-cap { margin-top:6px; font-size:12.5px; color:var(--mute); }
   .mlist { display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
   .mrow { margin:0; width:100%; display:flex; align-items:center; gap:14px; text-align:left; padding:16px 16px; border-radius:18px; background:var(--card); color:var(--ink);
     border:1px solid var(--line); box-shadow:var(--shadow); font-weight:400; }
