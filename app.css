@@ -716,3 +716,47 @@ body.admin .side button.on { color:#04503a; }
 .av { background:linear-gradient(135deg,#047857,#34d399); }
 .mcell .vic { background:var(--pri-soft); }
 .plate.pc-green { --pc:#0b7a35; }
+
+/* ===== ชุดสีธีม (เลือกได้จากปุ่มจานสี) ===== */
+:root, :root[data-palette="emerald"] { --a0:#053d30; --a1:#047857; --a2:#10b981; --a3:#34d399; }
+:root[data-theme="dark"], :root[data-palette="emerald"][data-theme="dark"] { --a0:#04261d; --a1:#06513d; --a2:#0a7a5a; --a3:#10b981; }
+:root[data-palette="ocean"] { --bg:#f2f6fc; --ink:#0e1a2e; --mute:#5a6b85; --line:#e0e8f4; --input:#f8faff; --pri:#2563eb; --pri-2:#3b82f6; --on-pri:#ffffff; --pri-soft:#e3ecfd; --brand:#60a5fa; --brand-soft:#dbe7fd; --a0:#0b2a5b; --a1:#1d4ed8; --a2:#3b82f6; --a3:#60a5fa; }
+:root[data-palette="ocean"][data-theme="dark"] { --bg:#070d1a; --card:#0e1830; --ink:#e6eefc; --mute:#8a9bbb; --line:#1c2b4a; --input:#0a1226; --pri:#60a5fa; --pri-2:#3b82f6; --on-pri:#06122a; --pri-soft:#132850; --brand:#60a5fa; --brand-soft:#102244; --a0:#06122b; --a1:#0b2a5b; --a2:#1d4ed8; --a3:#3b82f6; }
+:root[data-palette="violet"] { --bg:#f6f4fc; --ink:#1a1030; --mute:#6a5f85; --line:#e8e2f5; --input:#faf8ff; --pri:#7c3aed; --pri-2:#8b5cf6; --on-pri:#ffffff; --pri-soft:#ece6fd; --brand:#a78bfa; --brand-soft:#e6defc; --a0:#2e1065; --a1:#6d28d9; --a2:#8b5cf6; --a3:#a78bfa; }
+:root[data-palette="violet"][data-theme="dark"] { --bg:#0d0a18; --card:#17122a; --ink:#ede8fb; --mute:#9a90b8; --line:#2a2347; --input:#110d20; --pri:#a78bfa; --pri-2:#8b5cf6; --on-pri:#12081f; --pri-soft:#241b45; --brand:#a78bfa; --brand-soft:#1e1740; --a0:#1a0b3d; --a1:#3b1a8a; --a2:#5b2fc4; --a3:#8b5cf6; }
+:root[data-palette="sunset"] { --bg:#fcf6f1; --ink:#2a160c; --mute:#86675a; --line:#f3e4d9; --input:#fffaf6; --pri:#ea580c; --pri-2:#f97316; --on-pri:#ffffff; --pri-soft:#ffe9da; --brand:#fb923c; --brand-soft:#ffe3cf; --a0:#7c2d12; --a1:#c2410c; --a2:#f97316; --a3:#fb923c; }
+:root[data-palette="sunset"][data-theme="dark"] { --bg:#140b06; --card:#21130b; --ink:#fbeee4; --mute:#b89a88; --line:#3a2416; --input:#1a0f08; --pri:#fb923c; --pri-2:#f97316; --on-pri:#1a0a02; --pri-soft:#3a2010; --brand:#fb923c; --brand-soft:#321b0d; --a0:#3a1405; --a1:#7c2d12; --a2:#c2410c; --a3:#f97316; }
+:root[data-palette="rose"] { --bg:#fcf4f7; --ink:#2a0f1b; --mute:#86596d; --line:#f5e1e9; --input:#fff8fb; --pri:#db2777; --pri-2:#ec4899; --on-pri:#ffffff; --pri-soft:#fde4ee; --brand:#f472b6; --brand-soft:#fcdcea; --a0:#831843; --a1:#be185d; --a2:#ec4899; --a3:#f472b6; }
+:root[data-palette="rose"][data-theme="dark"] { --bg:#14080d; --card:#220f18; --ink:#fbe9f0; --mute:#bb94a5; --line:#3b1b2a; --input:#1a0b12; --pri:#f472b6; --pri-2:#ec4899; --on-pri:#1f0613; --pri-soft:#3d1428; --brand:#f472b6; --brand-soft:#331122; --a0:#3d0a20; --a1:#831843; --a2:#be185d; --a3:#ec4899; }
+:root[data-palette="slate"] { --bg:#f4f6f8; --ink:#0f172a; --mute:#5b6676; --line:#e2e8f0; --input:#f8fafc; --pri:#334155; --pri-2:#475569; --on-pri:#ffffff; --pri-soft:#e5eaf1; --brand:#94a3b8; --brand-soft:#e2e8f0; --a0:#0f172a; --a1:#334155; --a2:#475569; --a3:#64748b; }
+:root[data-palette="slate"][data-theme="dark"] { --bg:#0a0e14; --card:#131a24; --ink:#e6ebf2; --mute:#94a0b3; --line:#232d3b; --input:#0e141c; --pri:#94a3b8; --pri-2:#64748b; --on-pri:#0a0e14; --pri-soft:#1d2633; --brand:#94a3b8; --brand-soft:#1a2230; --a0:#0a0e14; --a1:#1e293b; --a2:#334155; --a3:#64748b; }
+
+/* ค่าที่คำนวณจากชุดสี (ต้องอยู่หลังสุด) */
+:root { --hdr:linear-gradient(120deg,var(--a0) 0%,var(--a1) 55%,var(--a2) 100%); --grad:linear-gradient(135deg,var(--a1) 0%,var(--a2) 100%);
+  --page:radial-gradient(1100px 420px at 50% -160px,color-mix(in srgb,var(--brand) 22%,transparent) 0%,transparent 70%);
+  --side:linear-gradient(185deg,var(--a0) 0%,var(--a1) 100%); --heroBg:radial-gradient(120% 160% at 100% 0%,color-mix(in srgb,var(--a3) 45%,transparent) 0%,transparent 55%),linear-gradient(135deg,var(--a0) 0%,var(--a1) 58%,var(--a2) 135%);
+  --shadow:0 1px 2px color-mix(in srgb,var(--a0) 8%,transparent), 0 14px 30px -16px color-mix(in srgb,var(--a0) 32%,transparent); }
+:root[data-theme="dark"] { --hdr:linear-gradient(120deg,var(--a0) 0%,var(--a1) 55%,var(--a2) 100%); --grad:linear-gradient(135deg,var(--a2) 0%,var(--a3) 100%);
+  --side:linear-gradient(185deg,var(--a0) 0%,color-mix(in srgb,var(--a1) 60%,#000) 100%); --heroBg:radial-gradient(120% 160% at 100% 0%,color-mix(in srgb,var(--a3) 28%,transparent) 0%,transparent 55%),linear-gradient(135deg,var(--a0) 0%,var(--a1) 100%);
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 28px -14px rgba(0,0,0,.65); }
+body.admin .side, :root[data-theme="dark"] body.admin .side { background:var(--side) !important; }
+.hero, :root[data-theme="dark"] .hero { background:var(--heroBg) !important; }
+.hero-a button:not(.glass) { color:var(--a0); }
+body.admin .side button.on { color:var(--a1); }
+:root[data-theme="dark"] body.admin .side button.on { background:var(--pri); color:var(--on-pri); }
+:root[data-theme="dark"] .side button.on { color:var(--on-pri); }
+.bc i { background:linear-gradient(180deg,var(--a3),var(--a1)) !important; }
+.sv-bar i { background:linear-gradient(90deg,var(--a1),var(--a3)); }
+.av { background:linear-gradient(135deg,var(--a1),var(--a3)); }
+.ok-dot { background:var(--ok); }
+
+/* ปุ่มเลือกธีม */
+.palpop { position:fixed; top:62px; right:12px; z-index:60; width:288px; max-width:calc(100vw - 24px); background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:18px; padding:14px; box-shadow:0 24px 48px -16px rgba(0,0,0,.45); animation:up .18s ease both; }
+body:not(.admin) .palpop { top:56px; }
+.pp-h { font-weight:800; font-size:15px; margin:0 2px 10px; }
+.pp-g { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.pp-g button { margin:0; width:auto; display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:12px; background:var(--input); color:var(--ink); border:1.5px solid var(--line); font-size:13.5px; font-weight:700; text-align:left; box-shadow:none; }
+.pp-g button i { width:26px; height:26px; flex:none; border-radius:50%; box-shadow:inset 0 0 0 2px rgba(255,255,255,.55); }
+.pp-g button.on { border-color:var(--pri); background:var(--pri-soft); }
+.pp-g button.on span::after { content:" ✓"; color:var(--pri); }
+.pp-f { margin:10px 2px 0; font-size:12px; color:var(--mute); }

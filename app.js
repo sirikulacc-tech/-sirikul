@@ -147,6 +147,7 @@ var ICON = {
   expand:'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
   compress:'<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>',
   search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
+  palette:'<path d="M12 3a9 9 0 1 0 0 18c1.3 0 2-.9 2-1.8 0-.5-.2-.9-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.4-4-7.8-9-7.8z"/><circle cx="7.5" cy="11" r=".9"/><circle cx="10" cy="7" r=".9"/><circle cx="14.5" cy="7" r=".9"/>',
   shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>'
 };
 function ic(n, size) {
@@ -177,9 +178,35 @@ function shrinkLogo(file) {
     img.src = url;
   });
 }
+var PALETTES = [['emerald', 'มรกต', '#047857', '#34d399'], ['ocean', 'น้ำเงิน', '#1d4ed8', '#60a5fa'], ['violet', 'ม่วง', '#6d28d9', '#a78bfa'],
+  ['sunset', 'ส้ม', '#c2410c', '#fb923c'], ['rose', 'ชมพู', '#be185d', '#f472b6'], ['slate', 'เทาเข้ม', '#334155', '#94a3b8']];
+function curPalette() { var p = document.documentElement.getAttribute('data-palette') || 'emerald'; return PALETTES.some(function (x) { return x[0] === p; }) ? p : 'emerald'; }
+function setPalette(id, save) {
+  if (!PALETTES.some(function (x) { return x[0] === id; })) id = 'emerald';
+  document.documentElement.setAttribute('data-palette', id);
+  if (save) { try { localStorage.setItem('palette', id); } catch (e) {} }
+  var m = document.querySelector('meta[name=theme-color]');
+  if (m) { var a = getComputedStyle(document.documentElement).getPropertyValue('--a1').trim(); if (a) m.setAttribute('content', a); }
+}
+function closePalette() { var o = $('#palPop'); if (o) o.remove(); }
+function togglePalette() {
+  if ($('#palPop')) return closePalette();
+  var cur = curPalette(), el = document.createElement('div'); el.id = 'palPop'; el.className = 'palpop';
+  el.innerHTML = '<div class="pp-h">เลือกสีธีม</div><div class="pp-g">' + PALETTES.map(function (x) {
+    return '<button type="button" data-p="' + x[0] + '" class="' + (x[0] === cur ? 'on' : '') + '"><i style="background:linear-gradient(135deg,' + x[2] + ',' + x[3] + ')"></i><span>' + x[1] + '</span></button>';
+  }).join('') + '</div><div class="pp-f">ใช้ได้ทั้งโหมดสว่างและมืด จำค่าไว้ในเครื่องนี้</div>';
+  el.addEventListener('click', function (e) {
+    e.stopPropagation(); var b = e.target.closest('button[data-p]'); if (!b) return;
+    setPalette(b.dataset.p, true); el.querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === b); });
+  });
+  document.body.appendChild(el);
+}
+document.addEventListener('click', function (e) { if (!e.target.closest('#palPop') && !e.target.closest('#palBtn')) closePalette(); });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePalette(); });
 function setTheme(t, save) {
   document.documentElement.setAttribute('data-theme', t);
   if (save) { try { localStorage.setItem('theme', t); } catch (e) { /* เบราว์เซอร์บล็อกที่เก็บข้อมูล ใช้ได้เฉพาะรอบนี้ */ } }
+  setPalette(curPalette(), false);
   var tb = $('#themeBtn');
   if (tb) { tb.innerHTML = ic(t === 'dark' ? 'sun' : 'moon', 18); tb.setAttribute('aria-label', t === 'dark' ? 'เปลี่ยนเป็นโหมดปกติ' : 'เปลี่ยนเป็นโหมดมืด'); }
 }
@@ -1304,6 +1331,8 @@ function buildAlerts(cars, maint) {
   return out.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
 }
 
+$('#palBtn').innerHTML = ic('palette', 18);
+$('#palBtn').addEventListener('click', function (e) { e.stopPropagation(); togglePalette(); });
 $('#themeBtn').addEventListener('click', function (e) {
   e.stopPropagation();
   setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark', true);

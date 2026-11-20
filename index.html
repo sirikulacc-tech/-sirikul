@@ -18,19 +18,21 @@
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&family=Noto+Sans+Thai+Looped:wght@500;600;700&family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script>
   (function () {
-    var t = null;
-    try { t = localStorage.getItem('theme'); } catch (e) {}
+    var t = null, pl = null;
+    try { t = localStorage.getItem('theme'); pl = localStorage.getItem('palette'); } catch (e) {}
+    if (pl && /^[a-z]+$/.test(pl)) document.documentElement.setAttribute('data-palette', pl);
     if (t !== 'light' && t !== 'dark') t = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', t);
   })();
 </script>
-<link rel="stylesheet" href="app.css?v=20261122l">
+<link rel="stylesheet" href="app.css?v=20261122n">
 </head>
 <body>
 <header>
   <div class="hleft" id="hLeft"></div>
   <div class="hright">
     <button class="iconbtn hide" id="fsBtn" aria-label="เต็มจอ" title="เต็มจอ"></button>
+    <button class="iconbtn" id="palBtn" aria-label="เลือกสีธีม" title="เลือกสีธีม"></button>
     <button class="iconbtn" id="themeBtn" aria-label="สลับโหมดมืด/ปกติ" title="สลับโหมดมืด/ปกติ"></button>
   </div>
 </header>
@@ -44,6 +46,6 @@
 </nav>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="app.js?v=20261122l"></script>
+<script src="app.js?v=20261122n"></script>
 </body>
 </html>
