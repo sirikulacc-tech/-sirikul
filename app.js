@@ -223,7 +223,7 @@ function installCard() {
   var how = FS.prompt ? '<button data-act="install">ติดตั้งแอป</button>'
     : FS.ios ? '<div class="mute" style="font-size:13px;margin-top:4px">แตะปุ่ม <b>แชร์</b> ด้านล่างของ Safari แล้วเลือก <b>เพิ่มไปยังหน้าจอโฮม</b></div>'
     : '<div class="mute" style="font-size:13px;margin-top:4px">แตะ ⋮ มุมขวาบนของ Chrome แล้วเลือก <b>เพิ่มลงในหน้าจอหลัก</b> หรือ <b>ติดตั้งแอป</b></div>';
-  return '<div class="card install"><img src="icons/icon-192.png?v=2" alt=""><div><b>เปิดเป็นแอปเต็มจอ</b><div class="mute" style="font-size:14px">ติดตั้งไว้บนหน้าจอหลัก เปิดแล้วเต็มจอทุกครั้ง ไม่มีแถบเบราว์เซอร์</div>' +
+  return '<div class="card install"><img src="icons/icon-192.png?v=3" alt=""><div><b>เปิดเป็นแอปเต็มจอ</b><div class="mute" style="font-size:14px">ติดตั้งไว้บนหน้าจอหลัก เปิดแล้วเต็มจอทุกครั้ง ไม่มีแถบเบราว์เซอร์</div>' +
     how + '<div class="btns"><button class="ghost" data-act="installhide">ไม่ต้องแสดงอีก</button></div></div></div>';
 }
 
