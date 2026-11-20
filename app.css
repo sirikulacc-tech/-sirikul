@@ -604,3 +604,16 @@
 .plate.pc-red { background:linear-gradient(180deg,#f2554a,#d8332a); border-color:#8f1c16; box-shadow:inset 0 0 0 2px #f2554a, inset 0 0 0 3.2px #8f1c16, 0 3px 8px -3px rgba(0,0,0,.3); }
 .plate.sm, .plate.sm.pc-green, .plate.sm.pc-blue { padding:4px 12px 6px; }
 .plate.sm .no { line-height:1.1; }
+
+/* ===== ป้ายทะเบียนตามแบบ: ขอบนอกสีตามป้าย เส้นในสีเทา ทรงยาว ===== */
+.plate, .plate.pc-green, .plate.pc-blue, .plate.sm, .plate.sm.pc-green, .plate.sm.pc-blue,
+.hplate .plate, .hplate .plate.pc-green, .hplate .plate.pc-blue {
+  background:#fff; border:2px solid var(--pc); border-radius:7px;
+  box-shadow:inset 0 0 0 2px #fff, inset 0 0 0 3px #a9afa9, 0 2px 6px -2px rgba(0,0,0,.25);
+  min-width:168px; padding:6px 22px 6px; text-align:center;
+}
+.plate.sm, .plate.sm.pc-green, .plate.sm.pc-blue { min-width:118px; border-width:1.5px; border-radius:5px; padding:4px 14px 5px;
+  box-shadow:inset 0 0 0 1.5px #fff, inset 0 0 0 2.4px #a9afa9, 0 1px 4px -1px rgba(0,0,0,.22); }
+.hplate .plate, .hplate .plate.pc-green, .hplate .plate.pc-blue { min-width:132px; padding:5px 14px 4px; border-radius:6px; }
+@media (max-width: 380px) { .hplate .plate, .hplate .plate.pc-green, .hplate .plate.pc-blue { min-width:112px; padding:4px 9px 3px; } }
+.plate.pc-red { background:linear-gradient(180deg,#f2554a,#d8332a); border-color:#8f1c16; box-shadow:inset 0 0 0 2px #f2554a, inset 0 0 0 3px rgba(0,0,0,.25), 0 2px 6px -2px rgba(0,0,0,.25); }
