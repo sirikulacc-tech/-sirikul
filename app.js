@@ -251,7 +251,10 @@ function askConfirm(msg, okText, withReason) {
 
 /* ---------- แถบด้านบน: หน้ารถแสดงป้ายทะเบียน + พ.ร.บ./ภาษี/ประกัน หน้าอื่นแสดงชื่อหน้า ---------- */
 function headerLeft() {
-  if (ADMIN_MODE) return '<div class="htitle">หน้าแอดมิน</div>';
+  if (ADMIN_MODE) {
+    var pg = ADMIN_PAGES.filter(function (p) { return p[0] === S.asub; })[0] || ADMIN_PAGES[0];
+    return '<div class="abar"><span class="crumb">แอดมิน</span><span class="sep">/</span><b>' + pg[1] + '</b></div><span class="adate">' + ic('clock', 15) + new Date().toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + '</span>';
+  }
   if (S.tab === 'car' && S.cars.length) {
     var car = curCar(), t = openTripOf(car.plate);
     return '<div class="hcar"><div class="hplate">' + plateHtml(car) +
@@ -690,7 +693,7 @@ function ensureDlist() {
   // วาดหน้าใหม่เฉพาะหน้าที่ใช้รายชื่อนี้ ไม่ให้ฟอร์มที่กำลังกรอกอยู่หน้าอื่นถูกล้าง
   call('listDrivers', { pin: S.pin }).then(function (d) { S.dlist = d; if (ADMIN_MODE && (S.asub === 'overview' || S.asub === 'drivers')) render(); }).catch(function (e) { S.dlist = null; toast(e.message, 'err'); });
 }
-function kpi(label, value, sub, cls) { return '<div class="kpi ' + (cls || '') + '"><div class="l">' + label + '</div><div class="v">' + value + '</div><div class="s">' + (sub || '&nbsp;') + '</div></div>'; }
+function kpi(label, value, sub, cls, icon) { return '<div class="kpi ' + (cls || '') + (icon ? ' hasic' : '') + '">' + (icon ? '<div class="kic">' + ic(icon, 22) + '</div>' : '') + '<div class="kb"><div class="l">' + label + '</div><div class="v">' + value + '</div><div class="s">' + (sub || '&nbsp;') + '</div></div></div>'; }
 function dt(head, rows, numCols, foot, rowCls) {
   numCols = numCols || [];
   var cell = function (tag, v, i) { return '<' + tag + (numCols.indexOf(i) >= 0 ? ' class="num"' : '') + '>' + v + '</' + tag + '>'; };
@@ -730,26 +733,38 @@ function viewAdmin() {
     body() + '</section></div>';
 }
 
+function tripChart() {
+  var days = [], i, map = {};
+  for (i = 13; i >= 0; i--) { var d = new Date(); d.setDate(d.getDate() - i); var k = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); days.push([k, d]); map[k] = 0; }
+  S.usage.forEach(function (u) { if (u.status === 'cancelled') return; var k = String(u.ts).slice(0, 10); if (k in map) map[k]++; });
+  var max = Math.max.apply(null, days.map(function (x) { return map[x[0]]; }).concat([1])), total = 0;
+  var bars = days.map(function (x) {
+    var n = map[x[0]]; total += n;
+    return '<div class="bc' + (x[0] === today() ? ' now' : '') + '" title="' + thDate(x[0]) + ': ' + n + ' เที่ยว"><b>' + (n || '') + '</b><i style="height:' + Math.max(n / max * 100, n ? 8 : 2) + '%"></i><span>' + x[1].getDate() + '</span></div>';
+  }).join('');
+  return '<div class="card chart"><div class="ch-h"><h2>การใช้รถ 14 วันล่าสุด</h2><span class="chip free">' + total + ' เที่ยว</span></div><div class="bars">' + bars + '</div></div>';
+}
 function admOverview() {
   ensureDlist();
   var od = S.open.filter(function (t) { return overdue(t.ts); });
   var expd = S.alerts.filter(function (a) { return a.expired; }).length;
   var lic = S.dlist ? S.dlist.filter(function (d) { var n = licDays(d); return d.active !== 'N' && n !== null && n < 0; }) : null;
   var h = '<div class="kpis">' +
-    kpi('รถที่ใช้งาน', S.cars.length, 'คัน') +
-    kpi('ถูกเบิกอยู่', S.open.length, od.length ? 'ค้างเกิน 24 ชม. ' + od.length + ' คัน' : 'ไม่มีรถค้างเกิน 24 ชม.', od.length ? 'bad' : '') +
-    kpi('ใกล้ครบกำหนด 30 วัน', S.alerts.length, expd ? 'เลยกำหนดแล้ว ' + expd + ' รายการ' : 'พ.ร.บ. ภาษี ประกัน เช็คระยะ', expd ? 'bad' : S.alerts.length ? 'warn' : 'ok') +
-    kpi('ใบขับขี่หมดอายุ', lic === null ? '…' : lic.length, 'คน', lic && lic.length ? 'bad' : '') + '</div>';
+    kpi('รถที่ใช้งาน', S.cars.length, 'คัน', 'ok', 'car') +
+    kpi('ถูกเบิกอยู่', S.open.length, od.length ? 'ค้างเกิน 24 ชม. ' + od.length + ' คัน' : 'ไม่มีรถค้างเกิน 24 ชม.', od.length ? 'bad' : 'info', 'clock') +
+    kpi('ใกล้ครบกำหนด 30 วัน', S.alerts.length, expd ? 'เลยกำหนดแล้ว ' + expd + ' รายการ' : 'พ.ร.บ. ภาษี ประกัน เช็คระยะ', expd ? 'bad' : S.alerts.length ? 'warn' : 'ok', 'shield') +
+    kpi('ใบขับขี่หมดอายุ', lic === null ? '…' : lic.length, 'คน', lic && lic.length ? 'bad' : 'ok', 'info') + '</div>';
   var todo = [];
   od.forEach(function (t) { todo.push(['bad', esc(t.plate) + ' ยังไม่คืนรถ · ' + esc(t.name) + ' · ' + overdue(t.ts), 'open']); });
   S.alerts.forEach(function (a) { todo.push([a.expired ? 'bad' : '', esc(a.plate) + ' · ' + esc(a.what) + (a.expired ? ' เลยกำหนด ' : ' ครบกำหนด ') + thDate(a.date), 'cars']); });
   (lic || []).forEach(function (d) { todo.push(['bad', 'ใบขับขี่ของ ' + esc(d.name) + ' หมดอายุ ' + thDate(d.licenseExp), 'drivers']); });
   h += '<div class="split2"><div class="card"><h2>ต้องจัดการ (' + todo.length + ')</h2>' + (todo.length ? todo.map(function (x) {
-    return '<button class="todo ' + x[0] + '" data-act="asub" data-s="' + x[2] + '"><span>' + x[1] + '</span><span aria-hidden="true">›</span></button>';
+    var icn = { open: 'clock', cars: 'shield', drivers: 'info' }[x[2]] || 'info';
+    return '<button class="todo ' + (x[0] || 'warn') + '" data-act="asub" data-s="' + x[2] + '"><i class="tdot">' + ic(icn, 16) + '</i><span class="tt">' + x[1] + '</span><span class="tgo" aria-hidden="true">›</span></button>';
   }).join('') : '<div class="mute">ไม่มีรายการที่ต้องจัดการ</div>') + '</div>';
-  h += '<div class="card flush"><h2>รถที่ถูกเบิกอยู่ (' + S.open.length + ')</h2>' + (S.open.length ? dt(['ทะเบียน', 'ผู้เบิก', 'เวลาเบิก', 'ไปที่ไหน'],
+  h += '<div class="stack">' + tripChart() + '<div class="card flush"><h2>รถที่ถูกเบิกอยู่ (' + S.open.length + ')</h2>' + (S.open.length ? dt(['ทะเบียน', 'ผู้เบิก', 'เวลาเบิก', 'ไปที่ไหน'],
     S.open.map(function (t) { return ['<b>' + esc(t.plate) + '</b>', esc(t.name) + (overdue(t.ts) ? ' <span class="chip">' + overdue(t.ts) + '</span>' : ''), thTime(t.ts), esc(t.purpose)]; }))
-    : '<div class="mute" style="padding:0 12px 10px">ไม่มีรถถูกเบิก</div>') + '</div></div>';
+    : '<div class="mute" style="padding:0 12px 10px">ไม่มีรถถูกเบิก</div>') + '</div></div></div>';
   h += '<div class="card flush"><h2>การใช้รถล่าสุด</h2>' + (S.usage.length ? dt(['เวลาเบิก', 'ทะเบียน', 'ผู้ใช้', 'ไปที่ไหน', 'ระยะทาง'],
     S.usage.map(function (u) {
       var k = u.status === 'open' ? '<span class="chip">ยังไม่คืน</span>' : u.status === 'cancelled' ? '<span class="chip na">ยกเลิก</span>' : km(u.odoEnd - u.odoStart) + ' กม.';
@@ -760,7 +775,7 @@ function admOverview() {
 
 function admCars() {
   var rows = S.cars.map(function (c) {
-    return [miniPlate(c), esc(c.model) + '<div class="sub">' + esc(c.year) + (c.color ? ' · ' + esc(c.color) : '') + '</div>', expChip(c.actExp), expChip(c.taxExp),
+    return [miniPlate(c), '<div class="mcell"><span class="vic">' + vIcon(c.vtype) + '</span><div><b>' + esc(c.model) + '</b><div class="sub">' + esc([c.vtype, c.year, c.color].filter(Boolean).join(' · ')) + '</div></div></div>', expChip(c.actExp), expChip(c.taxExp),
       expChip(c.insExp) + (c.insurer ? '<div class="sub">' + esc(c.insurer) + '</div>' : ''),
       c.regDocId ? '<span class="chip free">มี</span>' : '<span class="chip warn">ยังไม่มี</span>',
       '<div class="acts"><button class="small ghost" data-act="editcar" data-id="' + esc(c.id) + '">แก้ไข</button><button class="small line" data-act="removecar" data-id="' + esc(c.id) + '">นำออก</button></div>'];
@@ -845,9 +860,9 @@ function admReport() {
   var r = S.report;
   if (!r) return '<div class="card mute">เลือกเดือนด้านบนแล้วกด "ดูรายงาน"</div>';
   var t = r.totals;
-  var h = '<div class="kpis">' + kpi('จำนวนเที่ยว', km(t.trips), monthTh(r.month)) + kpi('ระยะทางรวม', km(t.km), 'กิโลเมตร') +
-    kpi('ค่าใช้จ่ายรวม', baht(t.total), 'น้ำมัน ' + baht(t.fuel) + ' · อื่นๆ ' + baht(t.other) + ' · ซ่อม ' + baht(t.maint)) +
-    kpi('ต้นทุนเฉลี่ยต่อ กม.', t.perKm == null ? '-' : baht(t.perKm), 'บาท') + '</div>';
+  var h = '<div class="kpis">' + kpi('จำนวนเที่ยว', km(t.trips), monthTh(r.month), 'info', 'car') + kpi('ระยะทางรวม', km(t.km), 'กิโลเมตร', 'ok', 'chart') +
+    kpi('ค่าใช้จ่ายรวม', baht(t.total), 'น้ำมัน ' + baht(t.fuel) + ' · อื่นๆ ' + baht(t.other) + ' · ซ่อม ' + baht(t.maint), 'warn', 'receipt') +
+    kpi('ต้นทุนเฉลี่ยต่อ กม.', t.perKm == null ? '-' : baht(t.perKm), 'บาท', 'info', 'sliders') + '</div>';
   h += '<div class="card flush"><h2>ต่อคัน</h2>' + (r.byCar.length ? dt(['ทะเบียน', 'เที่ยว', 'ระยะทาง (กม.)', 'น้ำมัน', 'อื่นๆ', 'ซ่อมบำรุง', 'รวม', 'บาท/กม.'],
     r.byCar.map(function (c) { return ['<b>' + esc(c.plate) + '</b>', c.trips, km(c.km), baht(c.fuel), baht(c.other), baht(c.maint), '<b>' + baht(c.total) + '</b>', c.perKm == null ? '-' : baht(c.perKm)]; }),
     [1, 2, 3, 4, 5, 6, 7], ['รวม', t.trips, km(t.km), baht(t.fuel), baht(t.other), baht(t.maint), baht(t.total), t.perKm == null ? '-' : baht(t.perKm)])
