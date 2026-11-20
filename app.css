@@ -548,3 +548,39 @@
 .bc.now i { background:linear-gradient(180deg,#ffd166,#f39c12); } .bc.now span { color:var(--ink); font-weight:800; }
 @media screen and (min-width: 900px) { .adm-main .qrgrid { grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:14px; } }
 @media print { body.admin .adm { padding-left:0 !important; } body.admin .adm-main { padding:0 !important; } }
+
+/* ===== หน้าจัดการรถ: ตัวกรอง ค้นหา เรียง ===== */
+.carsbox { padding:18px 16px 8px; }
+.fchips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+.fchip { width:auto; margin:0; padding:7px 14px; border-radius:99px; font-size:14px; font-weight:700; background:var(--card); color:var(--ink); border:1.5px solid var(--line); box-shadow:none; }
+.fchip b { margin-left:4px; font-weight:800; opacity:.8; }
+.fchip.ok { border-color:color-mix(in srgb, var(--ok) 45%, transparent); color:var(--ok); }
+.fchip.info { border-color:color-mix(in srgb, #2f6fdf 45%, transparent); color:#2f6fdf; }
+.fchip.warn { border-color:color-mix(in srgb, var(--warn) 50%, transparent); color:var(--warn); }
+.fchip.bad { border-color:color-mix(in srgb, var(--bad) 50%, transparent); color:var(--bad); }
+.fchip:hover { background:var(--pri-soft); }
+.fchip.on { background:var(--pri); border-color:var(--pri); color:var(--on-pri); }
+.fchip.ok.on { background:var(--ok); border-color:var(--ok); color:#fff; } .fchip.info.on { background:#2f6fdf; border-color:#2f6fdf; color:#fff; }
+.fchip.warn.on { background:var(--warn); border-color:var(--warn); color:#fff; } .fchip.bad.on { background:var(--bad); border-color:var(--bad); color:#fff; }
+:root[data-theme="dark"] .fchip.on { color:#08160a; }
+.ftools { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:6px 0 8px; }
+.fsearch { display:flex; align-items:center; gap:8px; flex:0 1 340px; margin:0; padding:0 12px; border:1.5px solid var(--line); border-radius:12px; background:var(--input); color:var(--mute); }
+.fsearch input { border:0; background:transparent; padding:10px 0; margin:0; box-shadow:none; outline:none; min-width:0; flex:1; }
+.fsearch:focus-within { border-color:var(--pri); }
+.fcount { font-size:13px; flex:1; }
+.ftools button { width:auto; margin:0; }
+.sorth { all:unset; cursor:pointer; color:inherit; font:inherit; letter-spacing:inherit; text-transform:inherit; white-space:nowrap; }
+.sorth:hover, .sorth.on { color:var(--pri); }
+.dt .chip.na { background:var(--line); color:var(--mute); }
+
+/* ===== ฟอนต์เลขทะเบียน: ตัวหนาแบบมีหัว ===== */
+.plate .no { font-family:"Sarabun","Noto Sans Thai",sans-serif !important; font-weight:800 !important; letter-spacing:.5px; }
+.plate .pv { font-family:"Sarabun","Noto Sans Thai",sans-serif !important; font-weight:700 !important; }
+.carsbox .dt { font-size:13.5px; }
+.carsbox .dt th, .carsbox .dt td { padding:10px 8px; }
+.carsbox .dt td:first-child, .carsbox .dt th:first-child { padding-left:4px; }
+.carsbox .mcell b { display:block; max-width:170px; }
+.carsbox .mcell .vic { width:32px; height:32px; font-size:17px; }
+.carsbox .dt .acts { flex-direction:column; gap:5px; }
+.carsbox .dt .acts button { padding:5px 12px; font-size:13px; }
+.sub.nodoc { color:var(--warn); font-weight:700; font-size:11.5px; margin-top:4px; }
