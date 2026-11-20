@@ -729,7 +729,7 @@ function viewAdmin() {
   var body = { cars: admCars, qr: admQr, open: admOpen, report: admReport, drivers: admDrivers, settings: admSettings }[S.asub] || admOverview;
   return '<div class="adm">' + side + '<section class="adm-main">' +
     '<div class="desk-note alert">หน้าแอดมินออกแบบสำหรับคอมพิวเตอร์ เปิดบนจอใหญ่จะใช้งานง่ายกว่า</div>' +
-    (S.pinRequired ? '' : '<div class="alert noprint">ยังไม่เปิดใช้รหัสแอดมิน ใครมีลิงก์หน้านี้ก็เข้าได้ เมื่อพร้อมใช้งานจริงให้เปิดใช้รหัส (ดู README)</div>') +
+    (S.pinRequired ? '' : '<div class="pinwarn noprint">' + ic('shield', 16) + '<span><b>ยังไม่เปิดรหัสแอดมิน</b> ใครมีลิงก์หน้านี้ก็เข้าได้ ควรเปิดก่อนแจก QR (ดู README)</span></div>') +
     '<div class="ph"><div><h1>' + page[1] + '</h1><p>' + page[3] + '</p></div>' + (acts ? '<div class="acts">' + acts + '</div>' : '') + '</div>' +
     body() + '</section></div>';
 }
@@ -750,7 +750,12 @@ function admOverview() {
   var od = S.open.filter(function (t) { return overdue(t.ts); });
   var expd = S.alerts.filter(function (a) { return a.expired; }).length;
   var lic = S.dlist ? S.dlist.filter(function (d) { var n = licDays(d); return d.active !== 'N' && n !== null && n < 0; }) : null;
-  var h = '<div class="kpis">' +
+  var free = S.cars.length - S.open.length, nTodo = S.alerts.length + od.length + (lic ? lic.length : 0);
+  var hr = new Date().getHours(), greet = hr < 12 ? 'สวัสดีตอนเช้า' : hr < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น';
+  var h = '<div class="hero"><div class="hero-t"><small>' + greet + ' ' + esc(S.company) + '</small><b>' +
+    (nTodo ? 'วันนี้มี ' + nTodo + ' เรื่องที่ต้องดูแล' : 'ทุกอย่างเรียบร้อยดี') + '</b><span>รถว่างพร้อมใช้ ' + free + ' จาก ' + S.cars.length + ' คัน' + (S.open.length ? ' · กำลังถูกเบิก ' + S.open.length + ' คัน' : '') + '</span></div>' +
+    '<div class="hero-a"><button data-act="newcar">' + ic('car', 17) + 'เพิ่มรถคันใหม่</button><button class="glass" data-act="asub" data-s="qr">' + ic('qr', 17) + 'พิมพ์ QR</button><button class="glass" data-act="asub" data-s="report">' + ic('chart', 17) + 'รายงานเดือนนี้</button></div></div>' +
+    '<div class="kpis">' +
     kpi('รถที่ใช้งาน', S.cars.length, 'คัน', 'ok', 'car') +
     kpi('ถูกเบิกอยู่', S.open.length, od.length ? 'ค้างเกิน 24 ชม. ' + od.length + ' คัน' : 'ไม่มีรถค้างเกิน 24 ชม.', od.length ? 'bad' : 'info', 'clock') +
     kpi('ใกล้ครบกำหนด 30 วัน', S.alerts.length, expd ? 'เลยกำหนดแล้ว ' + expd + ' รายการ' : 'พ.ร.บ. ภาษี ประกัน เช็คระยะ', expd ? 'bad' : S.alerts.length ? 'warn' : 'ok', 'shield') +
@@ -941,7 +946,7 @@ function admDrivers() {
   var list = S.dlist.filter(function (d) { return d.active !== 'N'; });
   if (!list.length) return '<div class="card mute">ยังไม่มีข้อมูล ข้อมูลจะขึ้นเมื่อคนขับเบิกรถครั้งแรก</div>';
   return '<div class="card flush">' + dt(['ชื่อ', 'เบอร์โทร', 'ใบขับขี่หมดอายุ', 'อัปเดตล่าสุด'], list.map(function (d) {
-    return ['<b>' + esc(d.name) + '</b>', d.phone ? esc(d.phone) : '<span class="mute">-</span>', d.licenseExp ? expChip(d.licenseExp) : '<span class="chip na">ยังไม่ระบุ</span>', d.updated ? thTime(d.updated) : '-'];
+    return ['<div class="mcell"><span class="av">' + esc(String(d.name).trim().charAt(0)) + '</span><b>' + esc(d.name) + '</b></div>', d.phone ? esc(d.phone) : '<span class="mute">-</span>', d.licenseExp ? expChip(d.licenseExp) : '<span class="chip na">ยังไม่ระบุ</span>', d.updated ? thTime(d.updated) : '-'];
   })) + '<div class="mute" style="font-size:13px;padding:10px 12px">ข้อมูลอัปเดตทุกครั้งที่คนขับเบิกรถ แก้หรือปิดใช้งานคนขับได้ที่แท็บ "รายชื่อคนขับ" ใน Sheet</div></div>';
 }
 
