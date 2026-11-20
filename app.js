@@ -750,7 +750,7 @@ function viewAdmin() {
     (S.appUrl ? '<a class="side-link" href="' + esc(S.appUrl) + '" target="_blank" rel="noopener">' + ic('car', 18) + 'เปิดหน้าคนขับ</a>' : '') +
     (S.pinRequired ? '<button data-act="logout">' + ic('sliders', 18) + 'ออกจากโหมดแอดมิน</button>' : '') + '</div></aside>';
   var acts = '';
-  if (S.asub === 'cars') acts = '<button data-act="newcar">+ เพิ่มรถคันใหม่</button>';
+  if (S.asub === 'cars') acts = (S.cars.length && S.cars.length <= 8 ? '<button class="ghost" data-act="carcsv">ส่งออก CSV</button>' : '') + '<button data-act="newcar">+ เพิ่มรถคันใหม่</button>';
   if (S.asub === 'qr' && S.cars.length) acts = '<button class="ghost" data-act="print">พิมพ์ QR ทั้งหมด</button>';
   if (S.asub === 'report') acts = '<input type="month" id="rMonth" aria-label="เดือน" value="' + esc(S.rmonth || today().slice(0, 7)) + '"><button data-act="runreport">ดูรายงาน</button>';
   var body = { cars: admCars, qr: admQr, open: admOpen, report: admReport, drivers: admDrivers, settings: admSettings }[S.asub] || admOverview;
@@ -838,7 +838,36 @@ function carRows() {
   }[f.sort] || function (c) { return c.plate; };
   return list.sort(function (a, b) { var x = key(a), y = key(b); return (x > y ? 1 : x < y ? -1 : 0) * f.dir; });
 }
+function carCards() {
+  var row = function (label, d) {
+    var n = daysLeft(d), cls = n === null ? 'na' : n < 0 ? '' : n <= 30 ? 'warn' : 'free';
+    var t = n === null ? 'ไม่ระบุ' : n < 0 ? 'เกิน ' + (-n) + ' วัน' : 'เหลือ ' + n + ' วัน';
+    return '<div class="exrow"><span class="exl">' + label + '</span><span class="exd">' + (d ? thDate(d) : '-') + '</span><span class="chip ' + cls + '">' + t + '</span></div>';
+  };
+  return '<div class="ccards">' + S.cars.map(function (c) {
+    var t = openTripOf(c.plate), si = svcInfo(c);
+    var svc = !si ? '<span class="chip na">ยังไม่มีข้อมูลเช็คระยะ</span>' :
+      '<span class="chip ' + si.cls + '">' + (si.left !== null ? (si.left < 0 ? 'เกิน ' + km(-si.left) : 'อีก ' + km(si.left)) + ' กม.' : '') + (si.left !== null && si.nd !== null ? ' · ' : '') + (si.nd !== null ? (si.nd < 0 ? 'เกิน ' + (-si.nd) : 'อีก ' + si.nd) + ' วัน' : '') + '</span>';
+    return '<div class="ccard' + (c.id === S.edit ? ' sel' : '') + '">' +
+      '<div class="cc-top">' + plateHtml(c) + (t ? '<span class="chip">ถูกเบิก · ' + esc(t.name) + '</span>' : '<span class="chip free">ว่าง</span>') + '</div>' +
+      '<div class="cc-name"><span class="vic">' + vIcon(c.vtype) + '</span><div><b>' + esc(c.model || 'ไม่ระบุรุ่น') + '</b><div class="sub">' + esc([c.vtype, c.year, c.color].filter(Boolean).join(' · ')) + '</div></div></div>' +
+      '<div class="cc-odo"><span>เลขไมล์ล่าสุด</span><b>' + (c.lastOdo === '' ? '-' : km(c.lastOdo) + ' กม.') + '</b></div>' +
+      '<div class="cc-ex">' + row('พ.ร.บ.', c.actExp) + row('ภาษี', c.taxExp) + row('ประกัน', c.insExp) + '</div>' +
+      '<div class="cc-svc"><span>🔧 เช็คระยะถัดไป</span>' + svc + '</div>' +
+      (c.regDocId ? '' : '<div class="nodoc-note">ยังไม่มีสำเนาทะเบียน</div>') +
+      '<div class="cc-act"><button class="small" data-act="editcar" data-id="' + esc(c.id) + '">แก้ไขข้อมูล</button><button class="small ghost" data-act="asub" data-s="qr">QR</button><button class="small line" data-act="removecar" data-id="' + esc(c.id) + '">นำออก</button></div></div>';
+  }).join('') + '</div>';
+}
 function admCars() {
+  if (S.cars.length && S.cars.length <= 8) {
+    var left = '<div>' + carCards();
+    if (S.removed.length) left += '<div class="card flush" style="margin-top:18px"><h2>รถที่นำออกแล้ว</h2>' + dt(['ทะเบียน', 'ยี่ห้อ/รุ่น', ''], S.removed.map(function (c) {
+      return ['<b>' + esc(c.plate) + '</b>', esc(c.model), '<div class="acts"><button class="small ghost" data-act="restorecar" data-id="' + esc(c.id) + '">นำกลับมาใช้</button></div>'];
+    })) + '</div>';
+    left += '</div>';
+    if (!S.carForm) return left;
+    return '<div class="split drawer-on"><div class="drawer-bg" data-act="closecar"></div>' + left + '<div class="sticky drawer">' + carForm() + '</div></div>';
+  }
   var f = S.cf || (S.cf = { st: 'all', vt: '', q: '', sort: 'plate', dir: 1 });
   var cnt = { all: S.cars.length, free: 0, busy: 0, due: 0, svc: 0, nodoc: 0 }, vts = {};
   S.cars.forEach(function (c) { var fl = carFlags(c); if (!fl.busy) cnt.free++; ['busy', 'due', 'svc', 'nodoc'].forEach(function (k) { if (fl[k]) cnt[k]++; }); var v = c.vtype || 'ไม่ระบุ'; vts[v] = (vts[v] || 0) + 1; });

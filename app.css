@@ -806,3 +806,25 @@ button, .chip, .fchip, .cs-st, .hchip { font-weight:600; }
 .qrcell small { display:block; margin-top:2px; }
 .qrcell button { width:100%; margin-top:10px !important; }
 @media screen { .qrcell { transition:transform .15s, box-shadow .15s; } .qrcell:hover { transform:translateY(-3px); box-shadow:0 18px 30px -18px rgba(0,0,0,.5); } }
+
+/* ===== การ์ดรถ (รถไม่เกิน 8 คัน ดูง่ายกว่าตาราง) ===== */
+.ccards { display:grid; grid-template-columns:repeat(auto-fill, minmax(330px, 1fr)); gap:16px; }
+.ccard { background:var(--card); border:1px solid var(--line); border-radius:20px; padding:18px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:12px; transition:transform .15s, box-shadow .15s; }
+@media (hover:hover) { .ccard:hover { transform:translateY(-3px); box-shadow:0 22px 34px -22px color-mix(in srgb, var(--a0) 55%, transparent); } }
+.ccard.sel { border-color:var(--pri); }
+.cc-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.cc-top .plate { min-width:132px; }
+.cc-name { display:flex; align-items:center; gap:12px; }
+.cc-name .vic { width:44px; height:44px; flex:none; border-radius:14px; background:var(--pri-soft); display:grid; place-items:center; font-size:24px; }
+.cc-name b { font-family:var(--f-head); font-size:17px; font-weight:600; }
+.cc-name .sub { font-size:13px; color:var(--mute); }
+.cc-odo { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-radius:12px; background:var(--input); border:1px solid var(--line); font-size:14px; color:var(--mute); }
+.cc-odo b { color:var(--ink); font-size:17px; font-variant-numeric:tabular-nums; }
+.cc-ex { display:flex; flex-direction:column; gap:7px; }
+.exrow { display:grid; grid-template-columns:64px 1fr auto; align-items:center; gap:8px; font-size:14px; }
+.exl { font-weight:700; } .exd { color:var(--mute); }
+.cc-svc { display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:14px; padding-top:10px; border-top:1px dashed var(--line); }
+.nodoc-note { color:var(--warn); font-size:13px; font-weight:700; }
+.cc-act { display:flex; gap:8px; margin-top:auto; padding-top:4px; }
+.cc-act button { flex:1; width:auto; margin:0; }
+.cc-act button:first-child { flex:2; }
