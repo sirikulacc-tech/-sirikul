@@ -828,3 +828,25 @@ button, .chip, .fchip, .cs-st, .hchip { font-weight:600; }
 .cc-act { display:flex; gap:8px; margin-top:auto; padding-top:4px; }
 .cc-act button { flex:1; width:auto; margin:0; }
 .cc-act button:first-child { flex:2; }
+
+/* ===== ไทม์ไลน์รถ ===== */
+.cc-nm { flex:1; min-width:0; }
+.tlbtn { width:auto; margin:0; flex:none; display:inline-flex; align-items:center; gap:6px; padding:7px 13px; border-radius:99px; font-size:13px; font-weight:700; background:var(--pri-soft); color:var(--pri); border:1px solid color-mix(in srgb, var(--pri) 25%, transparent); box-shadow:none; }
+.tlbtn:hover { background:var(--pri); color:var(--on-pri); }
+.tl-plate { display:flex; align-items:center; gap:10px; margin-top:8px; color:var(--mute); font-size:14px; }
+.tl-tabs { margin:14px 0 6px; }
+.tl { position:relative; margin-top:8px; padding-left:6px; }
+.tl::before { content:""; position:absolute; left:19px; top:6px; bottom:6px; width:2px; background:var(--line); border-radius:2px; }
+.tl-m { position:relative; margin:18px 0 8px 40px; font-family:var(--f-head); font-weight:600; font-size:13px; color:var(--mute); letter-spacing:.2px; }
+.tl-i { position:relative; display:flex; gap:12px; padding:6px 0 10px; }
+.tl-dot { position:relative; z-index:1; width:28px; height:28px; flex:none; border-radius:50%; display:grid; place-items:center; margin-left:0; background:var(--pri-soft); color:var(--pri); border:3px solid var(--bg); box-sizing:content-box; }
+.tl-i.mt .tl-dot { background:var(--warn-bg); color:var(--warn); }
+.tl-i.ex .tl-dot { background:color-mix(in srgb, #0ea5e9 16%, var(--card)); color:#0284c7; }
+.tl-i.due .tl-dot { background:var(--bad-bg); color:var(--bad); }
+.tl-b { flex:1; min-width:0; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:10px 13px; }
+.tl-t { display:flex; justify-content:space-between; gap:10px; align-items:baseline; }
+.tl-t b { font-size:14.5px; font-weight:700; }
+.tl-d { color:var(--mute); font-size:12px; white-space:nowrap; }
+.tl-s { font-size:13.5px; margin-top:2px; }
+.tl-x { font-size:12.5px; color:var(--mute); margin-top:3px; }
+.tlcard .tl-b { background:var(--input); }

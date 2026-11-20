@@ -202,7 +202,7 @@ function togglePalette() {
   document.body.appendChild(el);
 }
 document.addEventListener('click', function (e) { if (!e.target.closest('#palPop') && !e.target.closest('#palBtn')) closePalette(); });
-document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closePalette(); if (ADMIN_MODE && S.carForm) { S.carForm = false; S.edit = ''; render(); } } });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closePalette(); if (ADMIN_MODE && (S.carForm || S.tl)) { S.carForm = false; S.tl = ''; S.edit = ''; render(); } } });
 function setTheme(t, save) {
   document.documentElement.setAttribute('data-theme', t);
   if (save) { try { localStorage.setItem('theme', t); } catch (e) { /* เบราว์เซอร์บล็อกที่เก็บข้อมูล ใช้ได้เฉพาะรอบนี้ */ } }
@@ -850,7 +850,8 @@ function carCards() {
       '<span class="chip ' + si.cls + '">' + (si.left !== null ? (si.left < 0 ? 'เกิน ' + km(-si.left) : 'อีก ' + km(si.left)) + ' กม.' : '') + (si.left !== null && si.nd !== null ? ' · ' : '') + (si.nd !== null ? (si.nd < 0 ? 'เกิน ' + (-si.nd) : 'อีก ' + si.nd) + ' วัน' : '') + '</span>';
     return '<div class="ccard' + (c.id === S.edit ? ' sel' : '') + '">' +
       '<div class="cc-top">' + plateHtml(c) + (t ? '<span class="chip">ถูกเบิก · ' + esc(t.name) + '</span>' : '<span class="chip free">ว่าง</span>') + '</div>' +
-      '<div class="cc-name"><span class="vic">' + vIcon(c.vtype) + '</span><div><b>' + esc(c.model || 'ไม่ระบุรุ่น') + '</b><div class="sub">' + esc([c.vtype, c.year, c.color].filter(Boolean).join(' · ')) + '</div></div></div>' +
+      '<div class="cc-name"><span class="vic">' + vIcon(c.vtype) + '</span><div class="cc-nm"><b>' + esc(c.model || 'ไม่ระบุรุ่น') + '</b><div class="sub">' + esc([c.vtype, c.year, c.color].filter(Boolean).join(' · ')) + '</div></div>' +
+      '<button type="button" class="tlbtn" data-act="timeline" data-id="' + esc(c.id) + '">' + ic('clock', 16) + 'ไทม์ไลน์</button></div>' +
       '<div class="cc-odo"><span>เลขไมล์ล่าสุด</span><b>' + (c.lastOdo === '' ? '-' : km(c.lastOdo) + ' กม.') + '</b></div>' +
       '<div class="cc-ex">' + row('พ.ร.บ.', c.actExp) + row('ภาษี', c.taxExp) + row('ประกัน', c.insExp) + '</div>' +
       '<div class="cc-svc"><span>🔧 เช็คระยะถัดไป</span>' + svc + '</div>' +
@@ -865,8 +866,7 @@ function admCars() {
       return ['<b>' + esc(c.plate) + '</b>', esc(c.model), '<div class="acts"><button class="small ghost" data-act="restorecar" data-id="' + esc(c.id) + '">นำกลับมาใช้</button></div>'];
     })) + '</div>';
     left += '</div>';
-    if (!S.carForm) return left;
-    return '<div class="split drawer-on"><div class="drawer-bg" data-act="closecar"></div>' + left + '<div class="sticky drawer">' + carForm() + '</div></div>';
+    return withDrawer(left);
   }
   var f = S.cf || (S.cf = { st: 'all', vt: '', q: '', sort: 'plate', dir: 1 });
   var cnt = { all: S.cars.length, free: 0, busy: 0, due: 0, svc: 0, nodoc: 0 }, vts = {};
@@ -887,7 +887,7 @@ function admCars() {
       t ? '<span class="chip">ถูกเบิก · ' + esc(t.name) + '</span>' : '<span class="chip free">ว่าง</span>',
       c.lastOdo === '' ? '<span class="mute">-</span>' : km(c.lastOdo),
       expChip(c.actExp), expChip(c.taxExp), expChip(c.insExp) + (c.insurer ? '<div class="sub">' + esc(c.insurer) + '</div>' : ''), svc,
-      '<div class="acts"><button class="small ghost" data-act="editcar" data-id="' + esc(c.id) + '">แก้ไข</button><button class="small line" data-act="removecar" data-id="' + esc(c.id) + '">นำออก</button></div>'];
+      '<div class="acts"><button class="small ghost" data-act="timeline" data-id="' + esc(c.id) + '">ไทม์ไลน์</button><button class="small ghost" data-act="editcar" data-id="' + esc(c.id) + '">แก้ไข</button><button class="small line" data-act="removecar" data-id="' + esc(c.id) + '">นำออก</button></div>'];
   });
   var tools = '<div class="ftools"><label class="fsearch">' + ic('search', 16) + '<input id="cfq" type="search" placeholder="ค้นหา ทะเบียน / รุ่น / เลขตัวถัง" value="' + esc(f.q) + '"></label>' +
     '<span class="mute fcount">พบ ' + rows.length + ' จาก ' + S.cars.length + ' คัน · คลิกหัวตารางเพื่อเรียง</span><button class="small ghost" data-act="carcsv">ส่งออก CSV</button></div>';
@@ -901,8 +901,51 @@ function admCars() {
     })) + '<div class="mute" style="font-size:13px;padding:8px 12px">ประวัติของรถที่นำออกยังอยู่ครบ QR เดิมจะกลับมาใช้ได้เมื่อนำกลับมาใช้</div></div>';
   }
   left += '</div>';
-  if (!S.carForm) return left;
-  return '<div class="split drawer-on"><div class="drawer-bg" data-act="closecar"></div>' + left + '<div class="sticky drawer">' + carForm() + '</div></div>';
+  return withDrawer(left);
+}
+function withDrawer(left) {
+  var inner = S.carForm ? carForm() : S.tl ? timelineView() : '';
+  if (!inner) return left;
+  return '<div class="split drawer-on"><div class="drawer-bg" data-act="closecar"></div>' + left + '<div class="sticky drawer">' + inner + '</div></div>';
+}
+function tlEvents(c) {
+  var ev = [];
+  S.allUsage.forEach(function (u) {
+    if (u.plate !== c.plate || u.status === 'cancelled') return;
+    var done = u.status !== 'open' && u.odoEnd !== '';
+    ev.push({ k: 'use', at: String(u.ts), title: 'ถูกเบิกโดย ' + esc(u.name), sub: esc(u.purpose || '') + (u.dest ? ' · ' + esc(u.dest) : ''),
+      meta: done ? 'คืน ' + thTime(u.returnTs) + ' · ' + km(u.odoEnd - u.odoStart) + ' กม.' + (u.returnName && u.returnName !== u.name ? ' · คืนโดย ' + esc(u.returnName) : '') : '<span class="chip">ยังไม่คืนรถ</span>' });
+  });
+  S.maint.forEach(function (m) {
+    if (m.plate !== c.plate) return;
+    ev.push({ k: 'mt', at: String(m.date), title: esc(m.type || 'ซ่อมบำรุง'), sub: esc(m.detail || ''), meta: [m.shop ? esc(m.shop) : '', m.odo !== '' && m.odo != null ? 'ไมล์ ' + km(m.odo) : '', m.cost !== '' && m.cost != null ? baht(m.cost) + ' บาท' : ''].filter(Boolean).join(' · ') });
+  });
+  (S.allExp || []).forEach(function (x) {
+    if (x.plate !== c.plate) return;
+    ev.push({ k: 'ex', at: String(x.date), title: esc(x.type || 'ค่าใช้จ่าย') + ' · ' + baht(x.amount) + ' บาท', sub: esc(x.note || ''), meta: x.name ? 'บันทึกโดย ' + esc(x.name) : '' });
+  });
+  [['actExp', 'พ.ร.บ.'], ['taxExp', 'ภาษีรถ'], ['insExp', 'ประกันภัย']].forEach(function (z) {
+    var d = c[z[0]]; if (!d) return; var n = daysLeft(d);
+    ev.push({ k: 'due', at: String(d), title: z[1] + (n !== null && n < 0 ? ' เกินกำหนด' : ' ครบกำหนด'), sub: '', meta: n === null ? '' : n < 0 ? '<span class="chip">เกิน ' + (-n) + ' วัน</span>' : '<span class="chip ' + (n <= 30 ? 'warn' : 'free') + '">อีก ' + n + ' วัน</span>' });
+  });
+  return ev.sort(function (a, b) { return a.at < b.at ? 1 : a.at > b.at ? -1 : 0; });
+}
+function timelineView() {
+  var c = S.cars.filter(function (x) { return x.id === S.tl; })[0]; if (!c) return '';
+  var all = tlEvents(c), f = S.tlf || 'all';
+  var cnt = { all: all.length, use: 0, mt: 0, ex: 0, due: 0 }; all.forEach(function (e) { cnt[e.k]++; });
+  var list = all.filter(function (e) { return f === 'all' || e.k === f; });
+  var tabs = [['all', 'ทั้งหมด'], ['use', 'การใช้รถ'], ['mt', 'ซ่อมบำรุง'], ['ex', 'ค่าใช้จ่าย'], ['due', 'กำหนดครบ']];
+  var icons = { use: 'car', mt: 'wrench', ex: 'receipt', due: 'shield' };
+  var lastM = '', body = list.map(function (e) {
+    var m = String(e.at).slice(0, 7), head = '';
+    if (m !== lastM) { lastM = m; head = '<div class="tl-m">' + (/^\d{4}-\d{2}$/.test(m) ? monthTh(m) : '') + '</div>'; }
+    return head + '<div class="tl-i ' + e.k + '"><i class="tl-dot">' + ic(icons[e.k], 15) + '</i><div class="tl-b"><div class="tl-t"><b>' + e.title + '</b><span class="tl-d">' + (e.k === 'use' ? thTime(e.at) : thDate(String(e.at).slice(0, 10))) + '</span></div>' +
+      (e.sub ? '<div class="tl-s">' + e.sub + '</div>' : '') + (e.meta ? '<div class="tl-x">' + e.meta + '</div>' : '') + '</div></div>';
+  }).join('');
+  return '<div class="card noprint tlcard"><div class="dhead"><div><h2>ไทม์ไลน์รถ</h2><div class="tl-plate">' + plateHtml(c, 'sm') + '<span>' + esc(c.model || '') + '</span></div></div><button type="button" class="dclose" data-act="closecar" aria-label="ปิด">✕</button></div>' +
+    '<div class="fchips tl-tabs">' + tabs.map(function (t) { return '<button type="button" class="fchip' + (f === t[0] ? ' on' : '') + '" data-act="tlf" data-s="' + t[0] + '">' + t[1] + ' <b>' + cnt[t[0]] + '</b></button>'; }).join('') + '</div>' +
+    '<div class="tl">' + (body || '<div class="mute" style="padding:20px 4px">ยังไม่มีรายการ</div>') + '</div></div>';
 }
 function carCsv() {
   var cols = [['ทะเบียน', 'plate'], ['จังหวัด', 'province'], ['ประเภทรถ', 'vtype'], ['ยี่ห้อ/รุ่น', 'model'], ['ปี', 'year'], ['สี', 'color'], ['เชื้อเพลิง', 'fuel'], ['เลขตัวถัง', 'vin'], ['เลขเครื่อง', 'engineNo'], ['เลขไมล์ล่าสุด', 'lastOdo'], ['พ.ร.บ.หมดอายุ', 'actExp'], ['ภาษีหมดอายุ', 'taxExp'], ['ประกันหมดอายุ', 'insExp'], ['บริษัทประกัน', 'insurer']];
@@ -1149,6 +1192,8 @@ function bindForms() {
       else if (a === 'cfvt') { S.cf.vt = b.dataset.s; render(); }
       else if (a === 'cfsort') { if (S.cf.sort === b.dataset.s) S.cf.dir = -S.cf.dir; else { S.cf.sort = b.dataset.s; S.cf.dir = 1; } render(); }
       else if (a === 'carcsv') carCsv();
+      else if (a === 'timeline') { S.tl = b.dataset.id; S.tlf = 'all'; S.carForm = false; S.edit = ''; render(); }
+      else if (a === 'tlf') { S.tlf = b.dataset.s; render(); var dr = document.querySelector('.drawer'); if (dr) dr.scrollTop = 0; }
       else if (a === 'asub') { S.asub = b.dataset.s; if (S.asub === 'drivers') S.dlist = null; render(); window.scrollTo(0, 0); }
       else if (a === 'print') window.print();
       else if (a === 'uselast') { var fo = b.closest('form'); fo.elements['odoStart'].value = b.dataset.v; fo.elements['odoStart'].focus(); }
@@ -1167,7 +1212,7 @@ function bindForms() {
       else if (a === 'opencar') { S.plate = b.dataset.p; S.sub = ''; S.tab = 'car'; render(); window.scrollTo(0, 0); }
       else if (a === 'editcar') { S.edit = b.dataset.id; S.carForm = true; render(); focusCarForm(); }
       else if (a === 'newcar') { S.edit = ''; S.carForm = true; S.asub = 'cars'; render(); focusCarForm(); }
-      else if (a === 'closecar') { S.edit = ''; S.carForm = false; render(); }
+      else if (a === 'closecar') { S.edit = ''; S.carForm = false; S.tl = ''; render(); }
       else if (a === 'removecar') setCarActive(b.dataset.id, 'N');
       else if (a === 'restorecar') setCarActive(b.dataset.id, 'Y');
       else if (a === 'addservice') { S.mopen = true; S.mdef = SERVICE; render(); var f = $('#fMaint'); if (f) f.scrollIntoView(); }
@@ -1333,7 +1378,7 @@ async function load() {
   S.removed = d.cars.filter(function (c) { return c.active === 'N'; });
   S.open = d.usage.filter(function (u) { return u.status === 'open'; });
   S.usage = d.usage.slice().reverse().slice(0, 10);
-  S.expenses = d.expenses.slice().reverse().slice(0, 10);
+  S.allExp = d.expenses; S.expenses = d.expenses.slice().reverse().slice(0, 10);
   S.alerts = buildAlerts(S.cars, S.maint);
   S.known = (d.driverNames || []).map(function (n) { return String(n).trim(); });
   var seen = {}; S.drivers = [];
