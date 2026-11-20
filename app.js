@@ -202,7 +202,7 @@ function togglePalette() {
   document.body.appendChild(el);
 }
 document.addEventListener('click', function (e) { if (!e.target.closest('#palPop') && !e.target.closest('#palBtn')) closePalette(); });
-document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePalette(); });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closePalette(); if (ADMIN_MODE && S.carForm) { S.carForm = false; S.edit = ''; render(); } } });
 function setTheme(t, save) {
   document.documentElement.setAttribute('data-theme', t);
   if (save) { try { localStorage.setItem('theme', t); } catch (e) { /* เบราว์เซอร์บล็อกที่เก็บข้อมูล ใช้ได้เฉพาะรอบนี้ */ } }
@@ -873,7 +873,7 @@ function admCars() {
   }
   left += '</div>';
   if (!S.carForm) return left;
-  return '<div class="split">' + left + '<div class="sticky">' + carForm() + '</div></div>';
+  return '<div class="split drawer-on"><div class="drawer-bg" data-act="closecar"></div>' + left + '<div class="sticky drawer">' + carForm() + '</div></div>';
 }
 function carCsv() {
   var cols = [['ทะเบียน', 'plate'], ['จังหวัด', 'province'], ['ประเภทรถ', 'vtype'], ['ยี่ห้อ/รุ่น', 'model'], ['ปี', 'year'], ['สี', 'color'], ['เชื้อเพลิง', 'fuel'], ['เลขตัวถัง', 'vin'], ['เลขเครื่อง', 'engineNo'], ['เลขไมล์ล่าสุด', 'lastOdo'], ['พ.ร.บ.หมดอายุ', 'actExp'], ['ภาษีหมดอายุ', 'taxExp'], ['ประกันหมดอายุ', 'insExp'], ['บริษัทประกัน', 'insurer']];
@@ -890,7 +890,7 @@ function carForm() {
   var e = S.cars.filter(function (c) { return c.id === S.edit; })[0] || {};
   var v = function (k) { return esc(e[k]); };
   var f = function (label, input, full) { return '<div class="' + (full ? 'full' : '') + '"><label>' + label + '</label>' + input + '</div>'; };
-  return '<form class="card noprint" id="fCar"><h2>' + (e.id ? 'แก้ไขรถ ' + esc(e.plate) : 'เพิ่มรถคันใหม่') + '</h2>' +
+  return '<form class="card noprint" id="fCar"><div class="dhead"><h2>' + (e.id ? 'แก้ไขรถ ' + esc(e.plate) : 'เพิ่มรถคันใหม่') + '</h2><button type="button" class="dclose" data-act="closecar" aria-label="ปิด">✕</button></div>' +
     '<div class="ocrbox"><b>อ่านจากสำเนาทะเบียน</b><div class="mute" style="font-size:13.5px;margin:2px 0 8px">ถ่ายรูปหรือเลือกไฟล์สแกนหน้ารายการจดทะเบียน ระบบจะกรอกข้อมูลให้ ตรวจแล้วกดบันทึก (ไฟล์นี้จะถูกเก็บเป็นสำเนาทะเบียนด้วย)</div>' +
     '<input type="file" id="ocrFile" accept="image/*,application/pdf" capture="environment"><div id="ocrMsg" style="font-size:13.5px;margin-top:6px"></div></div>' +
     '<input type="hidden" name="id" value="' + v('id') + '">' +
@@ -937,14 +937,15 @@ function admQr() {
   return '<div class="card"><div class="qrgrid" id="qrgrid"></div><div class="mute noprint" style="font-size:13px;margin-top:12px">QR ผูกกับรหัสประจำรถ แก้เลขทะเบียนแล้ว QR เดิมยังใช้ได้ ไม่ต้องพิมพ์ใหม่ กด "คัดลอกลิงก์" เพื่อส่งทาง LINE ได้</div></div>';
 }
 
+function emptyState(icon, title, sub) { return '<div class="card empty"><div class="em-ic">' + ic(icon, 30) + '</div><b>' + title + '</b><span>' + (sub || '') + '</span></div>'; }
 function admOpen() {
-  if (!S.open.length) return '<div class="card mute">ไม่มีรถที่ถูกเบิกค้างอยู่</div>';
+  if (!S.open.length) return emptyState('shield', 'ไม่มีรถค้างเบิก', 'รถทุกคันถูกคืนเรียบร้อยแล้ว');
   var list = S.open.slice().sort(function (a, b) { return a.ts < b.ts ? -1 : 1; });
   var byPlate = {}; S.cars.forEach(function (c) { byPlate[c.plate] = c; });
   return '<div class="card flush">' + dt(['ทะเบียน', 'ผู้เบิก', 'เวลาเบิก', 'ค้าง', 'ไมล์ก่อน', 'ไปที่ไหน', ''], list.map(function (t) {
     var c = byPlate[t.plate];
     return ['<b>' + esc(t.plate) + '</b>', esc(t.name), thTime(t.ts), overdue(t.ts) ? '<span class="chip">' + overdue(t.ts) + '</span>' : '<span class="mute">-</span>', km(t.odoStart), esc(t.purpose),
-      '<div class="acts">' + (c && S.appUrl ? '<a class="small" href="' + esc(carUrl(c)) + '" target="_blank" rel="noopener" style="align-self:center;margin-right:6px">เปิดหน้ารถ</a>' : '') +
+      '<div class="acts">' + (c && S.appUrl ? '<a class="small linkbtn" href="' + esc(carUrl(c)) + '" target="_blank" rel="noopener">เปิดหน้ารถ</a>' : '') +
       '<button class="small line" data-act="cancel" data-id="' + esc(t.id) + '">ยกเลิก (เบิกผิด)</button></div>'];
   }), [4]) + '<div class="mute" style="font-size:13px;padding:10px 12px">"ยกเลิก" ใช้เมื่อกดเบิกผิด รายการจะไม่นับในรายงาน ถ้าใช้รถจริงแต่ลืมคืน ให้เปิดหน้ารถแล้วกดคืนรถ</div></div>';
 }
@@ -971,7 +972,7 @@ function admDrivers() {
   ensureDlist();
   if (!S.dlist) return '<div class="card center mute">กำลังโหลดรายชื่อคนขับ...</div>';
   var list = S.dlist.filter(function (d) { return d.active !== 'N'; });
-  if (!list.length) return '<div class="card mute">ยังไม่มีข้อมูล ข้อมูลจะขึ้นเมื่อคนขับเบิกรถครั้งแรก</div>';
+  if (!list.length) return emptyState('info', 'ยังไม่มีรายชื่อคนขับ', 'รายชื่อจะขึ้นเมื่อคนขับเบิกรถครั้งแรก');
   return '<div class="card flush">' + dt(['ชื่อ', 'เบอร์โทร', 'ใบขับขี่หมดอายุ', 'อัปเดตล่าสุด'], list.map(function (d) {
     return ['<div class="mcell"><span class="av">' + esc(String(d.name).trim().charAt(0)) + '</span><b>' + esc(d.name) + '</b></div>', d.phone ? esc(d.phone) : '<span class="mute">-</span>', d.licenseExp ? expChip(d.licenseExp) : '<span class="chip na">ยังไม่ระบุ</span>', d.updated ? thTime(d.updated) : '-'];
   })) + '<div class="mute" style="font-size:13px;padding:10px 12px">ข้อมูลอัปเดตทุกครั้งที่คนขับเบิกรถ แก้หรือปิดใช้งานคนขับได้ที่แท็บ "รายชื่อคนขับ" ใน Sheet</div></div>';
