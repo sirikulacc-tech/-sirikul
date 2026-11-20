@@ -650,3 +650,7 @@
 .plate.pc-green .no, .plate.pc-green .pv, .plate.pc-blue .no, .plate.pc-blue .pv { color:var(--pc) !important; }
 .plate .no { font-size:23.5px; font-weight:600 !important; } .plate.sm .no { font-size:16px; } .hplate .plate .no { font-size:21px; }
 .plate .pv { font-weight:600 !important; }
+/* ฟอนต์ป้ายทะเบียนให้ตรงตัวอย่าง: ไทยหัวกลม + เลขเรียบ */
+.plate .no, .plate .pv { font-family:"Noto Sans Thai Looped","Sarabun",sans-serif !important; }
+.plate .no { font-weight:600 !important; letter-spacing:.2px; }
+.plate .pv { font-weight:600 !important; }
