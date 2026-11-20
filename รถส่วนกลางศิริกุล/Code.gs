@@ -584,6 +584,48 @@ function getOrCreateFolder_(parent, name) {
 }
 
 /* ---------- ตัวช่วยเกี่ยวกับ Sheet ---------- */
+/* ---------- ลบข้อมูลตัวอย่าง (รันมือจากตัวแก้ไข Apps Script ครั้งเดียวก่อนใช้งานจริง) ----------
+   ลบเฉพาะแถวที่เป็นข้อมูลตัวอย่างเท่านั้น คือ
+   - รถที่เลขตัวถังขึ้นต้นด้วย "ตัวอย่าง-" พร้อมประวัติการใช้รถ ซ่อมบำรุง ค่าใช้จ่ายของรถเหล่านั้น
+   - คนขับ/ผู้ใช้ที่ชื่อมี "(ตัวอย่าง)"
+   ข้อมูลจริงที่เพิ่มเองจะไม่ถูกแตะ  ดูก่อนได้ด้วย previewSampleData() */
+const SAMPLE_VIN_PREFIX = 'ตัวอย่าง-';
+const SAMPLE_NAME_TAG = '(ตัวอย่าง)';
+function sampleTargets_() {
+  const cars = readRows_('cars').filter(function (c) { return String(c.vin).indexOf(SAMPLE_VIN_PREFIX) === 0; });
+  const plates = cars.map(function (c) { return c.plate; });
+  const byPlate = function (r) { return plates.indexOf(r.plate) >= 0; };
+  const byName = function (r) { return String(r.name).indexOf(SAMPLE_NAME_TAG) >= 0; };
+  return {
+    cars: cars,
+    usage: readRows_('usage').filter(function (r) { return byPlate(r) || byName(r); }),
+    expenses: readRows_('expenses').filter(function (r) { return byPlate(r) || byName(r); }),
+    maintenance: readRows_('maintenance').filter(function (r) { return byPlate(r) || byName(r); }),
+    drivers: readRows_('drivers').filter(byName)
+  };
+}
+function sampleSummary_(t) {
+  return Object.keys(t).map(function (k) { return SCHEMA[k].title + ' ' + t[k].length + ' แถว'; }).join(' | ');
+}
+function previewSampleData() {
+  const t = sampleTargets_();
+  Logger.log('จะลบ: ' + sampleSummary_(t));
+  t.cars.forEach(function (c) { Logger.log('  รถ ' + c.plate + ' ' + c.model); });
+  Logger.log('ยังไม่ได้ลบอะไร ถ้าถูกต้องให้รัน clearSampleData()');
+}
+function clearSampleData() {
+  lock_(function () {
+    const t = sampleTargets_();
+    Object.keys(t).forEach(function (k) {
+      const sh = sheet_(k), cols = SCHEMA[k].cols.length;
+      t[k].map(function (r) { return r._row; }).sort(function (a, b) { return b - a; }).forEach(function (row) {
+        try { sh.deleteRow(row); } catch (e) { sh.getRange(row, 1, 1, cols).clearContent(); }
+      });
+    });
+    Logger.log('ลบข้อมูลตัวอย่างแล้ว: ' + sampleSummary_(t));
+  });
+}
+
 function ss_() {
   const id = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
   if (!id) throw new Error('ยังไม่ได้รัน setup()');

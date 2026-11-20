@@ -860,7 +860,8 @@ function carCards() {
   }).join('') + '</div>';
 }
 function admCars() {
-  if (S.cars.length && S.cars.length <= 8) {
+  if (!S.cars.length) return withDrawer(emptyState('car', 'ยังไม่มีรถในระบบ', 'กด "+ เพิ่มรถคันใหม่" ด้านบนเพื่อเริ่ม หรือถ่ายรูปสำเนาทะเบียนให้ระบบกรอกข้อมูลให้ได้'));
+  if (S.cars.length <= 8) {
     var left = '<div>' + carCards();
     if (S.removed.length) left += '<div class="card flush" style="margin-top:18px"><h2>รถที่นำออกแล้ว</h2>' + dt(['ทะเบียน', 'ยี่ห้อ/รุ่น', ''], S.removed.map(function (c) {
       return ['<b>' + esc(c.plate) + '</b>', esc(c.model), '<div class="acts"><button class="small ghost" data-act="restorecar" data-id="' + esc(c.id) + '">นำกลับมาใช้</button></div>'];
