@@ -584,3 +584,23 @@
 .carsbox .dt .acts { flex-direction:column; gap:5px; }
 .carsbox .dt .acts button { padding:5px 12px; font-size:13px; }
 .sub.nodoc { color:var(--warn); font-weight:700; font-size:11.5px; margin-top:4px; }
+
+/* ===== ป้ายทะเบียนกรอบคู่ (ขอบนอก + เส้นในสีเดียวกัน) ===== */
+.plate, .plate.pc-green, .plate.pc-blue, .plate.sm, .plate.sm.pc-green, .plate.sm.pc-blue,
+.hplate .plate, .hplate .plate.pc-green, .hplate .plate.pc-blue {
+  background:linear-gradient(180deg,#ffffff 0%, color-mix(in srgb, var(--pc) 5%, #ffffff) 100%);
+  border:2px solid var(--pc); border-radius:9px;
+  box-shadow:inset 0 0 0 2.5px #fff, inset 0 0 0 4px var(--pc), 0 3px 8px -3px rgba(0,0,0,.28);
+  padding:6px 16px 5px;
+}
+.plate .pv { border-top:0 !important; margin:0 !important; padding-top:0 !important; font-size:12px; letter-spacing:.2px; opacity:.95; }
+.plate .no { line-height:1.05; }
+.plate.sm, .plate.sm.pc-green, .plate.sm.pc-blue { border-width:1.5px; border-radius:7px; padding:4px 11px 3px;
+  box-shadow:inset 0 0 0 2px #fff, inset 0 0 0 3.2px var(--pc), 0 2px 6px -2px rgba(0,0,0,.25); }
+.plate.sm .no { font-size:18px; }
+.plate.sm .pv { font-size:8.5px; min-height:0; line-height:1.1; }
+.hplate .plate, .hplate .plate.pc-green, .hplate .plate.pc-blue { padding:5px 12px 4px; }
+.hplate .plate .pv { font-size:10px; }
+.plate.pc-red { background:linear-gradient(180deg,#f2554a,#d8332a); border-color:#8f1c16; box-shadow:inset 0 0 0 2px #f2554a, inset 0 0 0 3.2px #8f1c16, 0 3px 8px -3px rgba(0,0,0,.3); }
+.plate.sm, .plate.sm.pc-green, .plate.sm.pc-blue { padding:4px 12px 6px; }
+.plate.sm .no { line-height:1.1; }
