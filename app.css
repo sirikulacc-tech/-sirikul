@@ -760,3 +760,19 @@ body:not(.admin) .palpop { top:56px; }
 .pp-g button.on { border-color:var(--pri); background:var(--pri-soft); }
 .pp-g button.on span::after { content:" ✓"; color:var(--pri); }
 .pp-f { margin:10px 2px 0; font-size:12px; color:var(--mute); }
+
+/* ===== ฟอนต์ใหม่: IBM Plex Sans Thai (เนื้อหา) + Prompt (หัวข้อ/ชื่อแบรนด์) ===== */
+:root { --f-body:"IBM Plex Sans Thai","Sarabun","Noto Sans Thai",system-ui,sans-serif; --f-head:"Prompt","IBM Plex Sans Thai","Sarabun",sans-serif; }
+body, input, select, textarea, button { font-family:var(--f-body); }
+body { letter-spacing:.005em; }
+h1, h2, h3, .ph h1, .htitle, .hello b, .cs-name b, .hero-t b, .side-brand b, .kpi .v, .mrow b, .sp-title, .foot b, .pp-h, .qco, .abar b, .tile b, .ch-h h2 {
+  font-family:var(--f-head) !important; letter-spacing:0; }
+.hello .co, .side-brand b, .foot b, .qco, .hero-t small { font-family:var(--f-head) !important; font-weight:600; letter-spacing:.2px; }
+.hello .co { font-size:15px; }
+.side-brand b { font-size:15.5px; }
+.hero-t b { font-weight:600; }
+.ph h1 { font-weight:600; letter-spacing:-.1px; }
+.kpi .v, .odo i, .cs-odo { font-variant-numeric:tabular-nums; }
+.kpi .v { font-weight:600; }
+.cs-name b { font-weight:600; letter-spacing:.2px; }
+button, .chip, .fchip, .cs-st, .hchip { font-weight:600; }

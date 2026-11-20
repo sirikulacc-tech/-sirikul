@@ -1,7 +1,7 @@
 {
   "name": "รถส่วนกลางศิริกุล",
   "short_name": "รถส่วนกลาง",
-  "description": "ระบบเบิก-คืนรถส่วนกลาง ศิริกุล การบัญชี",
+  "description": "ระบบเบิก-คืนรถส่วนกลาง Sirikul Accounting",
   "lang": "th",
   "start_url": "./",
   "scope": "./",

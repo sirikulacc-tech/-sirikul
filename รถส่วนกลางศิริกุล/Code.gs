@@ -410,7 +410,7 @@ function setCarActive_(p) {
 }
 
 /* ---------- ตั้งค่า: โลโก้และชื่อบริษัท (เก็บโลโก้ใน Drive โฟลเดอร์ "โลโก้") ---------- */
-const DEFAULT_COMPANY = 'ศิริกุล การบัญชี';
+const DEFAULT_COMPANY = 'Sirikul Accounting';
 
 function settings_() {
   const pr = PropertiesService.getScriptProperties();
