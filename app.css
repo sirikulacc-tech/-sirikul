@@ -617,3 +617,36 @@
 .hplate .plate, .hplate .plate.pc-green, .hplate .plate.pc-blue { min-width:132px; padding:5px 14px 4px; border-radius:6px; }
 @media (max-width: 380px) { .hplate .plate, .hplate .plate.pc-green, .hplate .plate.pc-blue { min-width:112px; padding:4px 9px 3px; } }
 .plate.pc-red { background:linear-gradient(180deg,#f2554a,#d8332a); border-color:#8f1c16; box-shadow:inset 0 0 0 2px #f2554a, inset 0 0 0 3px rgba(0,0,0,.25), 0 2px 6px -2px rgba(0,0,0,.25); }
+
+/* ===== ป้ายทะเบียน: เลียนแบบตัวอย่างเป๊ะ (ขอบนอกบาง 1px สีตามป้าย + ช่องขาว + เส้นในเทาบาง) ===== */
+.plate, .plate.pc-green, .plate.pc-blue, .plate.sm, .plate.sm.pc-green, .plate.sm.pc-blue,
+.hplate .plate, .hplate .plate.pc-green, .hplate .plate.pc-blue {
+  background:#fff; border:1px solid var(--pc); border-radius:9px;
+  box-shadow:inset 0 0 0 2px #fff, inset 0 0 0 3px #9b9f9b, 0 3px 8px -2px rgba(0,0,0,.22);
+  min-width:142px; padding:5px 18px 3px; text-align:center;
+}
+.plate .no { font-weight:700 !important; font-size:29px; letter-spacing:0; line-height:1.02; }
+.plate .pv { font-weight:500 !important; font-size:11.5px; line-height:1.15; margin:1px 0 0 !important; padding:0 !important; min-height:0; opacity:1; }
+.plate.sm, .plate.sm.pc-green, .plate.sm.pc-blue { min-width:100px; border-radius:6px; padding:3px 11px 2px;
+  box-shadow:inset 0 0 0 1.5px #fff, inset 0 0 0 2.5px #9b9f9b, 0 2px 5px -2px rgba(0,0,0,.2); }
+.plate.sm .no { font-size:18px; } .plate.sm .pv { font-size:8px; margin-top:0 !important; }
+.hplate .plate, .hplate .plate.pc-green, .hplate .plate.pc-blue { min-width:124px; padding:4px 12px 2px; border-radius:7px; }
+.hplate .plate .no { font-size:25px; } .hplate .plate .pv { font-size:10px; }
+@media (max-width: 380px) { .hplate .plate, .hplate .plate.pc-green, .hplate .plate.pc-blue { min-width:104px; padding:3px 8px 2px; } .hplate .plate .no { font-size:21px; } }
+.plate.pc-red { background:linear-gradient(180deg,#f2554a,#d8332a); border-color:#8f1c16; box-shadow:inset 0 0 0 2px #f2554a, inset 0 0 0 3px rgba(0,0,0,.28), 0 3px 8px -2px rgba(0,0,0,.25); }
+.plate, .plate.pc-green, .plate.pc-blue, .plate.sm, .plate.sm.pc-green, .plate.sm.pc-blue, .hplate .plate { box-shadow:inset 0 0 0 2px #fff, inset 0 0 0 3px #b4b8b4, 0 3px 7px -3px rgba(0,0,0,.2); }
+.plate .no { font-weight:600 !important; }
+.plate.sm, .plate.sm.pc-green, .plate.sm.pc-blue { box-shadow:inset 0 0 0 1.5px #fff, inset 0 0 0 2.5px #b4b8b4, 0 2px 4px -2px rgba(0,0,0,.2); }
+/* ปรับสัดส่วนให้เท่าตัวอย่าง: ป้ายแบน ตัวเลขเล็กลง จังหวัดชิดขอบล่าง พื้นไล่เฉดเทาอ่อน */
+.plate.pc-green { --pc:#0b7a35; }
+.plate, .plate.pc-green, .plate.pc-blue { background:linear-gradient(180deg,#fff 0%,#fff 45%,#eeeeee 100%); min-width:140px; padding:3px 16px 4px; border-radius:8px; }
+.plate .no { font-size:25px; line-height:1.05; }
+.plate .pv { font-size:10px; line-height:1; margin:0 0 0 !important; letter-spacing:0; }
+.plate.sm, .plate.sm.pc-green, .plate.sm.pc-blue { background:linear-gradient(180deg,#fff 45%,#eeeeee 100%); min-width:96px; padding:2px 10px 3px; border-radius:6px; }
+.plate.sm .no { font-size:17px; } .plate.sm .pv { font-size:7.5px; }
+.hplate .plate, .hplate .plate.pc-green, .hplate .plate.pc-blue { min-width:118px; padding:3px 10px 3px; border-radius:7px; }
+.hplate .plate .no { font-size:22px; } .hplate .plate .pv { font-size:9.5px; }
+@media (max-width: 380px) { .hplate .plate, .hplate .plate.pc-green, .hplate .plate.pc-blue { min-width:100px; padding:2px 8px 3px; } .hplate .plate .no { font-size:19px; } }
+.plate.pc-green .no, .plate.pc-green .pv, .plate.pc-blue .no, .plate.pc-blue .pv { color:var(--pc) !important; }
+.plate .no { font-size:23.5px; font-weight:600 !important; } .plate.sm .no { font-size:16px; } .hplate .plate .no { font-size:21px; }
+.plate .pv { font-weight:600 !important; }
