@@ -1,5 +1,5 @@
 /* ===== ธีมเทศกาล (Sirikul Accounting) =====
-   8 เทศกาล แต่ละแบบมีภาษาภาพของตัวเอง: แบนเนอร์ดูเดิลที่เล่นกับคำว่า "Sirikul Accounting" และโลโก้ + เอฟเฟกต์เบาๆ ลอยทั่วจอ + สีแถบหัว
+   12 เทศกาล แต่ละแบบมีภาษาภาพของตัวเอง: แบนเนอร์ดูเดิลที่เล่นกับคำว่า "Sirikul Accounting" และโลโก้ + เอฟเฟกต์เบาๆ ลอยทั่วจอ + สีแถบหัว
    เลือกธีมอัตโนมัติตามวันที่ (วันลอยกระทงคำนวณจากข้างขึ้นข้างแรม) แอดมินเลือกเอง/ปิดได้ในหน้า "ตั้งค่า" (เก็บที่ Apps Script: themeMode)
    ลองดูตัวอย่างโดยเติม ?theme=รหัส ท้ายลิงก์ เช่น ?theme=songkran (ปิด: ?theme=off)
    ไฟล์นี้ต้องโหลดก่อน app.js สไตล์อยู่ใน fest.css ธีมที่ไม่ได้ใช้จะไม่โหลดฟอนต์ตกแต่ง */
@@ -12,7 +12,11 @@ var FEST = (function () {
     { id: 'tax', name: 'เทศกาลยื่นภาษี', emoji: '🧮', when: '1 มี.ค. – 8 เม.ย.' },
     { id: 'songkran', name: 'สงกรานต์', emoji: '💦', when: '10 – 16 เม.ย.' },
     { id: 'halloween', name: 'ฮาโลวีน', emoji: '🎃', when: '24 – 31 ต.ค.' },
-    { id: 'loy', name: 'ลอยกระทง', emoji: '🏮', when: 'วันเพ็ญเดือน 12 (ช่วง พ.ย.)' }
+    { id: 'loy', name: 'ลอยกระทง', emoji: '🏮', when: 'วันเพ็ญเดือน 12 (ช่วง พ.ย.)' },
+    { id: 'children', name: 'วันเด็ก', emoji: '🎈', when: 'เสาร์ที่ 2 ของ ม.ค. (3 วันก่อน)' },
+    { id: 'veg', name: 'เทศกาลกินเจ', emoji: '🥬', when: '9 วัน ช่วง ก.ย. – ต.ค.' },
+    { id: 'mother', name: 'วันแม่', emoji: '🤍', when: '5 – 12 ส.ค.' },
+    { id: 'father', name: 'วันพ่อ', emoji: '💛', when: '28 พ.ย. – 5 ธ.ค.' }
   ];
   var BY = {}; LIST.forEach(function (t) { BY[t.id] = t; });
 
@@ -28,16 +32,24 @@ var FEST = (function () {
     for (i = 0; i < 31; i++) if (df[i] < 0.7 && (i === 0 || df[i] <= df[i - 1]) && (i === 30 || df[i] <= df[i + 1])) { var dt = new Date(Date.UTC(y, 9, 30 + i)); return dn(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate()); }
     return -1;
   }
+  // วันเด็ก = เสาร์ที่ 2 ของ ม.ค.
+  function childDay(y) { var d = new Date(Date.UTC(y, 0, 1)), w = d.getUTCDay(), first = 1 + ((6 - w + 7) % 7); return dn(y, 1, first + 7); }
+  // เทศกาลกินเจ เริ่มขึ้น 1 ค่ำ เดือน 9 ≈ 44 วันก่อนวันลอยกระทง (คาดการณ์ ±1 วัน)
+  function vegStart(y) { var l = loyDay(y); return l >= 0 ? l - 44 : -1; }
   function pick(date) {
     var y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate(), t = dn(y, m, d);
     if ((m === 12 && d >= 28) || (m === 1 && d <= 3)) return 'newyear';
     if (m === 12 && d >= 18) return 'xmas';
+    var cd0 = childDay(y); if (m === 1 && t >= cd0 - 3 && t <= cd0) return 'children';
     var c = CNY[y]; if (c) { var cd = dn(y, c[0], c[1]); if (t >= cd - 3 && t <= cd + 6) return 'cny'; }
     if (m === 2 && d >= 8 && d <= 14) return 'valentine';
     if ((m === 3) || (m === 4 && d <= 8)) return 'tax';
     if (m === 4 && d >= 10 && d <= 16) return 'songkran';
+    var vs = vegStart(y); if (vs >= 0 && t >= vs - 1 && t <= vs + 9) return 'veg';
     if (m === 10 && d >= 24) return 'halloween';
+    if (m === 8 && d >= 5 && d <= 12) return 'mother';
     var l = loyDay(y); if (l >= 0 && t >= l - 3 && t <= l + 1) return 'loy';
+    if ((m === 11 && d >= 28) || (m === 12 && d <= 5)) return 'father';
     return '';
   }
   function active() {
@@ -59,7 +71,11 @@ var FEST = (function () {
     halloween: 'family=Creepster',
     xmas: 'family=Mountains+of+Christmas:wght@700',
     valentine: 'family=Sacramento',
-    tax: 'family=Caveat:wght@700'
+    tax: 'family=Caveat:wght@700',
+    children: 'family=Chewy',
+    veg: 'family=Lobster',
+    mother: 'family=Playfair+Display:ital,wght@1,700',
+    father: 'family=Bungee'
   };
   var loaded = {};
   function loadFonts(id) {
@@ -67,7 +83,8 @@ var FEST = (function () {
     ids.forEach(function (k) {
       if (!FONTS[k] || loaded[k]) return; loaded[k] = 1;
       var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?' + FONTS[k] + '&display=swap&text=' + CH; document.head.appendChild(l);
-      if (k === 'cny') { var l2 = document.createElement('link'); l2.rel = 'stylesheet'; l2.href = 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap&text=' + encodeURIComponent('福'); document.head.appendChild(l2); }
+      var zh = { cny: '福', veg: '齋' }[k];
+      if (zh) { var l2 = document.createElement('link'); l2.rel = 'stylesheet'; l2.href = 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap&text=' + encodeURIComponent(zh); document.head.appendChild(l2); }
     });
   }
 
@@ -185,6 +202,67 @@ var FEST = (function () {
     };
   };
 
+  ART.mother = function () {
+    var ring = '<g stroke="#8cc3ee" stroke-width=".9">', i;
+    for (i = 0; i < 16; i++) { var a = i * 22.5 * Math.PI / 180; ring += flower(+(50 + Math.cos(a) * 57).toFixed(1), +(50 + Math.sin(a) * 57).toFixed(1), 7, '#fff', '#ffe08a'); }
+    ring += '</g>';
+    var g = '<path d="M0 8C70 78 170 78 240 8" fill="none" stroke="#5aa469" stroke-width="2.4"/>', t = '<g stroke="#8cc3ee" stroke-width=".9">';
+    for (i = 0; i <= 8; i++) { var u = i / 8, x = u * 240, y = 8 + 35 * Math.sin(Math.PI * u) * 1.55; t += flower(+x.toFixed(1), +y.toFixed(1), 8, '#fff', '#ffe08a'); }
+    t += '</g>';
+    var tas = '<g stroke="#5aa469" stroke-width="2" stroke-linecap="round"><path d="M120 62v22"/><path d="M112 84l8 6l8 -6"/></g><g class="tw" fill="#fff" stroke="#8cc3ee" stroke-width=".9"><circle cx="120" cy="94" r="5"/></g>';
+    return {
+      back: ring, front: '',
+      art: sv('0 0 240 110', g + t + tas, 'd garl', 'right:6px;top:-6px;width:230px;height:auto;'),
+      extra: ''
+    };
+  };
+
+  ART.father = function () {
+    var rays = ''; for (var i = 0; i < 18; i++) { rays += '<path d="M0 0L' + (300 * Math.cos((i * 20 - 4) * Math.PI / 180)).toFixed(0) + ' ' + (300 * Math.sin((i * 20 - 4) * Math.PI / 180)).toFixed(0) + 'L' + (300 * Math.cos((i * 20 + 4) * Math.PI / 180)).toFixed(0) + ' ' + (300 * Math.sin((i * 20 + 4) * Math.PI / 180)).toFixed(0) + 'Z"/>'; }
+    var mug = sv('0 0 150 130', '<g class="steam" fill="none" stroke="#1d1d1b" stroke-width="3.2" stroke-linecap="round" opacity=".6"><path d="M44 22q-8 -10 0 -18t0 -10"/><path d="M66 24q-8 -10 0 -18t0 -10"/><path d="M88 22q-8 -10 0 -18t0 -10"/></g>' +
+      '<path d="M112 50h14a14 14 0 0 1 0 34h-14" fill="none" stroke="#1d1d1b" stroke-width="7"/><path d="M26 34h92v52a22 22 0 0 1 -22 22h-48a22 22 0 0 1 -22 -22z" fill="#fff" stroke="#1d1d1b" stroke-width="5"/>' +
+      '<text x="72" y="82" text-anchor="middle" font-family="Bungee,Impact,sans-serif" font-size="38" fill="#e63946">No.1</text><text x="72" y="55" text-anchor="middle" font-family="Bungee,Impact,sans-serif" font-size="15" fill="#1d1d1b">DAD</text>', 'd mug', 'right:14px;bottom:2px;width:132px;height:auto;');
+    return {
+      back: '',
+      front: '<g transform="translate(50 100)"><g class="tie"><path d="M0 0L-22 -9V13Z" fill="#1d3557" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/><path d="M0 0L22 -9V13Z" fill="#1d3557" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/><rect x="-6" y="-7" width="12" height="14" rx="3" fill="#e63946" stroke="#fff" stroke-width="2.4"/></g></g>',
+      art: sv('-300 -300 600 600', '<g fill="#fff" fill-opacity=".22">' + rays + '</g>', 'd rays', 'left:-60px;top:50%;width:520px;height:520px;margin-top:-260px;') + mug,
+      extra: ''
+    };
+  };
+
+  ART.children = function () {
+    var cols = ['#ff595e', '#ffca3a', '#1982c4', '#8ac926'], b = '';
+    [[-14, -18, 0], [34, -34, .7], [86, -20, 1.3]].forEach(function (p, i) {
+      b += '<g transform="translate(' + p[0] + ' ' + p[1] + ')"><g class="bal" style="animation-delay:' + p[2] + 's"><path d="M0 0C-4 30 4 60 ' + (6 - i * 4) + ' 92" fill="none" stroke="#fff" stroke-width="1.6" transform="translate(0 20)"/><ellipse cx="0" cy="0" rx="15" ry="19" fill="' + cols[i] + '" stroke="#fff" stroke-width="2.4"/><path d="M-5 -9q-4 5 -2 11" stroke="#fff" stroke-opacity=".7" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M-3 19l3 5l3 -5z" fill="' + cols[i] + '"/></g></g>';
+    });
+    var blocks = sv('0 0 170 124', '<g class="blk"><g transform="translate(6 62) rotate(-5 28 28)"><rect width="56" height="56" rx="8" fill="#ff595e" stroke="#fff" stroke-width="3"/><text x="28" y="42" text-anchor="middle" font-family="Chewy,cursive" font-size="36" fill="#fff">A</text></g>' +
+      '<g transform="translate(66 62) rotate(4 28 28)"><rect width="56" height="56" rx="8" fill="#ffca3a" stroke="#fff" stroke-width="3"/><text x="28" y="42" text-anchor="middle" font-family="Chewy,cursive" font-size="36" fill="#1982c4">B</text></g>' +
+      '<g transform="translate(34 6) rotate(-3 28 28)"><rect width="56" height="56" rx="8" fill="#1982c4" stroke="#fff" stroke-width="3"/><text x="28" y="42" text-anchor="middle" font-family="Chewy,cursive" font-size="36" fill="#fff">C</text></g></g>' +
+      '<path class="tw" d="M146 20l4 9l10 1l-8 7l3 10l-9 -6l-9 6l3 -10l-8 -7l10 -1z" fill="#ffca3a" stroke="#fff" stroke-width="2"/>', 'd blocks', 'right:12px;bottom:-4px;width:150px;height:auto;');
+    var bunt = '<path d="M0 6Q100 22 200 6T400 6" fill="none" stroke="#fff" stroke-width="2"/>', k = 0;
+    for (var x = 8; x < 400; x += 26) { bunt += '<path d="M' + x + ' ' + (7 + 6 * Math.sin(x / 64)).toFixed(1) + 'l11 0l-5.5 16z" fill="' + cols[k++ % 4] + '" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/>'; }
+    return {
+      back: b, front: '',
+      art: sv('0 0 400 30', bunt, 'd bunt', 'left:0;top:0;width:100%;height:30px;') + blocks,
+      extra: ''
+    };
+  };
+
+  ART.veg = function () {
+    var flag = '<g transform="translate(94 -22)"><rect x="-2" y="0" width="5" height="120" rx="2.5" fill="#8a5a2b" stroke="#fff" stroke-width="1.6"/><circle cx="0.5" cy="-1" r="5" fill="#e63946"/><g class="flag"><path d="M3 4h46q-6 22 0 44h-46z" fill="#ffd60a" stroke="#c1121f" stroke-width="2.4" stroke-linejoin="round"/><text x="26" y="39" text-anchor="middle" font-family="Ma Shan Zheng,serif" font-size="32" fill="#c1121f">齋</text></g></g>';
+    var bowl = sv('0 0 190 120', '<g class="veg"><g transform="translate(56 28)"><circle r="19" fill="#4caf50" stroke="#fff" stroke-width="2.4"/><circle cx="-12" cy="9" r="12" fill="#43a047" stroke="#fff" stroke-width="2.4"/><circle cx="13" cy="8" r="12" fill="#66bb6a" stroke="#fff" stroke-width="2.4"/><rect x="-6" y="10" width="12" height="20" rx="4" fill="#9ccc65" stroke="#fff" stroke-width="2.4"/></g>' +
+      '<g transform="translate(112 34) rotate(24)"><path d="M0 -4L12 40L-12 40Z" fill="#ff8f1f" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/><path d="M0 -4C-8 -16 -2 -22 0 -14C2 -22 8 -16 0 -4Z" fill="#43a047" stroke="#fff" stroke-width="2"/></g>' +
+      '<g transform="translate(142 44)"><path d="M-18 6a18 15 0 0 1 36 0z" fill="#d7a86e" stroke="#fff" stroke-width="2.4"/><rect x="-6" y="6" width="12" height="16" rx="5" fill="#f3e5ce" stroke="#fff" stroke-width="2.4"/></g></g>' +
+      '<path d="M18 62h154a77 52 0 0 1 -154 0z" fill="#fff" stroke="#c1121f" stroke-width="4"/><path d="M32 78h126" stroke="#ffd60a" stroke-width="5" stroke-linecap="round"/><path d="M60 96h70" stroke="#c1121f" stroke-width="3" stroke-linecap="round" opacity=".5"/>', 'd bowl', 'right:12px;bottom:-6px;width:170px;height:auto;');
+    var bunt = '<path d="M0 6Q100 20 200 6T400 6" fill="none" stroke="#8a5a2b" stroke-width="2"/>', k = 0;
+    for (var x = 8; x < 400; x += 24) bunt += '<path d="M' + x + ' ' + (7 + 6 * Math.sin(x / 64)).toFixed(1) + 'l11 0l-5.5 15z" fill="' + (k++ % 2 ? '#c1121f' : '#ffd60a') + '" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>';
+    return {
+      back: flag, front: '',
+      art: sv('0 0 400 30', bunt, 'd bunt', 'left:0;top:0;width:100%;height:30px;') + bowl,
+      extra: ''
+    };
+  };
+
   /* ---------- เอฟเฟกต์ลอยทั่วจอ (เบาๆ ปิดได้) ---------- */
   var FXD = {
     songkran: { n: 16, ch: ['💧', '💧', '🫧'], cls: 'fall' },
@@ -194,7 +272,11 @@ var FEST = (function () {
     halloween: { n: 10, ch: ['🦇', '🦇', '👻', '🎃'], cls: 'fly' },
     xmas: { n: 30, ch: ['❄', '❅', '❆', '·'], cls: 'fall snow' },
     valentine: { n: 16, ch: ['♥', '♥', '💗', '♡'], cls: 'rise' },
-    tax: { n: 14, ch: ['฿', '%', '✓', '7%', '฿'], cls: 'rise ink' }
+    tax: { n: 14, ch: ['฿', '%', '✓', '7%', '฿'], cls: 'rise ink' },
+    children: { n: 14, ch: ['🎈', '⭐', '🎈', '✨', '🎈'], cls: 'rise' },
+    veg: { n: 14, ch: ['🌿', '🍃', '🥬', '·'], cls: 'fall' },
+    mother: { n: 18, ch: ['✿', '🤍', '❀', '·'], cls: 'fall snow' },
+    father: { n: 14, ch: ['⭐', '💛', '★', '·'], cls: 'rise' }
   };
   function fxHtml(id) {
     var d = FXD[id]; if (!d) return ''; var o = '';
