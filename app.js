@@ -1066,13 +1066,14 @@ function modePanelHtml() {
   var unset = modeUnsetCount();
   if (!S.cars.length || !(S.modePanel || unset)) return '';
   var ok = modeBackendOk();
-  return '<div class="card modpanel noprint"><div class="dhead"><h2>การเบิกใช้ของรถแต่ละคัน</h2>' + (unset ? '' : '<button type="button" class="dclose" data-act="modeclose" aria-label="ปิด">✕</button>') + '</div>' +
-    (ok ? '<div class="mute" style="font-size:14px;margin-bottom:10px">' + (unset ? '<b class="cd-warn">ยังไม่ได้ตั้งค่า ' + unset + ' คัน</b> ตอนนี้ระบบถือว่าเบิกได้ (ยกเว้นจักรยานยนต์) ' : '') + 'เลือกว่ารถแต่ละคันเบิกผ่านระบบได้หรือไม่ แล้วกดบันทึก รถกรรมการและรถที่ไม่ต้องเบิกจะเบิกไม่ได้ (ทั้งหน้าจอและ Apps Script) แต่ยังเก็บภาษี/ประกัน/ประวัติไว้</div>'
-      : '<div class="polwarn"><b>Apps Script ยังเป็นรุ่นเก่า</b> ยังตั้งค่านี้ไม่ได้ และระบบจะยังให้เบิกรถทุกคัน วางโค้ด Code.gs ใหม่แล้ว deploy เวอร์ชันใหม่ก่อน</div>') +
-    S.cars.map(function (c) {
-      return '<div class="modrow"><div class="mcar">' + plateHtml(c, 'sm') + '<span>' + esc(c.model || '') + '</span></div><select class="modsel" data-mid="' + esc(c.id) + '"' + (ok ? '' : ' disabled') + '>' +
-        ['pool', 'exec', 'free'].map(function (k) { return '<option value="' + k + '"' + (carMode(c) === k ? ' selected' : '') + '>' + MODE_LABEL[k] + '</option>'; }).join('') + '</select></div>';
-    }).join('') + (ok ? '<div class="acts" style="margin-top:12px"><button data-act="modesave">บันทึกการเบิกใช้</button></div>' : '') + '</div>';
+  // ยังไม่ได้ตั้งและยังไม่เปิดแผง: แสดงเป็นแถบบางๆ แถวเดียว
+  if (!S.modePanel) return '<div class="modbar noprint"><span><b>ยังไม่ได้ตั้งค่าการเบิกใช้ ' + unset + ' คัน</b> · ตอนนี้ถือว่าเบิกได้ (ยกเว้นจักรยานยนต์)</span><button class="small" data-act="modepanel">ตั้งค่า</button></div>';
+  return '<div class="card modpanel noprint"><div class="mphead"><b>การเบิกใช้ของรถแต่ละคัน</b><span class="mute">รถกรรมการ/ไม่ต้องเบิก จะเบิกไม่ได้ แต่ยังเก็บภาษี/ประกัน/ประวัติไว้</span><button type="button" class="dclose" data-act="modeclose" aria-label="ปิด">✕</button></div>' +
+    (ok ? '' : '<div class="polwarn"><b>Apps Script ยังเป็นรุ่นเก่า</b> ยังตั้งค่านี้ไม่ได้ วางโค้ด Code.gs ใหม่แล้ว deploy เวอร์ชันใหม่ก่อน</div>') +
+    '<div class="modgrid">' + S.cars.map(function (c) {
+      return '<div class="modrow"><div class="mcar"><b>' + esc(c.plate) + '</b><span>' + esc(c.model || '') + '</span></div><select class="modsel" data-mid="' + esc(c.id) + '"' + (ok ? '' : ' disabled') + '>' +
+        ['pool', 'exec', 'free'].map(function (k) { return '<option value="' + k + '"' + (carMode(c) === k ? ' selected' : '') + '>' + { pool: 'เบิกได้', exec: 'รถกรรมการ (เบิกไม่ได้)', free: 'ไม่ต้องเบิก' }[k] + '</option>'; }).join('') + '</select></div>';
+    }).join('') + '</div>' + (ok ? '<div class="mpfoot"><button class="small" data-act="modesave">บันทึก</button></div>' : '') + '</div>';
 }
 function carByPlate(plate) { return S.cars.filter(function (c) { return c.plate === plate; })[0]; }
 // ทะเบียนที่กดแล้วเปิดรายละเอียดรถ (ไทม์ไลน์) ในหน้าจัดการรถ

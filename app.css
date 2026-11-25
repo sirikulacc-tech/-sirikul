@@ -993,8 +993,19 @@ a.telink { display:inline-block; padding:6px 14px; border-radius:99px; backgroun
 .nobook { padding:14px 16px; border-radius:16px; background:var(--input); border:1.5px dashed var(--line); color:var(--mute); font-weight:700; text-align:center; }
 .cs-st:not(.busy):not(.free) { background:var(--input); color:var(--mute); border:1px solid var(--line); }
 
-/* แผงตั้งค่า "การเบิกใช้" ของรถ (หน้าจัดการรถ) */
-.modpanel { margin-bottom:16px; border:1.5px solid var(--warn); }
-.modrow { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 0; border-top:1px solid var(--line); flex-wrap:wrap; }
-.modrow .mcar { display:flex; align-items:center; gap:10px; min-width:0; font-weight:600; }
-.modrow .modsel { width:auto; min-width:240px; margin:0; flex:1 1 240px; max-width:340px; }
+/* แผงตั้งค่า "การเบิกใช้" ของรถ (หน้าจัดการรถ) แบบกะทัดรัด */
+.modbar { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding:8px 8px 8px 14px; border-radius:12px; background:var(--warn-bg); border:1px solid color-mix(in srgb, var(--warn) 40%, transparent); font-size:14px; }
+.modbar b { color:var(--warn); }
+.modbar button { width:auto; margin:0; }
+.modpanel { margin-bottom:14px; padding:10px 14px 12px; border:1.5px solid var(--warn); }
+.mphead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:4px; }
+.mphead .mute { font-size:12.5px; flex:1; min-width:200px; }
+.mphead .dclose { width:28px; height:28px; font-size:13px; margin-left:auto; display:inline-block !important; }
+.modgrid { display:grid; grid-template-columns:1fr 1fr; gap:0 26px; }
+.modrow { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:5px 0; border-top:1px solid var(--line); }
+.modrow .mcar { min-width:0; display:flex; flex-direction:column; line-height:1.25; font-size:14px; }
+.modrow .mcar span { font-size:12px; color:var(--mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.modrow .modsel { width:auto; min-width:0; flex:0 0 175px; margin:0; padding:5px 8px; font-size:13.5px; border-radius:9px; }
+.mpfoot { margin-top:8px; }
+.mpfoot button { width:auto; margin:0; }
+@media (max-width: 899px) { .modgrid { grid-template-columns:1fr; } .modrow .modsel { flex-basis:170px; } }
