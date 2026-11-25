@@ -338,7 +338,7 @@ function hexpRow(label, d, sub) {
   var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || ''), short = m ? m[3] + '/' + m[2] + '/' + String(Number(m[1]) + 543).slice(2) : '';
   var co = sub ? String(sub).replace(/\s*ประกันภัย\s*/, ' ').trim() : ''; // แถบด้านบนย่อชื่อบริษัท เช่น "วิริยะประกันภัย" -> "วิริยะ"
   var full = label + (d ? ' หมดอายุ ' + thDate(d) : '') + (sub ? ' · ' + sub : '') + (n === null ? '' : n < 0 ? ' · เกินกำหนด ' + (-n) + ' วัน' : ' · เหลือ ' + n + ' วัน');
-  return '<div class="hx" title="' + esc(full) + '"><span class="hx-l">' + label + '</span><span class="hx-d">' + short + (co ? ' · ' + esc(co) : '') + '</span><b class="' + cls + '">' + txt + '</b></div>';
+  return '<div class="hx" title="' + esc(full) + '"><span class="hx-l">' + label + '</span><span class="hx-d">' + short + (co ? (insHasLogo(sub) ? ' ' + insLogo(sub, 'xs') : ' · ' + esc(co)) : '') + '</span><b class="' + cls + '">' + txt + '</b></div>';
 }
 
 /* ---------- เฟรมหลัก ---------- */
@@ -704,6 +704,24 @@ function parseRegText(raw) {
 
 var OCR_LABELS = { vtype: 'ประเภทรถ', plate: 'ทะเบียน', province: 'จังหวัด', model: 'ยี่ห้อ/รุ่น', year: 'ปี', color: 'สี', fuel: 'เชื้อเพลิง', vin: 'เลขตัวถัง', engineNo: 'เลขเครื่อง' };
 var INSURERS = ['วิริยะประกันภัย', 'ทิพยประกันภัย', 'กรุงเทพประกันภัย', 'สินมั่นคงประกันภัย', 'เมืองไทยประกันภัย', 'ไทยศรีประกันภัย', 'ไทยประกันภัย', 'อินทรประกันภัย', 'ชับบ์สามัคคีประกันภัย', 'แอลเอ็มจี ประกันภัย', 'เอเชียประกันภัย 1950', 'นวกิจประกันภัย', 'ไทยวิวัฒน์ประกันภัย', 'ธนชาตประกันภัย', 'โตเกียวมารีนประกันภัย'];
+// โลโก้บริษัทประกัน: ไฟล์อยู่ที่ icons/ins/<รหัส>.png (INS_HAVE = บริษัทที่มีไฟล์แล้ว) บริษัทที่ยังไม่มีไฟล์/พิมพ์ชื่อเอง จะแสดงตัวอักษรย่อบนพื้นสีแทน
+// เพิ่มโลโก้ใหม่: ใส่ไฟล์ PNG พื้นโปร่งใส สูงไม่เกิน ~96px ที่ icons/ins/<รหัส>.png แล้วเติมรหัสใน INS_HAVE (รหัสอยู่ใน INS_KEYS)
+var INS_KEYS = [[/วิริยะ|viriyah/i, 'viriyah'], [/ทิพย|dhipaya/i, 'dhipaya'], [/กรุงเทพ|bangkok/i, 'bki'], [/สินมั่นคง|syn\s?mun|smk/i, 'smk'], [/เมืองไทย|muang\s?thai/i, 'mti'],
+  [/ไทยศรี|thaisri/i, 'thaisri'], [/อินทร|indara/i, 'indara'], [/ชับบ์|chubb|สามัคคี/i, 'chubb'], [/แอลเอ็มจี|lmg/i, 'lmg'], [/เอเชีย|asia/i, 'asia1950'], [/นวกิจ|navakij/i, 'navakij'],
+  [/ไทยวิวัฒน์|thaivivat/i, 'thaivivat'], [/ธนชาต|thanachart/i, 'thanachart'], [/โตเกียว|tokio/i, 'tokio'], [/^ไทยประกันภัย|thai\s?insurance/i, 'thaiins']];
+var INS_HAVE = { viriyah: 1, dhipaya: 1, smk: 1, mti: 1, thaisri: 1, navakij: 1, chubb: 1, thanachart: 1 };
+function insKey(name) { name = String(name || ''); for (var i = 0; i < INS_KEYS.length; i++) if (INS_KEYS[i][0].test(name)) return INS_KEYS[i][1]; return ''; }
+var INS_WIDE = { thaisri: 1, chubb: 1 }; // โลโก้แนวยาวมาก ใช้ในที่แคบ (แถบด้านบนหน้าคนขับ) ไม่ได้ จึงแสดงชื่อย่อแทน
+function insHasLogo(name) { var k = insKey(name); return !!INS_HAVE[k] && !INS_WIDE[k]; }
+// sz: 'xs' (แถบด้านบน) · '' (ปกติ) · 'lg' (หน้าข้อมูลรถ)
+function insLogo(name, sz) {
+  name = String(name || '').trim(); if (!name) return '';
+  var k = insKey(name);
+  if (INS_HAVE[k]) return '<span class="inslogo ' + (sz || '') + '" title="' + esc(name) + '"><img src="icons/ins/' + k + '.png?v=1" alt="' + esc(name) + '" loading="lazy"></span>';
+  var ch = (name.replace(/บริษัท|ประกันภัย|จำกัด|\(มหาชน\)|\s/g, '').match(/[ก-ฮA-Za-z0-9]/) || ['?'])[0].toUpperCase(), hue = 0;
+  for (var n = 0; n < name.length; n++) hue = (hue * 31 + name.charCodeAt(n)) % 360;
+  return '<span class="inslogo mono ' + (sz || '') + '" style="--h:' + hue + '" title="' + esc(name) + '" aria-hidden="true">' + esc(ch) + '</span>';
+}
 
 function serviceCard(car, d) {
   var h = '<div class="card"><h2>เช็คระยะ</h2>';
@@ -753,7 +771,7 @@ function viewInfo(car) {
     '<div class="card info-main"><h2>ข้อมูลรถ</h2>' + kv('ทะเบียน', car.plate) + kv('จังหวัด', car.province) + kv('ยี่ห้อ/รุ่น', car.model) + kv('ปี', car.year) +
     kv('สี', car.color) + kv('เชื้อเพลิง', car.fuel) + kv('เลขตัวถัง', car.vin) + kv('เลขเครื่อง', car.engineNo) +
     kv('เลขไมล์ล่าสุด', car.lastOdo === '' ? '' : Number(car.lastOdo).toLocaleString('th-TH') + ' กม.') + '</div>' +
-    '<div class="card"><h2>วันหมดอายุ</h2>' + exp('พ.ร.บ.', car.actExp) + exp('ภาษีรถ', car.taxExp) + exp('ประกันภัย', car.insExp) + kv('บริษัทประกันภัย', car.insurer) + '</div>' +
+    '<div class="card"><h2>วันหมดอายุ</h2>' + exp('พ.ร.บ.', car.actExp) + exp('ภาษีรถ', car.taxExp) + exp('ประกันภัย', car.insExp) + (car.insurer ? '<div class="kv"><span>บริษัทประกันภัย</span><span class="insval">' + insLogo(car.insurer, 'lg') + '<b>' + esc(car.insurer) + '</b></span></div>' : kv('บริษัทประกันภัย', '')) + '</div>' +
     '';
 }
 
@@ -959,7 +977,7 @@ function carCards(list) {
       '<div class="cc-stats"><div class="cc-stat"><span>เลขไมล์ล่าสุด</span><b>' + (c.lastOdo === '' ? '-' : km(c.lastOdo) + ' <small>กม.</small>') + '</b></div>' +
       '<div class="cc-stat"><span>' + ic('wrench', 14) + ' เช็คระยะถัดไป</span>' + svc + '</div></div>' +
       '<div class="cc-due">' + tile('พ.ร.บ.', c.actExp) + tile('ภาษี', c.taxExp) + tile('ประกัน', c.insExp) + '</div>' +
-      (c.insurer ? '<div class="cc-ins">' + ic('shield', 14) + esc(c.insurer) + '</div>' : '') +
+      (c.insurer ? '<div class="cc-ins">' + insLogo(c.insurer) + '<span>' + esc(c.insurer) + '</span></div>' : '') +
       (c.regDocId ? '' : '<div class="nodoc-note">' + ic('info', 14) + 'ยังไม่มีสำเนาทะเบียน</div>') +
       '<div class="cc-act"><button class="small" data-act="editcar" data-id="' + esc(c.id) + '">' + ic('edit', 15) + 'แก้ไขข้อมูล</button><button class="small ghost" data-act="asub" data-s="qr">' + ic('qr', 15) + 'QR</button><button class="small line" data-act="removecar" data-id="' + esc(c.id) + '">นำออก</button></div></div>';
   }).join('') + '</div>';
@@ -994,7 +1012,7 @@ function admCars() {
       '<div class="mcell"><span class="vic">' + vIcon(c.vtype) + '</span><div><b>' + esc(c.model) + '</b><div class="sub">' + esc([c.vtype, c.year, c.color].filter(Boolean).join(' · ')) + '</div></div></div>',
       t ? '<span class="chip">ถูกเบิก · ' + esc(t.name) + '</span>' : '<span class="chip free">ว่าง</span>',
       c.lastOdo === '' ? '<span class="mute">-</span>' : km(c.lastOdo),
-      expChip(c.actExp), expChip(c.taxExp), expChip(c.insExp) + (c.insurer ? '<div class="sub">' + esc(c.insurer) + '</div>' : ''), svc,
+      expChip(c.actExp), expChip(c.taxExp), expChip(c.insExp) + (c.insurer ? '<div class="sub insline">' + insLogo(c.insurer, 'xs') + esc(c.insurer) + '</div>' : ''), svc,
       '<div class="acts"><button class="small ghost" data-act="timeline" data-id="' + esc(c.id) + '">ไทม์ไลน์</button><button class="small ghost" data-act="editcar" data-id="' + esc(c.id) + '">แก้ไข</button><button class="small line" data-act="removecar" data-id="' + esc(c.id) + '">นำออก</button></div>'];
   });
   var tools = '<div class="ftools"><label class="fsearch">' + ic('search', 16) + '<input id="cfq" type="search" placeholder="ค้นหา ทะเบียน / รุ่น / เลขตัวถัง" value="' + esc(f.q) + '"></label>' +
@@ -1089,7 +1107,7 @@ function carForm() {
     f('พ.ร.บ.หมดอายุ', '<input name="actExp" type="date" value="' + v('actExp') + '">') +
     f('ภาษีหมดอายุ', '<input name="taxExp" type="date" value="' + v('taxExp') + '">') +
     f('ประกันหมดอายุ', '<input name="insExp" type="date" value="' + v('insExp') + '">') +
-    f('บริษัทประกันภัย', '<input name="insurer" list="insurers" maxlength="60" value="' + v('insurer') + '" placeholder="พิมพ์หรือเลือก">' +
+    f('บริษัทประกันภัย', '<div class="insrow"><input name="insurer" list="insurers" maxlength="60" value="' + v('insurer') + '" placeholder="พิมพ์หรือเลือก"><span id="insPrev">' + insLogo(e.insurer) + '</span></div>' +
       '<datalist id="insurers">' + INSURERS.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>') +
     f('สำเนาทะเบียนรถ (รูปหรือ PDF ไม่เกิน 4 MB)' + (e.regDocId ? ' — มีไฟล์เดิม เลือกใหม่เพื่อแทนที่' : ''), '<input type="file" id="regFile" accept="image/*,application/pdf">', true) +
     '</div><button type="submit">' + (e.id ? 'บันทึกการแก้ไข' : 'เพิ่มรถ') + '</button>' +
@@ -1357,6 +1375,7 @@ function bindForms() {
   });
   hook('#fSettings', 'saveSettings', function (d) { return { company: d.company, logo: pendingLogo, pin: S.pin }; }, 'บันทึกการตั้งค่าแล้ว', function () { pendingLogo = ''; });
   var fcar = $('#fCar');
+  if (fcar) fcar.elements['insurer'].addEventListener('input', function () { var pv = $('#insPrev'); if (pv) pv.innerHTML = insLogo(this.value); });
   if (fcar) fcar.elements['vtype'].addEventListener('change', function () {
     var pc = plateColorFor(this.value), cur = fcar.elements['plateColor'];
     if (pc && cur.value !== 'red') cur.value = pc; // ป้ายแดงเป็นกรณีพิเศษ ไม่แตะ

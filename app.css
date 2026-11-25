@@ -955,3 +955,18 @@ a.carlink:hover { border-bottom-style:solid; }
 .seeall { float:right; width:auto; margin:0; font-size:13px; }
 .tl-hm { margin-left:auto; width:auto; }
 @media print { .hmbar, .hmrange { display:none !important; } }
+
+/* ===== โลโก้บริษัทประกัน (วางบนแผ่นขาว อ่านชัดทั้งโหมดสว่าง/มืด) ===== */
+.inslogo { display:inline-flex; align-items:center; justify-content:center; vertical-align:middle; flex:none; box-sizing:border-box; height:26px; min-width:26px; max-width:92px; padding:3px 5px; border-radius:8px; background:#fff; border:1px solid rgba(0,0,0,.1); }
+.inslogo img { display:block; height:100%; width:auto; max-width:100%; object-fit:contain; }
+.inslogo.xs { height:17px; min-width:17px; max-width:50px; padding:1px 3px; border-radius:5px; margin-left:2px; }
+.inslogo.lg { height:38px; min-width:38px; max-width:130px; padding:4px 7px; border-radius:10px; }
+.inslogo.mono { background:hsl(var(--h) 52% 40%); color:#fff; border:0; font-weight:700; font-size:13px; line-height:1; }
+.inslogo.xs.mono { font-size:10px; }
+.inslogo.lg.mono { font-size:19px; }
+.cc-ins { gap:8px; }
+.insline { display:flex; align-items:center; gap:6px; margin-top:3px; }
+.insval { display:inline-flex; align-items:center; gap:10px; justify-content:flex-end; }
+.insrow { display:flex; align-items:center; gap:10px; }
+.insrow input { flex:1; min-width:0; }
+.hx-d .inslogo { vertical-align:-4px; }
