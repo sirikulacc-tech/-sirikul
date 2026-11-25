@@ -31,7 +31,7 @@ const SCHEMA = {
       ['regDocId', 'ไฟล์สำเนาทะเบียน (Drive ID)'], ['regDocMime', 'ชนิดไฟล์สำเนาทะเบียน'], ['province', 'จังหวัด'], ['insurer', 'บริษัทประกันภัย'], ['vtype', 'ประเภทรถ'], ['plateColor', 'สีป้ายทะเบียน'],
       ['insClass', 'ประเภท/ชั้นประกันภัย'], ['insPolicyNo', 'เลขกรมธรรม์'], ['insStart', 'ประกันเริ่มคุ้มครอง'], ['insSum', 'ทุนประกัน'], ['insPremium', 'เบี้ยประกันรวม'],
       ['insDeduct', 'ค่าเสียหายส่วนแรก'], ['insRepair', 'ซ่อมห้าง/ซ่อมอู่'], ['insAgent', 'ตัวแทน/นายหน้า'], ['insPhone', 'เบอร์แจ้งเหตุ/ตัวแทน'], ['insNote', 'หมายเหตุประกันภัย'],
-      ['insDocId', 'ไฟล์กรมธรรม์ (Drive ID)'], ['insDocMime', 'ชนิดไฟล์กรมธรรม์']
+      ['insDocId', 'ไฟล์กรมธรรม์ (Drive ID)'], ['insDocMime', 'ชนิดไฟล์กรมธรรม์'], ['useMode', 'การเบิกใช้ (pool/exec/free)']
     ],
     textCols: ['year', 'vin', 'engineNo', 'actExp', 'taxExp', 'insExp', 'insPolicyNo', 'insStart', 'insPhone']
   },
@@ -258,8 +258,12 @@ function monthDataClean_(month) {
 
 
 /* ---------- เบิกรถ / คืนรถ ---------- */
+// การเบิกใช้ของรถ: เบิกผ่านระบบได้เฉพาะ pool (ยังไม่ตั้งค่า = ตามประเภทรถ จักรยานยนต์ไม่ต้องเบิก ที่เหลือเบิกได้)
+function carMode_(c) { return c.useMode || (c.vtype === 'รถจักรยานยนต์' ? 'free' : 'pool'); }
+
 function checkout_(p) {
   const car = findCar_(p.plate);
+  if (carMode_(car) !== 'pool') throw new Error('รถคันนี้' + (carMode_(car) === 'exec' ? 'เป็นรถกรรมการ ไม่เปิดให้เบิกผ่านระบบ' : 'ไม่ต้องเบิกผ่านระบบ'));
   const name = name_(p.name);
   // คนขับที่มีชื่อในระบบแล้วไม่ต้องกรอกเบอร์โทร/วันหมดอายุใบขับขี่ซ้ำ คนขับใหม่ต้องกรอก
   const phone = String(p.phone || '').replace(/[^\d]/g, '');
@@ -430,6 +434,7 @@ function saveCar_(p) {
     rec.insSum = money_(p.insSum, 'ทุนประกัน'); rec.insDeduct = money_(p.insDeduct, 'ค่าเสียหายส่วนแรก');
     if (p.insPremium !== undefined) rec.insPremium = money_(p.insPremium, 'เบี้ยประกัน'); // ไม่ส่งมา = ไม่แตะค่าเดิม (หน้าเว็บส่งเฉพาะเมื่อโหลดค่าเดิมมาแล้ว)
     rec.insRepair = ['ซ่อมห้าง', 'ซ่อมอู่'].indexOf(p.insRepair) >= 0 ? p.insRepair : '';
+    if (p.useMode !== undefined) rec.useMode = ['pool', 'exec', 'free'].indexOf(p.useMode) >= 0 ? p.useMode : ''; // pool = รถส่วนกลางเบิกได้ · exec = รถกรรมการ · free = ไม่ต้องเบิก
     rec.insAgent = str_(p.insAgent, 80); rec.insPhone = String(p.insPhone || '').replace(/[^\d+\-\s]/g, '').trim().slice(0, 20); rec.insNote = str_(p.insNote, 500);
     if (reg) {
       if (old && old.regDocId) {

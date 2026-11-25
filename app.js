@@ -137,7 +137,7 @@ function nameField(label) {
 // สแกน QR ของรถคันไหน จะล็อกอยู่ที่คันนั้น (S.locked = รหัสรถ) ไม่มีเมนูสลับไปคันอื่น เปิดลิงก์ปกติที่ไม่มี ?car= ยังเลือกรถได้
 function curCar() {
   if (S.locked) { var lc = S.cars.filter(function (c) { return c.id === S.locked; })[0]; if (lc) return lc; }
-  return S.cars.filter(function (c) { return c.plate === S.plate; })[0] || S.cars[0];
+  return S.cars.filter(function (c) { return c.plate === S.plate; })[0] || poolCars()[0] || S.cars[0];
 }
 
 /* ย่อรูปบนมือถือก่อนอัปโหลด */
@@ -397,10 +397,10 @@ function soonest(c) {
   return best;
 }
 function viewHome() {
-  var h = '<div class="hello">' + (S.logo ? '<div class="hello-logo">' + logoImg() + '</div>' : '') + '<div><span class="co">' + esc(S.company) + '</span><b>สวัสดี' + (S.name ? ' คุณ' + esc(S.name) : '') + '</b><span>' + (S.cars.length ? 'เลือกรถที่ต้องการ หรือสแกน QR ที่รถ' : 'ยังไม่มีรถในระบบ') + '</span></div></div>';
+  var h = '<div class="hello">' + (S.logo ? '<div class="hello-logo">' + logoImg() + '</div>' : '') + '<div><span class="co">' + esc(S.company) + '</span><b>สวัสดี' + (S.name ? ' คุณ' + esc(S.name) : '') + '</b><span>' + (poolCars().length ? 'เลือกรถที่ต้องการ หรือสแกน QR ที่รถ' : 'ยังไม่มีรถในระบบ') + '</span></div></div>';
   h += installCard();
-  if (S.cars.length) {
-    h += '<div class="tiles" style="margin-bottom:14px">' + S.cars.map(function (c) {
+  if (poolCars().length) {
+    h += '<div class="tiles" style="margin-bottom:14px">' + poolCars().map(function (c) {
       var t = openTripOf(c.plate), sn = soonest(c);
       var cls = sn && sn.n < 0 ? '' : sn && sn.n <= 30 ? 'warn' : 'free';
       return '<button class="tile" data-act="opencar" data-p="' + esc(c.plate) + '">' +
@@ -416,8 +416,9 @@ function viewHome() {
       return '<div class="alert bad">' + esc(t.plate) + ' · ' + esc(t.name) + ' · ' + overdue(t.ts) + '</div>';
     }).join('') + '<div class="mute" style="font-size:13px">เบิกค้างเกิน 24 ชั่วโมง ให้กดที่รถเพื่อคืนรถ หรือแจ้งแอดมินยกเลิกถ้าเบิกผิด</div></div>';
   }
-  if (S.alerts.length) {
-    h += '<div class="card"><h2>แจ้งเตือนวันครบกำหนด</h2>' + S.alerts.map(function (a) {
+  var poolAlerts = S.alerts.filter(function (a) { var c = carByPlate(a.plate); return !c || bookable(c); }); // คนขับเห็นแจ้งเตือนเฉพาะรถที่เบิกได้ (แอดมินเห็นทุกคัน)
+  if (poolAlerts.length) {
+    h += '<div class="card"><h2>แจ้งเตือนวันครบกำหนด</h2>' + poolAlerts.map(function (a) {
       return '<div class="alert ' + (a.expired ? 'bad' : '') + '">' + esc(a.plate) + ' · ' + esc(a.what) + ' ' +
         (a.expired ? 'เลยกำหนดแล้ว ' : 'ครบกำหนด ') + thDate(a.date) + '</div>';
     }).join('') + '</div>';
@@ -464,6 +465,13 @@ function plateColorFor(vtype) {
 }
 // ชื่อประเภทรถแบบสั้นสำหรับแถบด้านบน (พื้นที่จำกัด)
 function vShort(t) { return { 'รถอเนกประสงค์ (SUV/MPV)': 'SUV/MPV', 'รถจักรยานยนต์': 'จักรยานยนต์' }[t] || String(t).replace(/\s*\(.*\)\s*$/, ''); }
+// การเบิกใช้ของรถแต่ละคัน: pool = รถส่วนกลาง เบิกได้ · exec = รถกรรมการ (ไม่เปิดให้เบิก) · free = ไม่ต้องเบิก (เช่น จักรยานยนต์)
+// ยังไม่ตั้งค่า = ตามประเภทรถ (จักรยานยนต์ = ไม่ต้องเบิก ที่เหลือ = เบิกได้) รถที่ไม่เปิดให้เบิกยังเก็บข้อมูลภาษี/ประกัน/ประวัติไว้ตามเดิม
+var MODE_LABEL = { pool: 'รถส่วนกลาง (เบิกได้)', exec: 'รถกรรมการ (ไม่เปิดให้เบิก)', free: 'ไม่ต้องเบิก (เช่น จักรยานยนต์)' };
+function carMode(c) { return c.useMode || (c.vtype === 'รถจักรยานยนต์' ? 'free' : 'pool'); }
+function bookable(c) { return carMode(c) === 'pool'; }
+function poolCars() { return S.cars.filter(bookable); }
+function modeShort(c) { return carMode(c) === 'exec' ? 'รถกรรมการ' : 'ไม่ต้องเบิก'; }
 function vIcon(t) { var v = VTYPES.filter(function (x) { return x[0] === t; })[0]; return v ? v[1] : '🚗'; }
 function plateHtml(c, cls) {
   var pc = ['green', 'blue', 'red'].indexOf(c.plateColor) >= 0 ? ' pc-' + c.plateColor : '';
@@ -506,15 +514,16 @@ function viewCar() {
   var svc = serviceBlock(car);
   var h = '<div class="carsum ' + (t ? 'busy' : 'free') + '">' +
     '<div class="cs-top"><div class="cs-ic">' + vIcon(car.vtype) + '</div><div class="cs-name"><b>' + esc(brand) + '</b>' + (rest ? '<span>' + esc(rest) + '</span>' : '') + '</div>' +
-    (t ? '<span class="cs-st busy">ถูกเบิกโดย ' + esc(t.name) + '</span>' : '<span class="cs-st free">ว่าง พร้อมใช้งาน</span>') + '</div>' +
+    (t ? '<span class="cs-st busy">ถูกเบิกโดย ' + esc(t.name) + '</span>' : bookable(car) ? '<span class="cs-st free">ว่าง พร้อมใช้งาน</span>' : '<span class="cs-st">' + modeShort(car) + '</span>') + '</div>' +
     '<div class="cs-odo"><span>🛣️ ไมล์ล่าสุด</span>' + odoDigits(car.lastOdo) + '<em>กม.</em></div>' +
     svc + '</div>';
   h += '<div class="mlist">' +
-    mRow('trip', t ? '🔑' : '🚗', t ? 'คืนรถ' : 'เบิกรถ', t ? 'เบิกโดย ' + esc(t.name) + ' · ' + thTime(t.ts) : 'บันทึกการใช้รถก่อนออกเดินทาง', true) +
+    (!t && !bookable(car) ? '<div class="nobook">' + (carMode(car) === 'exec' ? '🔒 รถกรรมการ ไม่เปิดให้เบิกผ่านระบบนี้' : 'รถคันนี้ไม่ต้องเบิก') + '</div>' : '') +
+    (!t && !bookable(car) ? '' : mRow('trip', t ? '🔑' : '🚗', t ? 'คืนรถ' : 'เบิกรถ', t ? 'เบิกโดย ' + esc(t.name) + ' · ' + thTime(t.ts) : 'บันทึกการใช้รถก่อนออกเดินทาง', true)) +
     mRow('info', '📋', 'ข้อมูลรถ', 'รายละเอียดรถ ภาษี พ.ร.บ. ประกัน สำเนาทะเบียน') +
     mRow('history', '🕘', 'ประวัติการใช้งาน', 'ใครใช้ เมื่อไหร่ ไปไหน') +
     mRow('maint', '🔧', 'ประวัติซ่อมบำรุง', 'งานซ่อมและเช็คระยะ') + '</div>';
-  if (!S.locked) h += '<select id="pickCar" class="pick" aria-label="เปลี่ยนรถ">' + S.cars.map(function (c) {
+  if (!S.locked) h += '<select id="pickCar" class="pick" aria-label="เปลี่ยนรถ">' + S.cars.filter(function (c) { return bookable(c) || c.plate === car.plate; }).map(function (c) {
     return '<option value="' + esc(c.plate) + '"' + (c.plate === car.plate ? ' selected' : '') + '>เปลี่ยนรถ: ' + esc(c.plate) + ' ' + esc(c.model) + '</option>';
   }).join('') + '</select>';
   if (S.locked && !FS.supported) h += installCard(); // iPhone เข้าเต็มจอจากเว็บไม่ได้ แนะนำให้ติดตั้งเป็นแอปแทน
@@ -581,6 +590,7 @@ function viewNewDriver() {
     '<button type="submit">บันทึกชื่อ แล้วเบิกรถต่อ</button></form>';
 }
 function viewTrip(car, t) {
+  if (!t && !bookable(car)) return '<div class="card"><h2>' + (carMode(car) === 'exec' ? 'รถกรรมการ' : 'ไม่ต้องเบิก') + '</h2><div class="mute">' + (carMode(car) === 'exec' ? 'รถคันนี้เป็นรถกรรมการ ไม่เปิดให้เบิกผ่านระบบนี้' : 'รถคันนี้ไม่ต้องเบิกผ่านระบบ') + '</div></div>';
   if (!t) {
     var names = uniq([S.name].concat(Object.keys(S.profiles), topValues(S.allUsage.map(function (u) { return u.name; }), 6))).slice(0, 6);
     var purposes = uniq(topValues(S.allUsage.map(function (u) { return u.purpose; }), 6).concat(DEFAULT_PURPOSES)).slice(0, 8);
@@ -1018,10 +1028,10 @@ function admOverview() {
   var od = S.open.filter(function (t) { return overdue(t.ts); });
   var expd = S.alerts.filter(function (a) { return a.expired; }).length;
   var lic = S.dlist ? S.dlist.filter(function (d) { var n = licDays(d); return d.active !== 'N' && n !== null && n < 0; }) : null;
-  var free = S.cars.length - S.open.length, nTodo = S.alerts.length + od.length + (lic ? lic.length : 0);
+  var poolN = poolCars().length, poolOpen = S.open.filter(function (t) { var c = carByPlate(t.plate); return c && bookable(c); }).length, free = poolN - poolOpen, nTodo = S.alerts.length + od.length + (lic ? lic.length : 0);
   var hr = new Date().getHours(), greet = hr < 12 ? 'สวัสดีตอนเช้า' : hr < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น';
   var h = '<div class="hero"><div class="hero-t"><small>' + greet + ' ' + esc(S.company) + '</small><b>' +
-    (nTodo ? 'วันนี้มี ' + nTodo + ' เรื่องที่ต้องดูแล' : 'ทุกอย่างเรียบร้อยดี') + '</b><span>รถว่างพร้อมใช้ ' + free + ' จาก ' + S.cars.length + ' คัน' + (S.open.length ? ' · กำลังถูกเบิก ' + S.open.length + ' คัน' : '') + '</span></div>' +
+    (nTodo ? 'วันนี้มี ' + nTodo + ' เรื่องที่ต้องดูแล' : 'ทุกอย่างเรียบร้อยดี') + '</b><span>รถส่วนกลางว่างพร้อมใช้ ' + free + ' จาก ' + poolN + ' คัน' + (S.open.length ? ' · กำลังถูกเบิก ' + S.open.length + ' คัน' : '') + (poolN < S.cars.length ? ' · ไม่เปิดให้เบิก ' + (S.cars.length - poolN) + ' คัน' : '') + '</span></div>' +
     '<div class="hero-a"><button data-act="newcar">' + ic('car', 17) + 'เพิ่มรถคันใหม่</button><button class="glass" data-act="asub" data-s="qr">' + ic('qr', 17) + 'พิมพ์ QR</button><button class="glass" data-act="phoneqr">' + ic('phone', 17) + 'เปิดบนมือถือ</button><button class="glass" data-act="asub" data-s="report">' + ic('chart', 17) + 'รายงานเดือนนี้</button></div></div>' +
     '<div class="kpis">' +
     kpi('รถที่ใช้งาน', S.cars.length, 'คัน', 'ok', 'car', 'cars') +
@@ -1077,7 +1087,7 @@ function carRows() {
   var q = f.q.trim().toLowerCase();
   var list = S.cars.filter(function (c) {
     var fl = carFlags(c);
-    if (f.st === 'free' && fl.busy) return false;
+    if (f.st === 'free' && (fl.busy || !bookable(c))) return false;
     if (f.st !== 'all' && f.st !== 'free' && !fl[f.st]) return false;
     if (f.vt && (c.vtype || 'ไม่ระบุ') !== f.vt) return false;
     if (q && [c.plate, c.model, c.vin, c.province, c.vtype].join(' ').toLowerCase().indexOf(q) < 0) return false;
@@ -1103,7 +1113,7 @@ function carCards(list) {
     var svc = !si ? '<span class="chip na">ยังไม่มีข้อมูล</span>' :
       '<span class="chip ' + si.cls + '">' + (si.left !== null ? (si.left < 0 ? 'เกิน ' + km(-si.left) : 'อีก ' + km(si.left)) + ' กม.' : '') + (si.left !== null && si.nd !== null ? ' · ' : '') + (si.nd !== null ? (si.nd < 0 ? 'เกิน ' + (-si.nd) : 'อีก ' + si.nd) + ' วัน' : '') + '</span>';
     return '<div class="ccard car st-' + worst + (c.id === S.edit && S.carForm ? ' sel' : '') + '">' +
-      '<div class="cc-top">' + plateHtml(c) + (t ? '<span class="spill busy"><i></i>ถูกเบิก · ' + esc(t.name) + '</span>' : '<span class="spill free"><i></i>ว่าง</span>') + '</div>' +
+      '<div class="cc-top">' + plateHtml(c) + (t ? '<span class="spill busy"><i></i>ถูกเบิก · ' + esc(t.name) + '</span>' : bookable(c) ? '<span class="spill free"><i></i>ว่าง</span>' : '<span class="spill off"><i></i>' + modeShort(c) + '</span>') + '</div>' +
       '<div class="cc-name"><span class="vic">' + vIcon(c.vtype) + '</span><div class="cc-nm"><b>' + esc(c.model || 'ไม่ระบุรุ่น') + '</b><div class="sub">' + esc([c.vtype, c.year, c.color].filter(Boolean).join(' · ')) + '</div></div>' +
       '<button type="button" class="tlbtn" data-act="timeline" data-id="' + esc(c.id) + '">' + ic('clock', 16) + 'ไทม์ไลน์</button></div>' +
       '<div class="cc-stats"><div class="cc-stat"><span>เลขไมล์ล่าสุด</span><b>' + (c.lastOdo === '' ? '-' : km(c.lastOdo) + ' <small>กม.</small>') + '</b></div>' +
@@ -1128,7 +1138,7 @@ function admCars() {
   }
   var f = S.cf || (S.cf = { st: 'all', vt: '', q: '', sort: 'plate', dir: 1 });
   var cnt = { all: S.cars.length, free: 0, busy: 0, due: 0, svc: 0, nodoc: 0 }, vts = {};
-  S.cars.forEach(function (c) { var fl = carFlags(c); if (!fl.busy) cnt.free++; ['busy', 'due', 'svc', 'nodoc'].forEach(function (k) { if (fl[k]) cnt[k]++; }); var v = c.vtype || 'ไม่ระบุ'; vts[v] = (vts[v] || 0) + 1; });
+  S.cars.forEach(function (c) { var fl = carFlags(c); if (!fl.busy && bookable(c)) cnt.free++; ['busy', 'due', 'svc', 'nodoc'].forEach(function (k) { if (fl[k]) cnt[k]++; }); var v = c.vtype || 'ไม่ระบุ'; vts[v] = (vts[v] || 0) + 1; });
   var chips = '<div class="fchips">' + CAR_FILTERS.map(function (x) {
     return '<button class="fchip ' + x[2] + (f.st === x[0] ? ' on' : '') + '" data-act="cfst" data-s="' + x[0] + '">' + x[1] + ' <b>' + cnt[x[0]] + '</b></button>';
   }).join('') + '</div><div class="fchips">' + '<button class="fchip' + (!f.vt ? ' on' : '') + '" data-act="cfvt" data-s="">ทุกประเภท <b>' + S.cars.length + '</b></button>' +
@@ -1142,7 +1152,7 @@ function admCars() {
       (si.nd !== null ? '<div class="sub">' + thDate(si.date) + ' · ' + (si.nd < 0 ? 'เกิน ' + (-si.nd) : 'อีก ' + si.nd) + ' วัน</div>' : '');
     return [miniPlate(c) + (c.regDocId ? '' : '<div class="sub nodoc">ยังไม่มีสำเนาทะเบียน</div>'),
       '<div class="mcell"><span class="vic">' + vIcon(c.vtype) + '</span><div><b>' + esc(c.model) + '</b><div class="sub">' + esc([c.vtype, c.year, c.color].filter(Boolean).join(' · ')) + '</div></div></div>',
-      t ? '<span class="chip">ถูกเบิก · ' + esc(t.name) + '</span>' : '<span class="chip free">ว่าง</span>',
+      t ? '<span class="chip">ถูกเบิก · ' + esc(t.name) + '</span>' : bookable(c) ? '<span class="chip free">ว่าง</span>' : '<span class="chip na">' + modeShort(c) + '</span>',
       c.lastOdo === '' ? '<span class="mute">-</span>' : km(c.lastOdo),
       expChip(c.actExp), expChip(c.taxExp), expChip(c.insExp) + (c.insurer || c.insClass ? '<div class="sub">' + esc([c.insurer, c.insClass].filter(Boolean).join(' · ')) + '</div>' : ''), svc,
       '<div class="acts"><button class="small ghost" data-act="timeline" data-id="' + esc(c.id) + '">ไทม์ไลน์</button><button class="small ghost" data-act="editcar" data-id="' + esc(c.id) + '">แก้ไข</button><button class="small line" data-act="removecar" data-id="' + esc(c.id) + '">นำออก</button></div>'];
@@ -1206,11 +1216,11 @@ function timelineView() {
     '<div class="tl">' + (body || '<div class="mute" style="padding:20px 4px">ยังไม่มีรายการ</div>') + '</div></div>';
 }
 function carCsv() {
-  var cols = [['ทะเบียน', 'plate'], ['จังหวัด', 'province'], ['ประเภทรถ', 'vtype'], ['ยี่ห้อ/รุ่น', 'model'], ['ปี', 'year'], ['สี', 'color'], ['เชื้อเพลิง', 'fuel'], ['เลขตัวถัง', 'vin'], ['เลขเครื่อง', 'engineNo'], ['เลขไมล์ล่าสุด', 'lastOdo'], ['พ.ร.บ.หมดอายุ', 'actExp'], ['ภาษีหมดอายุ', 'taxExp'], ['ประกันหมดอายุ', 'insExp'], ['บริษัทประกัน', 'insurer'], ['ชั้นประกัน', 'insClass'], ['เลขกรมธรรม์', 'insPolicyNo'], ['ประกันเริ่มคุ้มครอง', 'insStart'], ['ทุนประกัน', 'insSum'], ['ค่าเสียหายส่วนแรก', 'insDeduct'], ['ซ่อมห้าง/อู่', 'insRepair'], ['เบอร์แจ้งเหตุ', 'insPhone']];
+  var cols = [['ทะเบียน', 'plate'], ['จังหวัด', 'province'], ['ประเภทรถ', 'vtype'], ['การเบิกใช้', 'useMode'], ['ยี่ห้อ/รุ่น', 'model'], ['ปี', 'year'], ['สี', 'color'], ['เชื้อเพลิง', 'fuel'], ['เลขตัวถัง', 'vin'], ['เลขเครื่อง', 'engineNo'], ['เลขไมล์ล่าสุด', 'lastOdo'], ['พ.ร.บ.หมดอายุ', 'actExp'], ['ภาษีหมดอายุ', 'taxExp'], ['ประกันหมดอายุ', 'insExp'], ['บริษัทประกัน', 'insurer'], ['ชั้นประกัน', 'insClass'], ['เลขกรมธรรม์', 'insPolicyNo'], ['ประกันเริ่มคุ้มครอง', 'insStart'], ['ทุนประกัน', 'insSum'], ['ค่าเสียหายส่วนแรก', 'insDeduct'], ['ซ่อมห้าง/อู่', 'insRepair'], ['เบอร์แจ้งเหตุ', 'insPhone']];
   var q = function (v) { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
   var lines = [cols.map(function (c) { return c[0]; }).concat(['สถานะ', 'เช็คระยะถัดไป (กม.)']).map(q).join(',')].concat(carRows().map(function (c) {
     var si = svcInfo(c), t = openTripOf(c.plate);
-    return cols.map(function (k) { return q(c[k[1]]); }).concat([q(t ? 'ถูกเบิก: ' + t.name : 'ว่าง'), q(si && si.left !== null ? si.left : '')]).join(',');
+    return cols.map(function (k) { return q(k[1] === 'useMode' ? MODE_LABEL[carMode(c)] : c[k[1]]); }).concat([q(t ? 'ถูกเบิก: ' + t.name : 'ว่าง'), q(si && si.left !== null ? si.left : '')]).join(',');
   }));
   var url = URL.createObjectURL(new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }));
   var a = document.createElement('a'); a.href = url; a.download = 'Sirikul-cars-' + today() + '.csv'; document.body.appendChild(a); a.click(); a.remove();
@@ -1252,6 +1262,8 @@ function carForm() {
     (e.id ? '<div class="full mute" style="font-size:13px;margin-top:4px">แก้เลขทะเบียนได้ QR เดิมยังใช้ได้ และประวัติทั้งหมดจะย้ายไปอยู่ใต้ทะเบียนใหม่</div>' : '') +
     f('ประเภทรถ', '<select name="vtype"><option value="">เลือกประเภท</option>' + VTYPES.map(function (x) { return '<option' + (e.vtype === x[0] ? ' selected' : '') + '>' + x[0] + '</option>'; }).join('') + '</select>') +
     '<input type="hidden" name="plateColor" value="' + esc(e.plateColor || 'black') + '">' +
+    f('การเบิกใช้', '<select name="useMode">' + ['pool', 'exec', 'free'].map(function (k) { return '<option value="' + k + '"' + (carMode(e) === k ? ' selected' : '') + '>' + MODE_LABEL[k] + '</option>'; }).join('') + '</select>' +
+      (S.cars.concat(S.removed).length && !('useMode' in S.cars.concat(S.removed)[0]) ? '<div class="polwarn" style="margin-top:6px"><b>Apps Script ยังเป็นรุ่นเก่า</b> ตัวเลือกนี้จะไม่ถูกบันทึก และระบบจะยังให้เบิกรถทุกคัน วางโค้ด Code.gs ใหม่ก่อน</div>' : '')) +
     f('ยี่ห้อ/รุ่น', '<input name="model" maxlength="80" value="' + v('model') + '">') +
     f('ปี (ค.ศ.)', '<input name="year" inputmode="numeric" maxlength="4" value="' + v('year') + '">') +
     f('สี', '<input name="color" maxlength="30" value="' + v('color') + '">') +
@@ -1545,6 +1557,7 @@ function bindForms() {
   hook('#fSettings', 'saveSettings', function (d) { return { company: d.company, logo: pendingLogo, pin: S.pin }; }, 'บันทึกการตั้งค่าแล้ว', function () { pendingLogo = ''; });
   var fcar = $('#fCar');
   if (fcar) fcar.elements['vtype'].addEventListener('change', function () {
+    var um = fcar.elements['useMode']; if (um) { if (this.value === 'รถจักรยานยนต์' && um.value === 'pool') um.value = 'free'; else if (this.value !== 'รถจักรยานยนต์' && um.value === 'free') um.value = 'pool'; }
     var pc = plateColorFor(this.value), cur = fcar.elements['plateColor'];
     if (pc && cur.value !== 'red') cur.value = pc; // ป้ายแดงเป็นกรณีพิเศษ ไม่แตะ
   });
@@ -1642,7 +1655,7 @@ function bindForms() {
   hook('#fNewDriver', 'registerDriver', function (d) { return { name: d.name, phone: d.phone, licenseExp: d.licenseExp }; },
     'เพิ่มชื่อเรียบร้อย กรอกข้อมูลเบิกรถต่อได้เลย', function () { S.sub = 'trip'; S.lastSheet = ''; S.newName = ''; S.drvLic = {}; });
   hook('#fCar', 'saveCar', function (d) {
-    var o = {}; ['id','plate','province','vtype','plateColor','model','year','color','fuel','vin','engineNo','actExp','taxExp','insExp','insurer','insClass','insPolicyNo','insStart','insSum','insDeduct','insRepair','insAgent','insPhone','insNote','insPremium'].forEach(function (k) { o[k] = d[k]; }); // ช่องเบี้ยที่ยังโหลดไม่เสร็จ (disabled) จะไม่ถูกส่ง = ไม่แตะค่าเดิม
+    var o = {}; ['id','plate','province','vtype','plateColor','model','year','color','fuel','vin','engineNo','actExp','taxExp','insExp','insurer','insClass','insPolicyNo','insStart','insSum','insDeduct','insRepair','insAgent','insPhone','insNote','insPremium','useMode'].forEach(function (k) { o[k] = d[k]; }); // ช่องเบี้ยที่ยังโหลดไม่เสร็จ (disabled) จะไม่ถูกส่ง = ไม่แตะค่าเดิม
     o.pin = S.pin; if (pendingReg) o.regDoc = pendingReg; if (pendingPolicy) o.policyDoc = pendingPolicy; return o;
   }, 'บันทึกข้อมูลรถแล้ว', function () { S.edit = ''; S.carForm = false; S.hist = {}; S.carPriv = undefined; });
   hook('#fDriver', 'saveDriver', function (d) { return { oldName: d.oldName, name: d.dname, phone: d.phone, licenseExp: d.licenseExp, pin: S.pin }; },

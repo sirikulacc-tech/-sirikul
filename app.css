@@ -988,3 +988,7 @@ a.telink { display:inline-block; padding:6px 14px; border-radius:99px; backgroun
 @media (max-width: 899px) { .mobadm .dhead { display:flex; } .mobadm .dclose { display:inline-block; flex:none; } }
 .polwarn { padding:12px 14px; border-radius:14px; border:1.5px solid var(--warn); background:var(--warn-bg); color:var(--ink); font-size:14px; line-height:1.5; }
 .polwarn b:first-child { color:var(--warn); }
+
+/* รถที่ไม่เปิดให้เบิก (รถกรรมการ / ไม่ต้องเบิก) */
+.nobook { padding:14px 16px; border-radius:16px; background:var(--input); border:1.5px dashed var(--line); color:var(--mute); font-weight:700; text-align:center; }
+.cs-st:not(.busy):not(.free) { background:var(--input); color:var(--mute); border:1px solid var(--line); }
