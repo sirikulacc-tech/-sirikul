@@ -817,7 +817,8 @@ function viewMaint(car) {
 // การ์ดประกันภัยรถยนต์ (หน้าข้อมูลรถ): คนขับเห็นบริษัท ชั้น เลขกรมธรรม์ ระยะเวลา ทุนประกัน ค่าเสียหายส่วนแรก และเบอร์แจ้งเหตุ (กดโทรได้) เมื่อเกิดเหตุ
 // เบี้ยประกันไม่แสดงตรงนี้ (เห็นเฉพาะแอดมิน)
 function policyCard(car) {
-  if (!(car.insurer || car.insClass || car.insPolicyNo || car.insSum || car.insPhone || car.insDocId || car.insNote || car.insAgent)) return '';
+  if (!(car.insurer || car.insClass || car.insPolicyNo || car.insSum || car.insPhone || car.insDocId || car.insNote || car.insAgent || car.insStart))
+    return '<div class="card polcard"><h2>ประกันภัยรถยนต์</h2><div class="mute" style="font-size:14px">ยังไม่มีข้อมูลประกันภัยรถยนต์ของคันนี้ ให้แอดมินกรอกในหน้าจัดการรถ (ถ่ายรูปกรมธรรม์ให้ระบบอ่านให้ได้)</div></div>';
   var kv = function (k, v) { return v === '' || v == null ? '' : '<div class="kv"><span>' + k + '</span><span>' + v + '</span></div>'; };
   var money = function (v) { return v === '' || v == null ? '' : Number(v).toLocaleString('th-TH', { maximumFractionDigits: 2 }) + ' บาท'; };
   var per = car.insStart && car.insExp ? thDate(car.insStart) + ' – ' + thDate(car.insExp) : car.insStart ? 'เริ่ม ' + thDate(car.insStart) : '';
@@ -1215,6 +1216,8 @@ function carCsv() {
   var a = document.createElement('a'); a.href = url; a.download = 'Sirikul-cars-' + today() + '.csv'; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
 }
+// Apps Script รุ่นใหม่ส่งคอลัมน์ข้อมูลประกัน (เช่น insClass) มากับข้อมูลรถทุกคัน รุ่นเก่าไม่ส่ง และจะไม่บันทึกข้อมูลประกันที่กรอก
+function policyBackendOk() { var c = S.cars.concat(S.removed)[0]; return !c || ('insClass' in c); }
 // เบี้ยประกัน (เงิน) ไม่ได้ส่งไปกับข้อมูลรถทั่วไป แอดมินโหลดแยกผ่าน carPrivate (ต้องผ่าน PIN) รถที่มีอยู่แล้วต้องรอโหลดก่อนจึงแก้ได้ กันเขียนทับเป็นค่าว่าง
 function premiumInput(e) {
   var base = '<input name="insPremium" type="number" inputmode="decimal" min="0" step="any"';
@@ -1258,6 +1261,7 @@ function carForm() {
     f('พ.ร.บ.หมดอายุ', '<input name="actExp" type="date" value="' + v('actExp') + '">') +
     f('ภาษีหมดอายุ', '<input name="taxExp" type="date" value="' + v('taxExp') + '">') +
     '<div class="full fsec"><h3>ประกันภัยรถยนต์ (ตามใบกรมธรรม์)</h3></div>' +
+    (policyBackendOk() ? '' : '<div class="full polwarn"><b>Apps Script ยังเป็นรุ่นเก่า</b> ข้อมูลประกันภัยที่กรอกในส่วนนี้ <b>จะไม่ถูกบันทึก</b> กรุณาวางโค้ด Code.gs ใหม่แล้ว deploy เวอร์ชันใหม่ก่อน (ดู README หัวข้อ "ติดตั้ง / อัปเดตส่วน Apps Script")</div>') +
     '<div class="full ocrbox"><b>อ่านจากกรมธรรม์</b><div class="mute" style="font-size:13.5px;margin:2px 0 8px">ถ่ายรูปหรือเลือกไฟล์หน้า "ตารางกรมธรรม์" ระบบจะกรอกข้อมูลประกันให้ ตรวจแล้วกดบันทึก (ไฟล์นี้จะถูกเก็บเป็นไฟล์กรมธรรม์ด้วย)</div>' +
     '<input type="file" id="polOcr" accept="image/*,application/pdf" capture="environment"><div id="polMsg" style="font-size:13.5px;margin-top:6px"></div></div>' +
     f('บริษัทประกันภัย', '<div class="insrow"><input name="insurer" list="insurers" maxlength="60" value="' + v('insurer') + '" placeholder="พิมพ์หรือเลือก"></div>' +

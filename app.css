@@ -986,3 +986,5 @@ a.telink { display:inline-block; padding:6px 14px; border-radius:99px; backgroun
 .phoneqr canvas, .phoneqr img { display:block; }
 .phoneurl { font-size:13px; word-break:break-all; text-align:center; color:var(--mute); }
 @media (max-width: 899px) { .mobadm .dhead { display:flex; } .mobadm .dclose { display:inline-block; flex:none; } }
+.polwarn { padding:12px 14px; border-radius:14px; border:1.5px solid var(--warn); background:var(--warn-bg); color:var(--ink); font-size:14px; line-height:1.5; }
+.polwarn b:first-child { color:var(--warn); }
