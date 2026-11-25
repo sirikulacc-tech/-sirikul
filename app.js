@@ -603,9 +603,9 @@ function viewTrip(car, t) {
       '<input name="name" list="drivers" maxlength="60" required autocomplete="name" value="' + esc(S.name) + '" placeholder="แตะชื่อด้านบน หรือพิมพ์ชื่อของคุณ">' +
       '<datalist id="drivers">' + S.drivers.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
       driverFields() + '</div>' +
-      '<div class="step hide" data-step="2"><label>เลขไมล์ก่อนออก (กม.) <span class="req">*</span> <small class="mute">ดูจากหน้าปัดรถ' + (last !== '' ? ' · ล่าสุดในระบบ ' + km(last) : '') + '</small></label>' +
-      '<input name="odoStart" type="number" inputmode="numeric" min="0" required placeholder="พิมพ์เลขไมล์ที่เห็นบนหน้าปัด">' +
-      (last !== '' ? '<button type="button" class="usebtn" data-act="uselast" data-v="' + esc(last) + '">ใช้เลขไมล์ล่าสุด (' + km(last) + ')</button>' : '') + '</div>' +
+      '<div class="step hide" data-step="2"><label>เลขไมล์ก่อนออก (กม.) <span class="req">*</span></label>' +
+      '<input name="odoStart" type="number" inputmode="numeric" min="0" required value="' + (last !== '' ? esc(last) : '') + '" onfocus="this.select()" placeholder="พิมพ์เลขไมล์ที่เห็นบนหน้าปัด">' +
+      (last !== '' ? '<div class="mute" style="font-size:13px;margin-top:5px">ดึงจากเลขไมล์ล่าสุดในระบบ (' + km(last) + ' กม.) ถ้าไม่ตรงกับหน้าปัดรถ ให้แก้เป็นเลขที่เห็น</div>' : '<div class="mute" style="font-size:13px;margin-top:5px">รถคันนี้ยังไม่มีเลขไมล์ในระบบ ให้พิมพ์เลขที่เห็นบนหน้าปัดรถ</div>') + '</div>' +
       '<div class="step hide" data-step="3"><label>วัตถุประสงค์การใช้รถ <span class="req">*</span></label>' + chips('purpose', purposes) +
       '<input name="purpose" maxlength="200" required placeholder="แตะเลือกด้านบน หรือพิมพ์เอง"></div>' +
       '<div class="step hide" data-step="4"><label>ปลายทาง / เส้นทาง</label>' + chips('dest', dests) +
@@ -999,7 +999,7 @@ function viewAdmin() {
     (S.appUrl ? '<a class="side-link" href="' + esc(S.appUrl) + '" target="_blank" rel="noopener">' + ic('car', 18) + 'เปิดหน้าคนขับ</a>' : '') +
     (S.pinRequired ? '<button data-act="logout">' + ic('sliders', 18) + 'ออกจากโหมดแอดมิน</button>' : '') + '</div></aside>';
   var acts = '';
-  if (S.asub === 'cars') acts = (S.cars.length && S.cars.length <= 8 ? '<button class="ghost" data-act="carcsv">ส่งออก CSV</button>' : '') + '<button data-act="newcar">+ เพิ่มรถคันใหม่</button>';
+  if (S.asub === 'cars') acts = '<button class="ghost" data-act="modepanel">การเบิกใช้</button>' + (S.cars.length && S.cars.length <= 8 ? '<button class="ghost" data-act="carcsv">ส่งออก CSV</button>' : '') + '<button data-act="newcar">+ เพิ่มรถคันใหม่</button>';
   if (S.asub === 'overview' || S.asub === 'open') acts = '<span class="live noprint" title="ข้อมูลอัปเดตเองเมื่อมีการเปลี่ยนแปลง"><i></i>อัปเดตอัตโนมัติ · ล่าสุด <b id="liveT">' + liveStamp() + '</b></span>';
   if (S.asub === 'drivers') acts = '<button data-act="newdrv">+ เพิ่มคนขับ</button>';
   if (S.asub === 'qr' && S.cars.length) acts = '<button class="ghost" data-act="print">พิมพ์ QR ทั้งหมด</button>';
@@ -1028,7 +1028,7 @@ function admOverview() {
   var od = S.open.filter(function (t) { return overdue(t.ts); });
   var expd = S.alerts.filter(function (a) { return a.expired; }).length;
   var lic = S.dlist ? S.dlist.filter(function (d) { var n = licDays(d); return d.active !== 'N' && n !== null && n < 0; }) : null;
-  var poolN = poolCars().length, poolOpen = S.open.filter(function (t) { var c = carByPlate(t.plate); return c && bookable(c); }).length, free = poolN - poolOpen, nTodo = S.alerts.length + od.length + (lic ? lic.length : 0);
+  var poolN = poolCars().length, poolOpen = S.open.filter(function (t) { var c = carByPlate(t.plate); return c && bookable(c); }).length, free = poolN - poolOpen, nTodo = S.alerts.length + od.length + (lic ? lic.length : 0) + (modeUnsetCount() ? 1 : 0);
   var hr = new Date().getHours(), greet = hr < 12 ? 'สวัสดีตอนเช้า' : hr < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น';
   var h = '<div class="hero"><div class="hero-t"><small>' + greet + ' ' + esc(S.company) + '</small><b>' +
     (nTodo ? 'วันนี้มี ' + nTodo + ' เรื่องที่ต้องดูแล' : 'ทุกอย่างเรียบร้อยดี') + '</b><span>รถส่วนกลางว่างพร้อมใช้ ' + free + ' จาก ' + poolN + ' คัน' + (S.open.length ? ' · กำลังถูกเบิก ' + S.open.length + ' คัน' : '') + (poolN < S.cars.length ? ' · ไม่เปิดให้เบิก ' + (S.cars.length - poolN) + ' คัน' : '') + '</span></div>' +
@@ -1041,11 +1041,12 @@ function admOverview() {
   var todo = [];
   od.forEach(function (t) { todo.push(['bad', esc(t.plate) + ' ยังไม่คืนรถ · ' + esc(t.name) + ' · ' + overdue(t.ts), 'open']); });
   S.alerts.forEach(function (a) { todo.push([a.expired ? 'bad' : '', esc(a.plate) + ' · ' + esc(a.what) + (a.expired ? ' เลยกำหนด ' : ' ครบกำหนด ') + thDate(a.date), 'cars', a.plate]); });
+  if (modeUnsetCount()) todo.unshift(['warn', 'ตั้งค่าการเบิกใช้ของรถ ' + modeUnsetCount() + ' คัน (ยังไม่ได้ตั้ง ตอนนี้ถือว่าเบิกได้)', 'modes']);
   (lic || []).forEach(function (d) { todo.push(['bad', 'ใบขับขี่ของ ' + esc(d.name) + ' หมดอายุ ' + thDate(d.licenseExp), 'drivers']); });
   h += '<div class="split2"><div class="card"><h2>ต้องจัดการ (' + todo.length + ')</h2>' + (todo.length ? todo.map(function (x) {
-    var icn = { open: 'clock', cars: 'shield', drivers: 'info' }[x[2]] || 'info';
+    var icn = { open: 'clock', cars: 'shield', drivers: 'info', modes: 'car' }[x[2]] || 'info';
     var car = x[3] ? carByPlate(x[3]) : null;
-    return '<button class="todo ' + (x[0] || 'warn') + '" ' + (car ? 'data-act="opentl" data-id="' + esc(car.id) + '"' : 'data-act="asub" data-s="' + x[2] + '"') + '><i class="tdot">' + ic(icn, 16) + '</i><span class="tt">' + x[1] + '</span><span class="tgo" aria-hidden="true">›</span></button>';
+    return '<button class="todo ' + (x[0] || 'warn') + '" ' + (x[2] === 'modes' ? 'data-act="modepanel"' : car ? 'data-act="opentl" data-id="' + esc(car.id) + '"' : 'data-act="asub" data-s="' + x[2] + '"') + '><i class="tdot">' + ic(icn, 16) + '</i><span class="tt">' + x[1] + '</span><span class="tgo" aria-hidden="true">›</span></button>';
   }).join('') : '<div class="mute">ไม่มีรายการที่ต้องจัดการ</div>') + '</div>';
   h += '<div class="stack">' + tripChart() + '<div class="card flush"><h2>รถที่ถูกเบิกอยู่ (' + S.open.length + ')</h2>' + (S.open.length ? dt(['ทะเบียน', 'ผู้เบิก', 'เวลาเบิก', 'ไปที่ไหน'],
     S.open.map(function (t) { return [carLink(t.plate), esc(t.name) + (overdue(t.ts) ? ' <span class="chip">' + overdue(t.ts) + '</span>' : ''), thTime(t.ts), esc(t.purpose)]; }))
@@ -1058,6 +1059,21 @@ function admOverview() {
   return h;
 }
 
+// รถที่ยังไม่เคยตั้ง "การเบิกใช้" (ว่าง) ระบบถือว่าเบิกได้ (ยกเว้นประเภทจักรยานยนต์) แผงนี้ให้ตั้งทุกคันได้ในครั้งเดียว
+function modeBackendOk() { var c = S.cars.concat(S.removed)[0]; return !c || ('useMode' in c); }
+function modeUnsetCount() { return modeBackendOk() ? S.cars.filter(function (c) { return !c.useMode; }).length : 0; }
+function modePanelHtml() {
+  var unset = modeUnsetCount();
+  if (!S.cars.length || !(S.modePanel || unset)) return '';
+  var ok = modeBackendOk();
+  return '<div class="card modpanel noprint"><div class="dhead"><h2>การเบิกใช้ของรถแต่ละคัน</h2>' + (unset ? '' : '<button type="button" class="dclose" data-act="modeclose" aria-label="ปิด">✕</button>') + '</div>' +
+    (ok ? '<div class="mute" style="font-size:14px;margin-bottom:10px">' + (unset ? '<b class="cd-warn">ยังไม่ได้ตั้งค่า ' + unset + ' คัน</b> ตอนนี้ระบบถือว่าเบิกได้ (ยกเว้นจักรยานยนต์) ' : '') + 'เลือกว่ารถแต่ละคันเบิกผ่านระบบได้หรือไม่ แล้วกดบันทึก รถกรรมการและรถที่ไม่ต้องเบิกจะเบิกไม่ได้ (ทั้งหน้าจอและ Apps Script) แต่ยังเก็บภาษี/ประกัน/ประวัติไว้</div>'
+      : '<div class="polwarn"><b>Apps Script ยังเป็นรุ่นเก่า</b> ยังตั้งค่านี้ไม่ได้ และระบบจะยังให้เบิกรถทุกคัน วางโค้ด Code.gs ใหม่แล้ว deploy เวอร์ชันใหม่ก่อน</div>') +
+    S.cars.map(function (c) {
+      return '<div class="modrow"><div class="mcar">' + plateHtml(c, 'sm') + '<span>' + esc(c.model || '') + '</span></div><select class="modsel" data-mid="' + esc(c.id) + '"' + (ok ? '' : ' disabled') + '>' +
+        ['pool', 'exec', 'free'].map(function (k) { return '<option value="' + k + '"' + (carMode(c) === k ? ' selected' : '') + '>' + MODE_LABEL[k] + '</option>'; }).join('') + '</select></div>';
+    }).join('') + (ok ? '<div class="acts" style="margin-top:12px"><button data-act="modesave">บันทึกการเบิกใช้</button></div>' : '') + '</div>';
+}
 function carByPlate(plate) { return S.cars.filter(function (c) { return c.plate === plate; })[0]; }
 // ทะเบียนที่กดแล้วเปิดรายละเอียดรถ (ไทม์ไลน์) ในหน้าจัดการรถ
 function carLink(plate) { var c = carByPlate(plate); return c ? '<a href="#" class="carlink" data-act="opentl" data-id="' + esc(c.id) + '"><b>' + esc(plate) + '</b></a>' : '<b>' + esc(plate) + '</b>'; }
@@ -1129,7 +1145,7 @@ function admCars() {
   if (S.cars.length <= 8) {
     var fOn = S.cf && S.cf.st && S.cf.st !== 'all', shown = fOn ? carRows() : S.cars;
     var bar = fOn ? '<div class="fbar noprint"><span>กรอง: <b>' + esc((CAR_FILTERS.filter(function (x) { return x[0] === S.cf.st; })[0] || [0, ''])[1]) + '</b> · พบ ' + shown.length + ' จาก ' + S.cars.length + ' คัน</span><button class="small ghost" data-act="cfst" data-s="all">ล้างตัวกรอง</button></div>' : '';
-    var left = '<div>' + bar + (shown.length ? carCards(shown) : '<div class="card mute" style="padding:18px">ไม่มีรถตามตัวกรองนี้</div>');
+    var left = '<div>' + modePanelHtml() + bar + (shown.length ? carCards(shown) : '<div class="card mute" style="padding:18px">ไม่มีรถตามตัวกรองนี้</div>');
     if (S.removed.length) left += '<div class="card flush" style="margin-top:18px"><h2>รถที่นำออกแล้ว</h2>' + dt(['ทะเบียน', 'ยี่ห้อ/รุ่น', ''], S.removed.map(function (c) {
       return ['<b>' + esc(c.plate) + '</b>', esc(c.model), '<div class="acts"><button class="small ghost" data-act="restorecar" data-id="' + esc(c.id) + '">นำกลับมาใช้</button></div>'];
     })) + '</div>';
@@ -1160,7 +1176,7 @@ function admCars() {
   var tools = '<div class="ftools"><label class="fsearch">' + ic('search', 16) + '<input id="cfq" type="search" placeholder="ค้นหา ทะเบียน / รุ่น / เลขตัวถัง" value="' + esc(f.q) + '"></label>' +
     '<span class="mute fcount">พบ ' + rows.length + ' จาก ' + S.cars.length + ' คัน · คลิกหัวตารางเพื่อเรียง</span><button class="small ghost" data-act="carcsv">ส่งออก CSV</button></div>';
   var head = [th('plate', 'ทะเบียน'), th('model', 'ยี่ห้อ/รุ่น'), 'สถานะ', th('odo', 'เลขไมล์'), th('act', 'พ.ร.บ.'), th('tax', 'ภาษี'), th('ins', 'ประกัน'), th('svc', 'เช็คระยะถัดไป'), ''];
-  var left = '<div><div class="card carsbox">' + chips + tools +
+  var left = '<div>' + modePanelHtml() + '<div class="card carsbox">' + chips + tools +
     (S.cars.length ? (rows.length ? dt(head, trs, [3], null, rows.map(function (c) { return c.id === S.edit ? 'sel' : ''; })) : '<div class="mute" style="padding:14px 4px">ไม่พบรถตามตัวกรอง</div>')
       : '<div class="mute" style="padding:12px 4px">ยังไม่มีรถ กด "+ เพิ่มรถคันใหม่" ด้านบนเพื่อเริ่ม</div>') + '</div>';
   if (S.removed.length) {
@@ -1757,6 +1773,9 @@ function bindForms() {
       else if (a === 'dfst') { S.df.st = b.dataset.s; render(); }
       else if (a === 'kpigo') { kpiGo(b.dataset.k); }
       else if (a === 'phoneqr') showPhoneQr();
+      else if (a === 'modepanel') { S.asub = 'cars'; S.modePanel = true; S.carForm = false; S.edit = ''; S.tl = ''; render(); window.scrollTo(0, 0); }
+      else if (a === 'modeclose') { S.modePanel = false; render(); }
+      else if (a === 'modesave') saveModes(b);
       else if (a === 'mobnew') mobOpenForm('', 'reg');
       else if (a === 'mobpick') { S.mobPick = b.dataset.for; render(); window.scrollTo(0, 0); }
       else if (a === 'mobcancel') { S.mobPick = ''; render(); }
@@ -1819,6 +1838,15 @@ async function setDriverActive(name, active) {
     toast(active === 'N' ? 'ปิดใช้งาน ' + name + ' แล้ว' : 'เปิดใช้งาน ' + name + ' แล้ว', 'ok');
     S.dlist = null; await load(); render();
   } catch (e) { toast(e.message, 'err'); }
+}
+async function saveModes(btn) {
+  var modes = [].map.call(document.querySelectorAll('.modsel'), function (sel) { return { id: sel.dataset.mid, useMode: sel.value }; });
+  var txt = btn.textContent; btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+  try {
+    var r = await call('setCarModes', { modes: modes, pin: S.pin });
+    S.modePanel = false; toast('บันทึกการเบิกใช้แล้ว' + (r && r.changed != null ? ' (เปลี่ยน ' + r.changed + ' คัน)' : ''), 'ok');
+    await load(); render();
+  } catch (e) { toast(e.message, 'err'); btn.disabled = false; btn.textContent = txt; }
 }
 async function setCarActive(id, active) {
   var c = S.cars.concat(S.removed).filter(function (x) { return x.id === id; })[0]; if (!c) return;

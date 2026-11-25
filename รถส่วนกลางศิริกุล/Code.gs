@@ -183,6 +183,7 @@ function api(action, payload) {
       case 'saveCar': requirePin_(payload.pin); return ok_(saveCar_(payload));
       case 'carPrivate': requirePin_(payload.pin); return ok_(carPrivate_());
       case 'setCarActive': requirePin_(payload.pin); return ok_(setCarActive_(payload));
+      case 'setCarModes': requirePin_(payload.pin); return ok_(setCarModes_(payload));
       case 'cancelTrip': requirePin_(payload.pin); return ok_(cancelTrip_(payload));
       case 'saveSettings': requirePin_(payload.pin); return ok_(saveSettings_(payload));
       case 'ocrRegDoc': requirePin_(payload.pin); return ok_(ocrRegDoc_(payload));
@@ -475,6 +476,22 @@ function newCarId_(cars) {
   do { id = Utilities.getUuid().replace(/-/g, '').slice(0, 8); }
   while (cars.some(function (c) { return c.id === id; }));
   return id;
+}
+
+// ตั้ง "การเบิกใช้" (pool / exec / free) ของรถหลายคันในครั้งเดียว: modes = [{ id, useMode }]
+function setCarModes_(p) {
+  const list = Array.isArray(p.modes) ? p.modes : [];
+  return lock_(function () {
+    const cars = readRows_('cars');
+    let changed = 0;
+    list.forEach(function (m) {
+      const car = cars.filter(function (c) { return c.id === m.id; })[0];
+      if (!car) return;
+      const v = ['pool', 'exec', 'free'].indexOf(m.useMode) >= 0 ? m.useMode : '';
+      if (String(car.useMode || '') !== v) { car.useMode = v; writeRow_(sheet_('cars'), car._row, 'cars', car); changed++; }
+    });
+    return { changed: changed };
+  });
 }
 
 // นำรถออก (active = N) หรือนำกลับมาใช้ (Y) ประวัติไม่ถูกลบ
