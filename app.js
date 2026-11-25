@@ -84,8 +84,14 @@ function updateDriverUI() {
   var f = $('#fCheckout'); if (!f) return;
   var n = f.elements['name'].value.trim(), note = $('#drvNote');
   f.querySelectorAll('.qchips[data-field=name] .qchip').forEach(function (c) { c.classList.toggle('on', c.dataset.v === n); });
-  if (!n) { showDriverExtra(false); note.innerHTML = ''; $('#licNote').innerHTML = ''; $('#licCard').innerHTML = ''; return; }
+  var nameEl = f.elements['name'];
+  if (!n) {
+    showDriverExtra(false); nameEl.setCustomValidity(''); $('#licNote').innerHTML = ''; $('#licCard').innerHTML = '';
+    note.innerHTML = '<button type="button" class="linkbtn" data-act="newdriver">ยังไม่มีชื่อในระบบ? เพิ่มชื่อของฉันก่อนเบิกรถ</button>';
+    return;
+  }
   if (isKnownDriver(n) && !S.forceExtra) {
+    nameEl.setCustomValidity('');
     if ($('#drvExtra').dataset.mode !== 'lic') showDriverExtra(false);
     note.innerHTML = '<span class="cd-ok">✓ พบชื่อในระบบแล้ว ไม่ต้องกรอกข้อมูลเพิ่ม</span>';
     var paint = function () { $('#licCard').innerHTML = licCardHtml(S.drvLic[n]); $('#licNote').innerHTML = licCardHtml(S.drvLic[n]) ? '' : licNote(S.drvLic[n]); };
@@ -95,8 +101,11 @@ function updateDriverUI() {
       var cur = $('#fCheckout'); if (cur && cur.elements['name'].value.trim() === n) paint();
     }).catch(function () { /* เช็กไม่ได้ก็เบิกต่อได้ */ });
   } else {
-    showDriverExtra('new'); note.innerHTML = ''; $('#licCard').innerHTML = '';
-    $('#licNote').innerHTML = licNote(f.elements['licenseExp'].value);
+    // ชื่อใหม่: ต้องเพิ่มชื่อ เบอร์โทร และวันหมดอายุใบขับขี่ที่หน้า "เพิ่มชื่อคนขับ" ก่อน แล้วค่อยเบิกรถต่อ
+    showDriverExtra(false); $('#licCard').innerHTML = ''; $('#licNote').innerHTML = '';
+    nameEl.setCustomValidity('ยังไม่มีชื่อนี้ในระบบ กรุณากด "เพิ่มชื่อของฉัน" ก่อนเบิกรถ');
+    note.innerHTML = '<div class="newdrv-note"><b>ยังไม่มีชื่อ "' + esc(n) + '" ในระบบ</b><span>เพิ่มชื่อ เบอร์โทร และวันหมดอายุใบขับขี่ก่อน (ทำครั้งเดียว) แล้วค่อยเบิกรถต่อ</span>' +
+      '<button type="button" class="small" data-act="newdriver">+ เพิ่มชื่อของฉัน</button></div>';
   }
 }
 function nameField(label) {
@@ -493,10 +502,10 @@ function mRow(k, emo, title, sub, primary) {
 
 /* ---------- หน้าย่อยของรถ (แถบด้านบนอยู่ที่เดิม ปัดขวาเพื่อย้อนกลับ) ---------- */
 function subPage(car, t) {
-  var title = { trip: t ? 'คืนรถ' : 'เบิกรถ', history: 'ประวัติการใช้งาน', info: 'ข้อมูลรถ', maint: 'ประวัติซ่อมบำรุง' }[S.sub] || '';
-  var body = S.sub === 'trip' ? viewTrip(car, t) : S.sub === 'history' ? viewHistory(car) : S.sub === 'info' ? viewInfo(car) : viewMaint(car);
+  var title = { trip: t ? 'คืนรถ' : 'เบิกรถ', newdriver: 'เพิ่มชื่อคนขับ', history: 'ประวัติการใช้งาน', info: 'ข้อมูลรถ', maint: 'ประวัติซ่อมบำรุง' }[S.sub] || '';
+  var body = S.sub === 'trip' ? viewTrip(car, t) : S.sub === 'newdriver' ? viewNewDriver() : S.sub === 'history' ? viewHistory(car) : S.sub === 'info' ? viewInfo(car) : viewMaint(car);
   var anim = S.lastSheet === S.sub ? '' : ' slidein'; S.lastSheet = S.sub;
-  return '<div class="subpage' + anim + '"><button class="backlink" data-act="closesheet">← กลับเมนูรถ</button>' +
+  return '<div class="subpage' + anim + '">' + (S.sub === 'newdriver' ? '<button class="backlink" data-act="sub" data-s="trip">← กลับไปเบิกรถ</button>' : '<button class="backlink" data-act="closesheet">← กลับเมนูรถ</button>') +
     '<h2 class="sp-title">' + title + '</h2>' + body + '<div class="swipe-hint">ปัดขวาเพื่อย้อนกลับ</div></div>';
 }
 function openSheet(k) {
@@ -536,6 +545,15 @@ function topValues(list, max) {
 function uniq(a) { var seen = {}; return a.filter(function (v) { v = String(v || '').trim(); if (!v || seen[v]) return false; seen[v] = 1; return true; }); }
 function chips(field, values) {
   return values.length ? '<div class="qchips" data-field="' + field + '">' + values.map(function (v) { return '<button type="button" class="qchip" data-v="' + esc(v) + '">' + esc(v) + '</button>'; }).join('') + '</div>' : '';
+}
+// เพิ่มชื่อคนขับก่อนเบิกรถครั้งแรก (ทำครั้งเดียว) บันทึกแล้วกลับไปหน้าเบิกรถพร้อมชื่อที่กรอก
+function viewNewDriver() {
+  return '<form class="card" id="fNewDriver"><div class="mute" style="font-size:14px">ทำครั้งเดียว ครั้งต่อไปเบิกรถได้เลยโดยไม่ต้องกรอกซ้ำ</div>' +
+    '<label>ชื่อคนขับ <span class="req">*</span></label><input name="name" required maxlength="60" autocomplete="name" value="' + esc(S.newName || '') + '" placeholder="ชื่อที่ใช้เบิกรถ">' +
+    '<label>เบอร์โทร <span class="req">*</span></label><input name="phone" type="tel" inputmode="tel" required maxlength="12" autocomplete="tel" placeholder="เช่น 0812345678">' +
+    '<label>ใบขับขี่หมดอายุ <span class="req">*</span></label><input name="licenseExp" type="date" required>' +
+    '<div id="regLicNote" style="font-size:13.5px;margin-top:6px"></div>' +
+    '<button type="submit">บันทึกชื่อ แล้วเบิกรถต่อ</button></form>';
 }
 function viewTrip(car, t) {
   if (!t) {
@@ -1241,6 +1259,10 @@ function bindForms() {
     return { name: d.name, plate: S.plate, date: d.date, type: d.type, detail: d.detail, odo: d.odo, shop: d.shop, cost: d.cost, nextDate: d.nextDate, nextOdo: d.nextOdo, images: pendingImages };
   }, 'บันทึกประวัติซ่อมบำรุงแล้ว', function () { S.hist = {}; S.tab = 'car'; S.sub = 'maint'; S.mopen = false; S.mdef = ''; });
   hook('#fExpense', 'addExpense', function (d) { return { name: d.name, plate: d.plate, date: d.date, type: d.type, amount: d.amount, note: d.note, images: pendingImages }; }, null, after('home'));
+  var fnd = $('#fNewDriver');
+  if (fnd) fnd.elements['licenseExp'].addEventListener('change', function () { $('#regLicNote').innerHTML = licNote(fnd.elements['licenseExp'].value); });
+  hook('#fNewDriver', 'registerDriver', function (d) { return { name: d.name, phone: d.phone, licenseExp: d.licenseExp }; },
+    'เพิ่มชื่อเรียบร้อย กรอกข้อมูลเบิกรถต่อได้เลย', function () { S.sub = 'trip'; S.lastSheet = ''; S.newName = ''; S.drvLic = {}; });
   hook('#fCar', 'saveCar', function (d) {
     var o = {}; ['id','plate','province','vtype','plateColor','model','year','color','fuel','vin','engineNo','actExp','taxExp','insExp','insurer'].forEach(function (k) { o[k] = d[k]; });
     o.pin = S.pin; if (pendingReg) o.regDoc = pendingReg; return o;
@@ -1264,7 +1286,10 @@ function bindForms() {
     EC['name'].addEventListener('change', onName);
     EC['licenseExp'].addEventListener('change', function () { $('#licNote').innerHTML = licNote(EC['licenseExp'].value); });
     // ปุ่มในการ์ดเตือนใบขับขี่ถูกสร้างทีหลัง จึงรับการกดผ่านฟอร์ม
-    fc.addEventListener('click', function (e) { if (e.target.closest('[data-act=editlic]')) { e.preventDefault(); showDriverExtra('lic'); EC['licenseExp'].focus(); } });
+    fc.addEventListener('click', function (e) {
+      if (e.target.closest('[data-act=editlic]')) { e.preventDefault(); showDriverExtra('lic'); EC['licenseExp'].focus(); }
+      else if (e.target.closest('[data-act=newdriver]')) { e.preventDefault(); S.newName = EC['name'].value.trim(); S.sub = 'newdriver'; S.lastSheet = ''; render(); window.scrollTo(0, 0); }
+    });
     updateDriverUI();
   }
   document.querySelectorAll('.qchips').forEach(function (g) {

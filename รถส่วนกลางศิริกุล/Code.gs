@@ -163,6 +163,7 @@ function api(action, payload) {
       case 'data': return ok_(data_());
       case 'getRegDoc': return ok_(getRegDoc_(payload));
       case 'driverCheck': return ok_(driverCheck_(payload));
+      case 'registerDriver': return ok_(registerDriver_(payload));
       // บันทึกของคนขับ
       case 'checkout': return ok_(checkout_(payload));
       case 'returnCar': return ok_(returnCar_(payload));
@@ -287,6 +288,22 @@ function driverCheck_(p) {
   const n = str_(p.name, 60);
   const d = readRows_('drivers').filter(function (r) { return String(r.name) === n && r.active !== 'N'; })[0];
   return d ? { exists: true, licenseExp: d.licenseExp || '' } : { exists: false };
+}
+
+// คนขับเพิ่มชื่อตัวเองก่อนเบิกรถครั้งแรก (ไม่ต้องใช้ PIN เหมือนการเบิกรถ) ต้องมีเบอร์โทรและวันหมดอายุใบขับขี่
+// ชื่อที่มีอยู่แล้วจะไม่ถูกเขียนทับ (กันคนอื่นพิมพ์ชื่อเดียวกันมาแก้เบอร์) ชื่อที่แอดมินปิดใช้งานต้องติดต่อแอดมิน
+function registerDriver_(p) {
+  const name = name_(p.name);
+  const phone = String(p.phone || '').replace(/[^\d]/g, '');
+  if (phone.length < 9 || phone.length > 10) throw new Error('กรุณากรอกเบอร์โทร 9-10 หลัก');
+  if (!p.licenseExp) throw new Error('กรุณากรอกวันหมดอายุใบขับขี่');
+  const licenseExp = dateStr_(p.licenseExp);
+  return lock_(function () {
+    const d = readRows_('drivers').filter(function (r) { return String(r.name) === name; })[0];
+    if (d) throw new Error(d.active === 'N' ? 'ชื่อนี้ถูกปิดใช้งาน กรุณาติดต่อแอดมิน' : 'ชื่อนี้มีในระบบแล้ว เลือกชื่อจากรายการแล้วเบิกรถได้เลย');
+    appendRow_('drivers', { name: name, active: 'Y', phone: phone, licenseExp: licenseExp, updated: now_() });
+    return { name: name };
+  });
 }
 
 // สำหรับหน้าแอดมินเท่านั้น (มีเบอร์โทร)

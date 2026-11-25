@@ -915,3 +915,9 @@ button, .chip, .fchip, .cs-st, .hchip { font-weight:600; }
 /* ประเภทรถใต้ป้ายทะเบียน: ใหญ่ขึ้น อ่านง่าย และกว้างเท่าแผ่นป้าย (ไม่ดันช่อง พ.ร.บ./ภาษี/ประกัน) */
 .hplate .hchip.type { align-self:stretch; width:0; min-width:100%; max-width:none; box-sizing:border-box; text-align:center; font-size:14px; font-weight:700; line-height:20px; padding:3px 6px; }
 @media (max-width: 380px) { .hplate .hchip.type { font-size:12.5px; line-height:18px; padding:2px 1px; letter-spacing:-.1px; } }
+
+/* ชื่อคนขับใหม่: ขั้นตอนเพิ่มชื่อก่อนเบิกรถ */
+.newdrv-note { display:flex; flex-direction:column; gap:6px; padding:12px 14px; border-radius:14px; border:1.5px dashed var(--warn); background:var(--warn-bg); font-size:14px; }
+.newdrv-note b { color:var(--warn); }
+.newdrv-note button { align-self:flex-start; margin:4px 0 0; width:auto; }
+.linkbtn { width:auto; margin:8px 0 0; padding:0; background:transparent; color:var(--pri); border:0; box-shadow:none; font-size:14px; font-weight:700; text-decoration:underline; text-underline-offset:3px; text-align:left; }
