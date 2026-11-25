@@ -280,7 +280,9 @@ function initFullscreen() {
   });
   // เบราว์เซอร์นับการแตะบนจอสัมผัสเป็น "การกดของผู้ใช้" ตอนปล่อยนิ้ว (pointerup/click) ไม่ใช่ตอนแตะลง
   // จึงลองเข้าเต็มจอทุกครั้งที่แตะ จนกว่าจะเข้าได้ (เลื่อนหน้าจอไม่นับ) หยุดเมื่อผู้ใช้กดออกเอง
-  var tryFull = function () { if (FS.auto && !FS.standalone && FS.supported && !isFull()) enterFull(); };
+  // เข้าเต็มจอ "ใช้สิทธิ์การแตะ" ของผู้ใช้ไป ถ้าการแตะเดียวกันต้องเปิดกล้อง/ตัวเลือกไฟล์ จะถูกเบราว์เซอร์บล็อก จึงไม่ทำกับหน้าแอดมิน (มีปุ่มเต็มจอให้กดเอง) และไม่แย่งการแตะที่ช่องไฟล์
+  if (ADMIN_MODE) FS.auto = false;
+  var tryFull = function (e) { if (e && e.target && e.target.closest && e.target.closest('input[type=file], label')) return; if (FS.auto && !FS.standalone && FS.supported && !isFull()) enterFull(); };
   ['pointerup', 'click'].forEach(function (ev) { document.addEventListener(ev, tryFull, true); });
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); FS.prompt = e; if (!ADMIN_MODE && S.tab === 'home') render(); });
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});
@@ -319,6 +321,7 @@ function askConfirm(msg, okText, withReason) {
 
 /* ---------- แถบด้านบน: หน้ารถแสดงป้ายทะเบียน + พ.ร.บ./ภาษี/ประกัน หน้าอื่นแสดงชื่อหน้า ---------- */
 function headerLeft() {
+  if (ADMIN_MODE && isMobileAdmin()) return '<div class="htitle">แอดมิน · มือถือ</div>';
   if (ADMIN_MODE) {
     var pg = ADMIN_PAGES.filter(function (p) { return p[0] === S.asub; })[0] || ADMIN_PAGES[0];
     return '<div class="abar"><span class="crumb">แอดมิน</span><span class="sep">/</span><b>' + pg[1] + '</b></div><span class="adate">' + ic('clock', 15) + new Date().toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + '</span>';
@@ -915,16 +918,73 @@ function expChip(d) {
   return '<span class="chip ' + cls + '">' + txt + '</span>' + (d ? '<div class="sub">' + thDate(d) + '</div>' : '');
 }
 
+/* ---------- แอดมินบนมือถือ: เมนูย่อสำหรับถ่ายรูปเอกสารแล้วให้ระบบอ่านข้อมูลมาใส่ ----------
+   จอแคบ (≤ 820px) จะแสดงเมนูย่อนี้แทนหน้าแอดมินเต็ม (กด "ใช้หน้าแอดมินแบบเต็ม" เพื่อสลับ) หน้าแอดมินบนคอมมี QR ให้สแกนเปิดบนมือถือ */
+function isMobileAdmin() { return !!(ADMIN_MODE && !S.fullAdmin && window.matchMedia && window.matchMedia('(max-width: 820px)').matches); }
+function mobRow(act, emo, title, sub, extra, primary) {
+  return '<button class="mrow' + (primary ? ' primary' : '') + '" data-act="' + act + '"' + (extra || '') + '><span class="mr-ic">' + emo + '</span><span class="mr-tx"><b>' + title + '</b><span>' + sub + '</span></span><span class="mr-go" aria-hidden="true">›</span></button>';
+}
+function viewAdminMobile() {
+  S._wasMob = true;
+  if (S.carForm) return '<div class="mobadm">' + carForm() + '</div>';
+  var cars = S.cars.slice().sort(function (a, b) { return a.plate < b.plate ? -1 : 1; });
+  var h = '<div class="mobadm">';
+  if (S.mobPick) {
+    var title = S.mobPick === 'pol' ? 'เลือกรถที่จะถ่ายกรมธรรม์' : 'เลือกรถที่จะถ่ายสำเนาทะเบียน';
+    h += '<div class="mob-t"><button class="backlink" data-act="mobcancel">← กลับ</button><h2>' + title + '</h2></div><div class="mlist">' +
+      (cars.length ? cars.map(function (c) { return mobRow('mobgo', S.mobPick === 'pol' ? '🛡️' : vIcon(c.vtype), esc(c.plate) + (c.model ? ' · ' + esc(c.model) : ''), mobCarSub(c, S.mobPick), ' data-id="' + esc(c.id) + '"'); }).join('') : '<div class="card mute">ยังไม่มีรถในระบบ กดกลับแล้วเลือก "เพิ่มรถใหม่"</div>') + '</div></div>';
+    return h;
+  }
+  h += '<div class="mob-hero">' + (S.logo ? '<div class="mh-logo">' + logoImg() + '</div>' : '') + '<div><b>แอดมิน · เมนูถ่ายเอกสาร</b><span>ถ่ายรูปเอกสาร ระบบอ่านข้อมูลให้ ตรวจแล้วกดบันทึก</span></div></div>' +
+    (S.pinRequired ? '' : '<div class="pinwarn">' + ic('shield', 16) + '<span><b>ยังไม่เปิดรหัสแอดมิน</b> ใครสแกน QR ก็เข้าหน้านี้ได้</span></div>') +
+    '<div class="mlist">' +
+    mobRow('mobnew', '📷', 'เพิ่มรถใหม่', 'ถ่ายสำเนาทะเบียน ระบบกรอกข้อมูลรถให้', '', true) +
+    mobRow('mobpick', '🧾', 'ถ่ายสำเนาทะเบียน (รถที่มีอยู่)', 'อ่านข้อมูลและเก็บเป็นสำเนาทะเบียนของรถคันนั้น', ' data-for="reg"') +
+    mobRow('mobpick', '🛡️', 'ถ่ายกรมธรรม์ประกันภัย', 'บริษัท ชั้น เลขกรมธรรม์ วันหมดอายุ ทุนประกัน', ' data-for="pol"') + '</div>' +
+    '<div class="card flush"><h2>รถทั้งหมด (' + cars.length + ')</h2>' + (cars.length ? '<div class="mlist inner">' + cars.map(function (c) {
+      return mobRow('mobedit', vIcon(c.vtype), esc(c.plate) + (c.model ? ' · ' + esc(c.model) : ''), mobCarSub(c, 'edit'), ' data-id="' + esc(c.id) + '"');
+    }).join('') + '</div>' : '<div class="mute" style="padding:0 14px 14px">ยังไม่มีรถ</div>') + '</div>' +
+    '<button class="ghost" data-act="mobfull">ใช้หน้าแอดมินแบบเต็ม</button>' +
+    (S.pinRequired ? '<button class="ghost" data-act="logout">ออกจากโหมดแอดมิน</button>' : '') + '</div>';
+  return h;
+}
+function mobCarSub(c, kind) {
+  var n = daysLeft(c.insExp), ins = c.insurer ? esc(c.insurer) + (c.insClass ? ' ' + esc(c.insClass) : '') : 'ยังไม่มีข้อมูลประกัน';
+  if (kind === 'pol') return ins + (n === null ? '' : n < 0 ? ' · หมดอายุแล้ว' : ' · เหลือ ' + n + ' วัน') + (c.insDocId ? ' · มีไฟล์กรมธรรม์' : '');
+  if (kind === 'reg') return (c.regDocId ? 'มีสำเนาทะเบียนแล้ว (ถ่ายใหม่เพื่อแทนที่)' : 'ยังไม่มีสำเนาทะเบียน') + (c.vin ? '' : ' · ยังไม่มีเลขตัวถัง');
+  return 'แตะเพื่อดู/แก้ไขข้อมูลรถ';
+}
+// เปิดฟอร์มรถแล้วเปิดกล้อง/เลือกไฟล์ของช่องอ่านเอกสารทันที (ต้องทำในจังหวะที่ผู้ใช้เพิ่งแตะ เบราว์เซอร์จึงยอมเปิดตัวเลือกไฟล์)
+function mobOpenForm(id, which) {
+  S.edit = id || ''; S.carForm = true; S.mobPick = ''; render(); window.scrollTo(0, 0);
+  var inp = which === 'pol' ? $('#polOcr') : which === 'reg' ? $('#ocrFile') : null;
+  if (inp) { try { inp.scrollIntoView({ block: 'center' }); inp.click(); } catch (e) {} }
+}
+// QR สำหรับเปิดหน้าแอดมินบนมือถือ (แสดงในหน้าแอดมินบนคอมพิวเตอร์)
+function adminUrl() { return PUBLIC_URL + '?admin=1'; }
+function showPhoneQr() {
+  var url = adminUrl();
+  $('#modal').style.display = 'block'; $('#modalClose').style.display = '';
+  $('#modalBody').innerHTML = '<h2>เปิดหน้าแอดมินบนมือถือ</h2><div class="mute" style="font-size:14px">สแกน QR ด้วยกล้องมือถือ จะเข้า <b>เมนูแอดมินแบบย่อ</b> สำหรับถ่ายรูปสำเนาทะเบียนและกรมธรรม์เพื่อนำเข้าข้อมูล</div>' +
+    '<div class="phoneqr"><div id="phoneQr"></div></div><div class="phoneurl">' + esc(url) + '</div>' +
+    '<div class="mute" style="font-size:13px;margin:6px 0 10px">' + (S.pinRequired ? 'มือถือต้องใส่ PIN แอดมินก่อนเข้า' : '<b class="cd-warn">ยังไม่เปิดรหัสแอดมิน</b> ใครสแกน QR นี้ก็เข้าหน้าแอดมินได้ ควรเปิดรหัสแอดมินก่อน (ดู README)') + '</div>' +
+    '<button class="ghost" id="phoneCopy">คัดลอกลิงก์</button>';
+  var q = $('#phoneQr'); if (window.QRCode) new QRCode(q, { text: url, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M }); else q.textContent = 'โหลดตัวสร้าง QR ไม่ได้ ใช้ลิงก์ด้านล่างแทน';
+  $('#phoneCopy').addEventListener('click', function () { copyText(url); });
+}
+
 function viewAdmin() {
   if (S.pinRequired && !S.pin) return '<div class="adm-gate">' + (S.logo ? '<div class="gate-logo">' + logoImg() + '</div>' : '') + '<form class="card" id="fPin"><h2>โหมดแอดมิน</h2><div class="mute" style="font-size:14px">ใส่ PIN แอดมินเพื่อแก้ข้อมูลรถ อัปโหลดสำเนาทะเบียน และพิมพ์ QR (การเบิก/คืนรถทั่วไปไม่ต้องใช้ PIN)</div>' +
       '<label>PIN แอดมิน</label><input name="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" required>' +
       '<button type="submit">เข้าโหมดแอดมิน</button></form>' + '</div>';
+  if (isMobileAdmin()) return viewAdminMobile();
+  S._wasMob = false;
   if (!ADMIN_PAGES.some(function (p) { return p[0] === S.asub; })) S.asub = 'overview';
   var page = ADMIN_PAGES.filter(function (p) { return p[0] === S.asub; })[0];
   var side = '<aside class="side noprint"><div class="side-brand">' + (S.logo ? '<div class="lg">' + logoImg() + '</div>' : '') + '<div><b>' + esc(S.company) + '</b><small>ระบบรถส่วนกลาง</small></div></div><div class="sec">เมนูแอดมิน</div>' + ADMIN_PAGES.map(function (p) {
     var n = adminCount(p[0]);
     return '<button data-act="asub" data-s="' + p[0] + '" class="' + (p[0] === S.asub ? 'on' : '') + '">' + ic(p[2], 20) + '<span>' + p[1] + '</span>' + (n ? '<span class="cnt">' + n + '</span>' : '') + '</button>';
-  }).join('') + '<div class="side-foot">' +
+  }).join('') + '<div class="side-foot"><button data-act="phoneqr">' + ic('phone', 18) + 'เปิดบนมือถือ (QR)</button>' +
     (S.appUrl ? '<a class="side-link" href="' + esc(S.appUrl) + '" target="_blank" rel="noopener">' + ic('car', 18) + 'เปิดหน้าคนขับ</a>' : '') +
     (S.pinRequired ? '<button data-act="logout">' + ic('sliders', 18) + 'ออกจากโหมดแอดมิน</button>' : '') + '</div></aside>';
   var acts = '';
@@ -935,7 +995,7 @@ function viewAdmin() {
   if (S.asub === 'report') acts = '<input type="month" id="rMonth" aria-label="เดือน" value="' + esc(S.rmonth || today().slice(0, 7)) + '"><button data-act="runreport">ดูรายงาน</button>';
   var body = { cars: admCars, qr: admQr, open: admOpen, report: admReport, history: admHistory, drivers: admDrivers, settings: admSettings }[S.asub] || admOverview;
   return '<div class="adm">' + side + '<section class="adm-main">' +
-    '<div class="desk-note alert">หน้าแอดมินออกแบบสำหรับคอมพิวเตอร์ เปิดบนจอใหญ่จะใช้งานง่ายกว่า</div>' +
+    '<div class="desk-note alert">หน้าแอดมินออกแบบสำหรับคอมพิวเตอร์ เปิดบนจอใหญ่จะใช้งานง่ายกว่า <button class="small ghost" data-act="mobback" style="margin-top:6px">← กลับเมนูแอดมินบนมือถือ</button></div>' +
     (S.pinRequired ? '' : '<div class="pinwarn noprint">' + ic('shield', 16) + '<span><b>ยังไม่เปิดรหัสแอดมิน</b> ใครมีลิงก์หน้านี้ก็เข้าได้ ควรเปิดก่อนแจก QR (ดู README)</span></div>') +
     '<div class="ph"><div><h1>' + page[1] + '</h1><p>' + page[3] + '</p></div>' + (acts ? '<div class="acts">' + acts + '</div>' : '') + '</div>' +
     body() + '</section></div>';
@@ -961,7 +1021,7 @@ function admOverview() {
   var hr = new Date().getHours(), greet = hr < 12 ? 'สวัสดีตอนเช้า' : hr < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น';
   var h = '<div class="hero"><div class="hero-t"><small>' + greet + ' ' + esc(S.company) + '</small><b>' +
     (nTodo ? 'วันนี้มี ' + nTodo + ' เรื่องที่ต้องดูแล' : 'ทุกอย่างเรียบร้อยดี') + '</b><span>รถว่างพร้อมใช้ ' + free + ' จาก ' + S.cars.length + ' คัน' + (S.open.length ? ' · กำลังถูกเบิก ' + S.open.length + ' คัน' : '') + '</span></div>' +
-    '<div class="hero-a"><button data-act="newcar">' + ic('car', 17) + 'เพิ่มรถคันใหม่</button><button class="glass" data-act="asub" data-s="qr">' + ic('qr', 17) + 'พิมพ์ QR</button><button class="glass" data-act="asub" data-s="report">' + ic('chart', 17) + 'รายงานเดือนนี้</button></div></div>' +
+    '<div class="hero-a"><button data-act="newcar">' + ic('car', 17) + 'เพิ่มรถคันใหม่</button><button class="glass" data-act="asub" data-s="qr">' + ic('qr', 17) + 'พิมพ์ QR</button><button class="glass" data-act="phoneqr">' + ic('phone', 17) + 'เปิดบนมือถือ</button><button class="glass" data-act="asub" data-s="report">' + ic('chart', 17) + 'รายงานเดือนนี้</button></div></div>' +
     '<div class="kpis">' +
     kpi('รถที่ใช้งาน', S.cars.length, 'คัน', 'ok', 'car', 'cars') +
     kpi('ถูกเบิกอยู่', S.open.length, od.length ? 'ค้างเกิน 24 ชม. ' + od.length + ' คัน' : 'ไม่มีรถค้างเกิน 24 ชม.', od.length ? 'bad' : 'info', 'clock', 'busy') +
@@ -1679,6 +1739,14 @@ function bindForms() {
       else if (a === 'drvactive') setDriverActive(b.dataset.n, b.dataset.v);
       else if (a === 'dfst') { S.df.st = b.dataset.s; render(); }
       else if (a === 'kpigo') { kpiGo(b.dataset.k); }
+      else if (a === 'phoneqr') showPhoneQr();
+      else if (a === 'mobnew') mobOpenForm('', 'reg');
+      else if (a === 'mobpick') { S.mobPick = b.dataset.for; render(); window.scrollTo(0, 0); }
+      else if (a === 'mobcancel') { S.mobPick = ''; render(); }
+      else if (a === 'mobgo') mobOpenForm(b.dataset.id, S.mobPick);
+      else if (a === 'mobedit') mobOpenForm(b.dataset.id, '');
+      else if (a === 'mobfull') { S.fullAdmin = true; S.carForm = false; S.mobPick = ''; render(); window.scrollTo(0, 0); }
+      else if (a === 'mobback') { S.fullAdmin = false; S.carForm = false; S.edit = ''; render(); window.scrollTo(0, 0); }
       else if (a === 'hmprev' || a === 'hmnext') { var hs = hmState(); hs.month = hmStep(hs.month, a === 'hmprev' ? -1 : 1); render(); }
       else if (a === 'hmnow') { hmState().month = today().slice(0, 7); render(); }
       else if (a === 'hmreload') { var hr = hmState(); delete hr.cache[hr.month]; render(); }
@@ -1891,7 +1959,7 @@ function kpiGo(k) {
 var LIVE = { busy: false, last: 0, noVer: false, at: 0 };
 function liveStamp() { var d = new Date(); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2); }
 async function liveTick() {
-  if (!ADMIN_MODE || document.hidden || LIVE.busy || S.busy) return;
+  if (!ADMIN_MODE || document.hidden || LIVE.busy || S.busy || isMobileAdmin()) return;
   if (S.asub !== 'overview' && S.asub !== 'open') return;
   if (S.pinRequired && !S.pin) return;
   if ($('#modal') && $('#modal').style.display === 'block') return;
@@ -1913,6 +1981,11 @@ async function liveTick() {
   } catch (e) { var tt = $('#liveT'); if (tt) tt.textContent = 'เชื่อมต่อไม่ได้ กำลังลองใหม่'; }
   LIVE.busy = false;
 }
+var resizeTmr = null;
+window.addEventListener('resize', function () {
+  clearTimeout(resizeTmr);
+  resizeTmr = setTimeout(function () { if (ADMIN_MODE && S.cars && S._wasMob !== undefined && isMobileAdmin() !== !!S._wasMob && !S.carForm) render(); }, 200);
+});
 function startLive() {
   if (!ADMIN_MODE) return;
   LIVE.last = Date.now();
