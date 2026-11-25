@@ -172,6 +172,8 @@ function api(action, payload) {
       case 'checkPin': requirePin_(payload.pin); return ok_(true);
       case 'monthData': requirePin_(payload.pin); return ok_(monthDataClean_(payload.month));
       case 'listDrivers': requirePin_(payload.pin); return ok_(listDrivers_());
+      case 'saveDriver': requirePin_(payload.pin); return ok_(saveDriver_(payload));
+      case 'setDriverActive': requirePin_(payload.pin); return ok_(setDriverActive_(payload));
       case 'saveCar': requirePin_(payload.pin); return ok_(saveCar_(payload));
       case 'setCarActive': requirePin_(payload.pin); return ok_(setCarActive_(payload));
       case 'cancelTrip': requirePin_(payload.pin); return ok_(cancelTrip_(payload));
@@ -252,6 +254,7 @@ function checkout_(p) {
   const phone = String(p.phone || '').replace(/[^\d]/g, '');
   const licenseExp = p.licenseExp ? dateStr_(p.licenseExp) : '';
   const known = readRows_('drivers').some(function (r) { return String(r.name) === name; });
+  if (readRows_('drivers').some(function (r) { return String(r.name) === name && r.active === 'N'; })) throw new Error('คนขับ "' + name + '" ถูกปิดใช้งาน กรุณาติดต่อแอดมิน');
   if (!known && (!phone || !licenseExp)) throw new Error('คนขับใหม่ กรุณากรอกเบอร์โทรและวันหมดอายุใบขับขี่');
   if (phone && (phone.length < 9 || phone.length > 10)) throw new Error('กรุณากรอกเบอร์โทร 9-10 หลัก');
   const odoStart = num_(p.odoStart, 'ไมล์ก่อน');
@@ -291,6 +294,40 @@ function listDrivers_() {
   return readRows_('drivers').map(function (d) {
     return { name: d.name, phone: d.phone, licenseExp: d.licenseExp, active: d.active, updated: d.updated };
   }).sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'th'); });
+}
+
+// เพิ่ม/แก้ไขคนขับโดยแอดมิน (แก้ไขอ้างอิงด้วย oldName และไม่เปลี่ยนชื่อ เพราะประวัติการใช้รถอ้างอิงด้วยชื่อ)
+function saveDriver_(p) {
+  const name = name_(p.name);
+  const oldName = str_(p.oldName, 60);
+  const phone = String(p.phone || '').replace(/[^\d]/g, '');
+  if (phone && (phone.length < 9 || phone.length > 10)) throw new Error('กรุณากรอกเบอร์โทร 9-10 หลัก');
+  const licenseExp = p.licenseExp ? dateStr_(p.licenseExp) : '';
+  return lock_(function () {
+    const rows = readRows_('drivers');
+    if (oldName) {
+      const d = rows.filter(function (r) { return String(r.name) === oldName; })[0];
+      if (!d) throw new Error('ไม่พบคนขับ');
+      writeRow_(sheet_('drivers'), d._row, 'drivers', { name: d.name, active: d.active === 'N' ? 'N' : 'Y', phone: phone, licenseExp: licenseExp, updated: now_() });
+      return { name: d.name };
+    }
+    const dup = rows.filter(function (r) { return String(r.name) === name; })[0];
+    if (dup) throw new Error(dup.active === 'N' ? 'ชื่อนี้มีอยู่แล้วแต่ถูกปิดใช้งาน ให้กด "เปิดใช้งาน" ที่รายการเดิม' : 'ชื่อนี้มีในระบบแล้ว');
+    appendRow_('drivers', { name: name, active: 'Y', phone: phone, licenseExp: licenseExp, updated: now_() });
+    return { name: name };
+  });
+}
+
+// ปิดใช้งาน (N) หรือเปิดใช้งาน (Y) คนขับ ประวัติไม่ถูกลบ คนขับที่ปิดใช้งานเบิกรถไม่ได้ แต่คืนรถที่ค้างอยู่ได้
+function setDriverActive_(p) {
+  const name = name_(p.name);
+  const active = p.active === 'N' ? 'N' : 'Y';
+  return lock_(function () {
+    const d = readRows_('drivers').filter(function (r) { return String(r.name) === name; })[0];
+    if (!d) throw new Error('ไม่พบคนขับ');
+    writeRow_(sheet_('drivers'), d._row, 'drivers', { name: d.name, active: active, phone: d.phone, licenseExp: d.licenseExp, updated: now_() });
+    return { name: d.name, active: active };
+  });
 }
 
 function returnCar_(p) {
