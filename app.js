@@ -247,10 +247,10 @@ function initFullscreen() {
     if (!isFull()) { FS.auto = false; sset('sessionStorage', 'fsOff', '1'); } // ออกเอง = ไม่บังคับซ้ำ
     paintFsBtn();
   });
-  document.addEventListener('pointerdown', function first() {
-    document.removeEventListener('pointerdown', first, true);
-    if (FS.auto && !FS.standalone) enterFull();
-  }, true);
+  // เบราว์เซอร์นับการแตะบนจอสัมผัสเป็น "การกดของผู้ใช้" ตอนปล่อยนิ้ว (pointerup/click) ไม่ใช่ตอนแตะลง
+  // จึงลองเข้าเต็มจอทุกครั้งที่แตะ จนกว่าจะเข้าได้ (เลื่อนหน้าจอไม่นับ) หยุดเมื่อผู้ใช้กดออกเอง
+  var tryFull = function () { if (FS.auto && !FS.standalone && FS.supported && !isFull()) enterFull(); };
+  ['pointerup', 'click'].forEach(function (ev) { document.addEventListener(ev, tryFull, true); });
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); FS.prompt = e; if (!ADMIN_MODE && S.tab === 'home') render(); });
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});
   paintFsBtn();
@@ -481,6 +481,7 @@ function viewCar() {
   if (!S.locked) h += '<select id="pickCar" class="pick" aria-label="เปลี่ยนรถ">' + S.cars.map(function (c) {
     return '<option value="' + esc(c.plate) + '"' + (c.plate === car.plate ? ' selected' : '') + '>เปลี่ยนรถ: ' + esc(c.plate) + ' ' + esc(c.model) + '</option>';
   }).join('') + '</select>';
+  if (S.locked && !FS.supported) h += installCard(); // iPhone เข้าเต็มจอจากเว็บไม่ได้ แนะนำให้ติดตั้งเป็นแอปแทน
   h += '<div class="foot">' + (S.logo ? '<div class="foot-logo">' + logoImg() + '</div>' : '') + '<b>' + esc(S.company) + '</b><span>ระบบรถส่วนกลาง</span></div>';
   return h;
 }
@@ -1563,7 +1564,11 @@ document.querySelectorAll('nav button').forEach(function (b) {
 load().then(function () {
   var hit = ADMIN_MODE ? null : S.cars.filter(function (c) { return (INITIAL_CAR && c.id === INITIAL_CAR) || (!INITIAL_CAR && INITIAL_PLATE && c.plate === INITIAL_PLATE); })[0];
   if (ADMIN_MODE) {}
-  else if (hit) { S.plate = hit.plate; S.locked = hit.id; S.tab = 'car'; S.sub = ''; }
+  else if (hit) {
+    S.plate = hit.plate; S.locked = hit.id; S.tab = 'car'; S.sub = '';
+    // เปิดเต็มจอเองตอนโหลดไม่ได้ (เบราว์เซอร์บังคับให้ผู้ใช้แตะก่อน) จึงบอกให้แตะ 1 ครั้ง
+    if (FS.supported && FS.mobile && FS.auto && !FS.standalone && !isFull()) setTimeout(function () { if (!isFull()) toast('แตะหน้าจอ 1 ครั้งเพื่อเปิดเต็มจอ', 'ok'); }, 600);
+  }
   else if (INITIAL_CAR || INITIAL_PLATE) toast('ไม่พบรถคันนี้ในระบบ (อาจถูกนำออกแล้ว) เลือกรถจากหน้าแรกได้', 'err');
   render();
 }).catch(function (e) {
