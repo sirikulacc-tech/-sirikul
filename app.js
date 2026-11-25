@@ -793,6 +793,7 @@ var ADMIN_PAGES = [
   ['qr', 'QR ติดรถ', 'qr', 'QR ประจำรถแต่ละคัน รถใหม่จะมี QR ขึ้นที่นี่อัตโนมัติ'],
   ['open', 'ค้างเบิก', 'clock', 'รถที่ยังไม่คืน และยกเลิกรายการที่เบิกผิด'],
   ['report', 'รายงานรายเดือน', 'chart', 'ระยะทาง ค่าใช้จ่าย และต้นทุนต่อ กม. แยกต่อคันและต่อคนขับ'],
+  ['history', 'ประวัติรถ', 'receipt', 'ดูย้อนหลังรายเดือนว่ารถแต่ละคันไปไหนมาบ้าง ใครใช้ และดาวน์โหลดเป็น Excel / CSV'],
   ['drivers', 'คนขับ', 'shield', 'เบอร์โทร และวันหมดอายุใบขับขี่'],
   ['settings', 'ตั้งค่า', 'sliders', 'โลโก้และชื่อบริษัทที่แสดงในแอปและบนสติกเกอร์ QR']
 ];
@@ -843,7 +844,7 @@ function viewAdmin() {
   if (S.asub === 'drivers') acts = '<button data-act="newdrv">+ เพิ่มคนขับ</button>';
   if (S.asub === 'qr' && S.cars.length) acts = '<button class="ghost" data-act="print">พิมพ์ QR ทั้งหมด</button>';
   if (S.asub === 'report') acts = '<input type="month" id="rMonth" aria-label="เดือน" value="' + esc(S.rmonth || today().slice(0, 7)) + '"><button data-act="runreport">ดูรายงาน</button>';
-  var body = { cars: admCars, qr: admQr, open: admOpen, report: admReport, drivers: admDrivers, settings: admSettings }[S.asub] || admOverview;
+  var body = { cars: admCars, qr: admQr, open: admOpen, report: admReport, history: admHistory, drivers: admDrivers, settings: admSettings }[S.asub] || admOverview;
   return '<div class="adm">' + side + '<section class="adm-main">' +
     '<div class="desk-note alert">หน้าแอดมินออกแบบสำหรับคอมพิวเตอร์ เปิดบนจอใหญ่จะใช้งานง่ายกว่า</div>' +
     (S.pinRequired ? '' : '<div class="pinwarn noprint">' + ic('shield', 16) + '<span><b>ยังไม่เปิดรหัสแอดมิน</b> ใครมีลิงก์หน้านี้ก็เข้าได้ ควรเปิดก่อนแจก QR (ดู README)</span></div>') +
@@ -889,7 +890,7 @@ function admOverview() {
   h += '<div class="stack">' + tripChart() + '<div class="card flush"><h2>รถที่ถูกเบิกอยู่ (' + S.open.length + ')</h2>' + (S.open.length ? dt(['ทะเบียน', 'ผู้เบิก', 'เวลาเบิก', 'ไปที่ไหน'],
     S.open.map(function (t) { return [carLink(t.plate), esc(t.name) + (overdue(t.ts) ? ' <span class="chip">' + overdue(t.ts) + '</span>' : ''), thTime(t.ts), esc(t.purpose)]; }))
     : '<div class="mute" style="padding:0 12px 10px">ไม่มีรถถูกเบิก</div>') + '</div></div></div>';
-  h += '<div class="card flush"><h2>การใช้รถล่าสุด</h2>' + (S.usage.length ? dt(['เวลาเบิก', 'ทะเบียน', 'ผู้ใช้', 'ไปที่ไหน', 'ระยะทาง'],
+  h += '<div class="card flush"><h2>การใช้รถล่าสุด <button class="small ghost seeall" data-act="asub" data-s="history">ดูประวัติย้อนหลังทั้งหมด ›</button></h2>' + (S.usage.length ? dt(['เวลาเบิก', 'ทะเบียน', 'ผู้ใช้', 'ไปที่ไหน', 'ระยะทาง'],
     S.usage.map(function (u) {
       var k = u.status === 'open' ? '<span class="chip">ยังไม่คืน</span>' : u.status === 'cancelled' ? '<span class="chip na">ยกเลิก</span>' : km(u.odoEnd - u.odoStart) + ' กม.';
       return [thTime(u.ts), '<b>' + esc(u.plate) + '</b>', esc(u.name), esc(u.purpose), k];
@@ -1050,7 +1051,7 @@ function timelineView() {
     return head + '<div class="tl-i ' + e.k + '"><i class="tl-dot">' + ic(icons[e.k], 15) + '</i><div class="tl-b"><div class="tl-t"><b>' + e.title + '</b><span class="tl-d">' + (e.k === 'use' ? thTime(e.at) : thDate(String(e.at).slice(0, 10))) + '</span></div>' +
       (e.sub ? '<div class="tl-s">' + e.sub + '</div>' : '') + (e.meta ? '<div class="tl-x">' + e.meta + '</div>' : '') + '</div></div>';
   }).join('');
-  return '<div class="card noprint tlcard"><div class="dhead"><div><h2>ไทม์ไลน์รถ</h2><div class="tl-plate">' + plateHtml(c, 'sm') + '<span>' + esc(c.model || '') + '</span></div></div><button type="button" class="dclose" data-act="closecar" aria-label="ปิด">✕</button></div>' +
+  return '<div class="card noprint tlcard"><div class="dhead"><div><h2>ไทม์ไลน์รถ</h2><div class="tl-plate">' + plateHtml(c, 'sm') + '<span>' + esc(c.model || '') + '</span><button type="button" class="small ghost tl-hm" data-act="hmcar" data-p="' + esc(c.plate) + '">ประวัติรายเดือน ›</button></div></div><button type="button" class="dclose" data-act="closecar" aria-label="ปิด">✕</button></div>' +
     '<div class="fchips tl-tabs">' + tabs.map(function (t) { return '<button type="button" class="fchip' + (f === t[0] ? ' on' : '') + '" data-act="tlf" data-s="' + t[0] + '">' + t[1] + ' <b>' + cnt[t[0]] + '</b></button>'; }).join('') + '</div>' +
     '<div class="tl">' + (body || '<div class="mute" style="padding:20px 4px">ยังไม่มีรายการ</div>') + '</div></div>';
 }
@@ -1127,6 +1128,131 @@ function admOpen() {
       '<div class="acts">' + (c && S.appUrl ? '<a class="small linkbtn" href="' + esc(carUrl(c)) + '" target="_blank" rel="noopener">เปิดหน้ารถ</a>' : '') +
       '<button class="small line" data-act="cancel" data-id="' + esc(t.id) + '">ยกเลิก (เบิกผิด)</button></div>'];
   }), [4]) + '<div class="mute" style="font-size:13px;padding:10px 12px">"ยกเลิก" ใช้เมื่อกดเบิกผิด รายการจะไม่นับในรายงาน ถ้าใช้รถจริงแต่ลืมคืน ให้เปิดหน้ารถแล้วกดคืนรถ</div></div>';
+}
+
+/* ---------- ประวัติรถรายเดือน (ดูย้อนหลังได้ทุกเดือน เลือกรถ ดูว่าไปไหนมาบ้าง และดาวน์โหลด) ---------- */
+function hmState() { return S.hm || (S.hm = { plate: '', month: today().slice(0, 7), cache: {}, pending: '', from: '', to: '' }); }
+function hmStep(m, n) { var y = Number(m.slice(0, 4)), mo = Number(m.slice(5, 7)) - 1 + n; var d = new Date(y, mo, 1); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2); }
+function hmFetch(month) {
+  var h = hmState(); if (h.cache[month] || h.pending === month) return;
+  h.pending = month;
+  call('monthData', { month: month, pin: S.pin }).then(function (d) { h.cache[month] = d; })
+    .catch(function (e) { h.cache[month] = { error: e.message }; })
+    .then(function () { h.pending = ''; if (ADMIN_MODE && S.asub === 'history' && S.hm && S.hm.month === month) render(); });
+}
+function tripKm(u) { return u.status === 'closed' && u.odoEnd !== '' && u.odoEnd != null ? Number(u.odoEnd) - Number(u.odoStart) : null; }
+function hmData(d, plate) {
+  var inCar = function (r) { return !plate || r.plate === plate; };
+  var trips = (d.usage || []).filter(inCar).sort(function (a, b) { return a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0; });
+  var exps = (d.expenses || []).filter(inCar).sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+  var mts = (d.maint || []).filter(inCar).sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+  var kmSum = 0, drv = {};
+  trips.forEach(function (u) { var k = tripKm(u); if (k != null) kmSum += k; var nm = u.name || '(ไม่ระบุ)', r = drv[nm] || (drv[nm] = { name: nm, trips: 0, km: 0 }); r.trips++; if (k != null) r.km += k; });
+  var expSum = exps.reduce(function (t, e) { return t + (Number(e.amount) || 0); }, 0), mtSum = mts.reduce(function (t, m) { return t + (Number(m.cost) || 0); }, 0);
+  return { trips: trips, exps: exps, mts: mts, km: kmSum, expSum: expSum, mtSum: mtSum, drivers: Object.keys(drv).map(function (k) { return drv[k]; }).sort(function (a, b) { return b.km - a.km; }) };
+}
+function hmTripRow(u) { // แถวสำหรับไฟล์ Excel/CSV
+  var k = tripKm(u);
+  return [String(u.ts).slice(0, 10), String(u.ts).slice(11, 16), String(u.returnTs || '').slice(0, 16), u.plate, u.name, u.returnName || '', u.purpose, u.dest || '', u.odoStart, u.odoEnd, k == null ? '' : k, u.status === 'open' ? 'ยังไม่คืน' : 'คืนแล้ว'];
+}
+var HM_TRIP_HEAD = ['วันที่เบิก', 'เวลาเบิก', 'เวลาคืน', 'ทะเบียน', 'ผู้เบิก', 'ผู้คืน', 'วัตถุประสงค์', 'ปลายทาง', 'ไมล์ก่อน', 'ไมล์หลัง', 'ระยะทาง (กม.)', 'สถานะ'];
+function hmLabel(plate) { return plate ? plate : 'ทุกคัน'; }
+function hmCarId(plate) { var c = plate && S.cars.concat(S.removed).filter(function (x) { return x.plate === plate; })[0]; return c ? c.id : 'all'; }
+
+function admHistory() {
+  var h = hmState(), cur = today().slice(0, 7), d = h.cache[h.month];
+  var opt = function (c) { return '<option value="' + esc(c.plate) + '"' + (c.plate === h.plate ? ' selected' : '') + '>' + esc(c.plate) + (c.model ? ' · ' + esc(c.model) : '') + '</option>'; };
+  var bar = '<div class="card hmbar noprint"><div class="hmrow"><div><label>รถ</label><select id="hmCar" aria-label="เลือกรถ"><option value="">ทุกคัน</option>' + S.cars.map(opt).join('') +
+    (S.removed.length ? '<optgroup label="รถที่นำออกแล้ว">' + S.removed.map(opt).join('') + '</optgroup>' : '') + '</select></div>' +
+    '<div><label>เดือน</label><div class="hmnav"><button class="small ghost" data-act="hmprev" aria-label="เดือนก่อนหน้า">‹</button><input type="month" id="hmMonth" value="' + esc(h.month) + '" max="' + cur + '">' +
+    '<button class="small ghost" data-act="hmnext" aria-label="เดือนถัดไป"' + (h.month >= cur ? ' disabled' : '') + '>›</button><button class="small ghost" data-act="hmnow">เดือนนี้</button></div></div>' +
+    '<div class="hmact"><button class="small" data-act="hmxlsx">ดาวน์โหลด Excel</button><button class="small ghost" data-act="hmcsv">CSV</button><button class="small ghost" data-act="hmreload">รีเฟรช</button></div></div></div>';
+  if (!d) { hmFetch(h.month); return bar + '<div class="card center mute">กำลังโหลดประวัติ ' + monthTh(h.month) + '...</div>' + hmRange(h); }
+  if (d.error) return bar + '<div class="card"><b class="cd-bad">โหลดข้อมูลไม่ได้</b><div class="mute" style="margin:6px 0">' + esc(d.error) + '</div><button class="small" data-act="hmreload">ลองใหม่</button></div>' + hmRange(h);
+  var x = hmData(d, h.plate), allCars = !h.plate;
+  var kp = '<div class="kpis">' + kpi('จำนวนเที่ยว', km(x.trips.length), monthTh(h.month) + ' · ' + hmLabel(h.plate), 'info', 'car') + kpi('ระยะทางรวม', km(x.km), 'กิโลเมตร (เฉพาะเที่ยวที่คืนแล้ว)', 'ok', 'chart') +
+    kpi('ค่าใช้จ่ายรวม', baht(x.expSum + x.mtSum), 'น้ำมัน/อื่นๆ ' + baht(x.expSum) + ' · ซ่อม ' + baht(x.mtSum), 'warn', 'receipt') + kpi('ผู้ใช้รถ', x.drivers.length, 'คน', 'info', 'user') + '</div>';
+  var head = ['วันที่', 'เวลา เบิก → คืน'].concat(allCars ? ['ทะเบียน'] : []).concat(['ผู้ใช้', 'ไปที่ไหน / วัตถุประสงค์', 'ไมล์ ก่อน → หลัง', 'ระยะทาง']);
+  var rows = x.trips.map(function (u) {
+    var k = tripKm(u), ret = u.status === 'open' ? '<span class="chip">ยังไม่คืน</span>' : (u.returnTs ? (String(u.returnTs).slice(0, 10) === String(u.ts).slice(0, 10) ? String(u.returnTs).slice(11, 16) : thDate(u.returnTs) + ' ' + String(u.returnTs).slice(11, 16)) : '-');
+    return [thDate(u.ts), '<span class="nowrap">' + String(u.ts).slice(11, 16) + ' → ' + ret + '</span>'].concat(allCars ? [carLink(u.plate)] : [])
+      .concat([esc(u.name) + (u.returnName && u.returnName !== u.name ? '<div class="sub">คืนโดย ' + esc(u.returnName) + '</div>' : ''), esc(u.purpose || '') + (u.dest ? '<div class="sub">' + esc(u.dest) + '</div>' : ''),
+        km(u.odoStart) + (u.odoEnd !== '' && u.odoEnd != null ? ' → ' + km(u.odoEnd) : ' → -'), k == null ? '<span class="mute">-</span>' : '<b>' + km(k) + ' กม.</b>']);
+  });
+  var h2 = '<div class="card flush"><h2>ไปไหนมาบ้าง · ' + monthTh(h.month) + ' · ' + esc(hmLabel(h.plate)) + ' (' + x.trips.length + ' เที่ยว)</h2>' +
+    (rows.length ? dt(head, rows, [head.length - 1]) : '<div class="mute" style="padding:0 12px 14px">ไม่มีการใช้รถในเดือนนี้</div>') + '</div>';
+  var split = '';
+  if (x.drivers.length) split += '<div class="card flush"><h2>ใครใช้บ้าง</h2>' + dt(['ชื่อ', 'เที่ยว', 'ระยะทาง (กม.)'], x.drivers.map(function (r) { return [esc(r.name), r.trips, km(r.km)]; }), [1, 2]) + '</div>';
+  if (x.exps.length || x.mts.length) {
+    split += '<div class="card flush"><h2>ค่าใช้จ่ายและซ่อมบำรุง</h2>' + dt(['วันที่', 'รายการ', 'จำนวนเงิน'],
+      x.exps.map(function (e) { return [thDate(e.date), (allCars ? esc(e.plate) + ' · ' : '') + esc(e.type) + (e.note ? '<div class="sub">' + esc(e.note) + '</div>' : ''), baht(e.amount)]; })
+        .concat(x.mts.map(function (m) { return [thDate(m.date), (allCars ? esc(m.plate) + ' · ' : '') + '🔧 ' + esc(m.type) + (m.detail ? '<div class="sub">' + esc(m.detail) + (m.shop ? ' · ' + esc(m.shop) : '') + '</div>' : ''), m.cost === '' || m.cost == null ? '-' : baht(m.cost)]; })), [2]) + '</div>';
+  }
+  return bar + kp + h2 + (split ? '<div class="split2" style="margin-top:18px">' + split + '</div>' : '') + hmRange(h);
+}
+// ดาวน์โหลดหลายเดือนในไฟล์เดียว (เช่น ทั้งปีของรถคันหนึ่ง)
+function hmRange(h) {
+  var cur = today().slice(0, 7), from = h.from || hmStep(cur, -11), to = h.to || cur;
+  return '<div class="card noprint hmrange" style="margin-top:18px"><h2>ดาวน์โหลดหลายเดือน</h2><div class="mute" style="font-size:14px">เลือกช่วงเดือน (ไม่เกิน 24 เดือน) ได้ไฟล์ Excel เดียว มีสรุปรายเดือน รายการไปไหนมาบ้างทั้งช่วง ค่าใช้จ่าย และซ่อมบำรุง ของ ' + esc(hmLabel(h.plate)) + ' (เปลี่ยนรถที่ช่อง "รถ" ด้านบน)</div>' +
+    '<div class="hmrow" style="margin-top:8px"><div><label>ตั้งแต่เดือน</label><input type="month" id="hmFrom" value="' + esc(from) + '" max="' + cur + '"></div><div><label>ถึงเดือน</label><input type="month" id="hmTo" value="' + esc(to) + '" max="' + cur + '"></div>' +
+    '<div class="hmact"><button class="small" data-act="hmrangex">ดาวน์โหลด Excel ช่วงนี้</button></div></div></div>';
+}
+function saveBlob(name, blob) {
+  var url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+}
+function hmFileName(h, tail, ext) { return 'Sirikul-history-' + (h.plate ? 'car-' + hmCarId(h.plate) : 'all') + '-' + tail + '.' + ext; } // ชื่อไฟล์ภาษาอังกฤษ ดาวน์โหลดได้ทุกเบราว์เซอร์
+function hmSheets(wb, months, h) {
+  var n2 = function (v) { return Math.round(v * 100) / 100; };
+  var add = function (name, rows) { var ws = XLSX.utils.aoa_to_sheet(rows); ws['!cols'] = rows[0].map(function (c, i) { return { wch: [12, 10, 16, 12, 16, 16, 26, 22, 10, 10, 14, 10][i] || 16 }; }); XLSX.utils.book_append_sheet(wb, ws, name); };
+  var sum = [['เดือน', 'ทะเบียน', 'จำนวนเที่ยว', 'ระยะทาง (กม.)', 'ค่าน้ำมัน/อื่นๆ', 'ค่าซ่อม', 'รวมค่าใช้จ่าย']], trips = [HM_TRIP_HEAD], exps = [['วันที่', 'ทะเบียน', 'ประเภท', 'จำนวนเงิน', 'หมายเหตุ', 'ผู้บันทึก']], mts = [['วันที่', 'ทะเบียน', 'ประเภท', 'รายละเอียด', 'อู่/ร้าน', 'เลขไมล์', 'ค่าใช้จ่าย', 'ผู้บันทึก']];
+  var tot = { trips: 0, km: 0, e: 0, m: 0 };
+  months.forEach(function (m) {
+    var x = hmData(h.cache[m.month], h.plate);
+    sum.push([m.month, hmLabel(h.plate), x.trips.length, x.km, n2(x.expSum), n2(x.mtSum), n2(x.expSum + x.mtSum)]);
+    tot.trips += x.trips.length; tot.km += x.km; tot.e += x.expSum; tot.m += x.mtSum;
+    x.trips.forEach(function (u) { trips.push(hmTripRow(u)); });
+    x.exps.forEach(function (e) { exps.push([e.date, e.plate, e.type, Number(e.amount) || 0, e.note || '', e.name || '']); });
+    x.mts.forEach(function (t) { mts.push([t.date, t.plate, t.type, t.detail || '', t.shop || '', t.odo, t.cost === '' || t.cost == null ? '' : Number(t.cost), t.name || '']); });
+  });
+  if (months.length > 1) sum.push(['รวม', hmLabel(h.plate), tot.trips, tot.km, n2(tot.e), n2(tot.m), n2(tot.e + tot.m)]);
+  add(months.length > 1 ? 'สรุปรายเดือน' : 'สรุป', sum); add('ไปไหนมาบ้าง', trips); add('ค่าใช้จ่าย', exps); add('ซ่อมบำรุง', mts);
+}
+async function hmExportXlsx(btn) {
+  var h = hmState(), d = h.cache[h.month]; if (!d || d.error) return toast('ยังไม่มีข้อมูลเดือนนี้', 'err');
+  var txt = btn.textContent; btn.disabled = true; btn.textContent = 'กำลังสร้างไฟล์...';
+  try {
+    await loadXlsx(); var wb = XLSX.utils.book_new(); hmSheets(wb, [{ month: h.month }], h);
+    saveBlob(hmFileName(h, h.month, 'xlsx'), new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    toast('ดาวน์โหลดไฟล์ Excel แล้ว', 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+  btn.disabled = false; btn.textContent = txt;
+}
+function hmExportCsv() {
+  var h = hmState(), d = h.cache[h.month]; if (!d || d.error) return toast('ยังไม่มีข้อมูลเดือนนี้', 'err');
+  var q = function (v) { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  var lines = [HM_TRIP_HEAD].concat(hmData(d, h.plate).trips.map(hmTripRow)).map(function (r) { return r.map(q).join(','); });
+  saveBlob(hmFileName(h, h.month, 'csv'), new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+  toast('ดาวน์โหลดไฟล์ CSV แล้ว', 'ok');
+}
+async function hmExportRange(btn) {
+  var h = hmState(), from = ($('#hmFrom').value || '').slice(0, 7), to = ($('#hmTo').value || '').slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(from) || !/^\d{4}-\d{2}$/.test(to)) return toast('กรุณาเลือกเดือนให้ครบ', 'err');
+  if (from > to) return toast('เดือนเริ่มต้องไม่เกินเดือนสิ้นสุด', 'err');
+  var months = []; for (var m = from; m <= to && months.length < 25; m = hmStep(m, 1)) months.push({ month: m });
+  if (months.length > 24) return toast('เลือกได้ไม่เกิน 24 เดือน', 'err');
+  h.from = from; h.to = to; var txt = btn.textContent; btn.disabled = true;
+  try {
+    for (var i = 0; i < months.length; i++) {
+      btn.textContent = 'กำลังดึงข้อมูล ' + (i + 1) + '/' + months.length + '...';
+      var cur = h.cache[months[i].month];
+      if (!cur || cur.error) h.cache[months[i].month] = await call('monthData', { month: months[i].month, pin: S.pin });
+    }
+    btn.textContent = 'กำลังสร้างไฟล์...'; await loadXlsx(); var wb = XLSX.utils.book_new(); hmSheets(wb, months, h);
+    saveBlob(hmFileName(h, from + '_to_' + to, 'xlsx'), new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    toast('ดาวน์โหลดไฟล์ Excel แล้ว (' + months.length + ' เดือน)', 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+  btn.disabled = false; btn.textContent = txt;
 }
 
 function admReport() {
@@ -1370,6 +1496,8 @@ function bindForms() {
   document.querySelectorAll('[role=button][data-act]').forEach(function (el) {
     el.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); } });
   });
+  var hcar = $('#hmCar'); if (hcar) hcar.addEventListener('change', function () { hmState().plate = hcar.value; render(); });
+  var hmon = $('#hmMonth'); if (hmon) hmon.addEventListener('change', function () { if (/^\d{4}-\d{2}$/.test(hmon.value)) { hmState().month = hmon.value; render(); } });
   var dq = $('#dq'); if (dq) dq.addEventListener('input', function () {
     S.df.q = dq.value; var pos = dq.selectionStart; render();
     var n = $('#dq'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) {} }
@@ -1387,12 +1515,19 @@ function bindForms() {
       else if (a === 'carcsv') carCsv();
       else if (a === 'timeline') { S.tl = b.dataset.id; S.tlf = 'all'; S.carForm = false; S.edit = ''; render(); }
       else if (a === 'tlf') { S.tlf = b.dataset.s; render(); var dr = document.querySelector('.drawer'); if (dr) dr.scrollTop = 0; }
-      else if (a === 'asub') { S.asub = b.dataset.s; S.drvForm = false; S.drvEdit = ''; if (S.asub === 'drivers') S.dlist = null; render(); window.scrollTo(0, 0); }
+      else if (a === 'asub') { S.asub = b.dataset.s; if (S.asub === 'history' && S.hm) S.hm.cache = {}; S.drvForm = false; S.drvEdit = ''; if (S.asub === 'drivers') S.dlist = null; render(); window.scrollTo(0, 0); }
       else if (a === 'newdrv') { S.drvEdit = ''; S.drvForm = true; S.asub = 'drivers'; render(); focusDrvForm(); }
       else if (a === 'editdrv') { S.drvEdit = b.dataset.n; S.drvForm = true; render(); focusDrvForm(); }
       else if (a === 'drvactive') setDriverActive(b.dataset.n, b.dataset.v);
       else if (a === 'dfst') { S.df.st = b.dataset.s; render(); }
       else if (a === 'kpigo') { kpiGo(b.dataset.k); }
+      else if (a === 'hmprev' || a === 'hmnext') { var hs = hmState(); hs.month = hmStep(hs.month, a === 'hmprev' ? -1 : 1); render(); }
+      else if (a === 'hmnow') { hmState().month = today().slice(0, 7); render(); }
+      else if (a === 'hmreload') { var hr = hmState(); delete hr.cache[hr.month]; render(); }
+      else if (a === 'hmxlsx') hmExportXlsx(b);
+      else if (a === 'hmcsv') hmExportCsv();
+      else if (a === 'hmrangex') hmExportRange(b);
+      else if (a === 'hmcar') { var hc2 = hmState(); hc2.plate = b.dataset.p || ''; S.asub = 'history'; S.tl = ''; S.carForm = false; S.edit = ''; render(); window.scrollTo(0, 0); }
       else if (a === 'opentl') { e.preventDefault(); S.asub = 'cars'; S.tl = b.dataset.id; S.tlf = 'all'; S.carForm = false; S.edit = ''; S.drvForm = false; render(); window.scrollTo(0, 0); }
       else if (a === 'print') window.print();
       else if (a === 'uselast') { var fo = b.closest('form'); fo.elements['odoStart'].value = b.dataset.v; fo.elements['odoStart'].dispatchEvent(new Event('input', { bubbles: true })); updateSteps(true); }

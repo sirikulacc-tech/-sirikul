@@ -941,3 +941,17 @@ a.carlink:hover { border-bottom-style:solid; }
 .live i { width:8px; height:8px; border-radius:50%; background:var(--ok); animation:livepulse 2s ease-in-out infinite; }
 @keyframes livepulse { 0%,100% { box-shadow:0 0 0 0 color-mix(in srgb, var(--ok) 55%, transparent); } 50% { box-shadow:0 0 0 6px transparent; } }
 @media (prefers-reduced-motion:reduce) { .live i { animation:none; } }
+
+/* ===== ประวัติรถรายเดือน (หน้าแอดมิน) ===== */
+.hmbar { margin-bottom:16px; }
+.hmrow { display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap; }
+.hmrow > div { min-width:0; }
+.hmrow select, .hmrow input[type=month] { width:auto; min-width:220px; margin:0; }
+.hmnav { display:flex; align-items:center; gap:6px; }
+.hmnav input { min-width:160px !important; }
+.hmnav button, .hmact button { width:auto; margin:0; }
+.hmact { display:flex; gap:8px; margin-left:auto; flex-wrap:wrap; }
+.nowrap { white-space:nowrap; }
+.seeall { float:right; width:auto; margin:0; font-size:13px; }
+.tl-hm { margin-left:auto; width:auto; }
+@media print { .hmbar, .hmrange { display:none !important; } }
