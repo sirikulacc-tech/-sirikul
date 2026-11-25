@@ -294,7 +294,7 @@ function headerLeft() {
   }
   if (S.tab === 'car' && S.cars.length) {
     var car = curCar(), t = openTripOf(car.plate);
-    return '<div class="hcar"><div class="hplate">' + plateHtml(car) +
+    return '<div class="hcar"><div class="hplate">' + plateHtml(car, 'st-' + carHealth(car)) +
       '<span class="hchip type">' + vIcon(car.vtype) + ' ' + esc(car.vtype || (t ? 'ถูกเบิกอยู่' : 'ว่าง')) + '</span></div>' +
       '<div class="hexp">' + hexpRow('พ.ร.บ.', car.actExp) + hexpRow('ภาษี', car.taxExp) + hexpRow('ประกัน', car.insExp, car.insurer) + '</div></div>';
   }
@@ -858,6 +858,14 @@ function svcInfo(car) {
   var cls = (left !== null && left < 0) || (nd !== null && nd < 0) ? 'bad' : ((left !== null && left <= Math.max(500, interval * 0.1)) || (nd !== null && nd <= 30)) ? 'warn' : 'free';
   return { left: left, nd: nd, cls: cls, date: sv.nextDate };
 }
+// สถานะรวมของรถ: ok = ปกติ · warn = มีรายการใกล้ครบกำหนด (≤30 วัน หรือใกล้เช็คระยะ) · bad = เกินกำหนด
+function carHealth(c) {
+  var worst = 'ok';
+  [c.actExp, c.taxExp, c.insExp].forEach(function (d) { var n = daysLeft(d); if (n !== null && n < 0) worst = 'bad'; else if (n !== null && n <= 30 && worst !== 'bad') worst = 'warn'; });
+  var si = svcInfo(c);
+  if (si && si.cls === 'bad') worst = 'bad'; else if (si && si.cls === 'warn' && worst === 'ok') worst = 'warn';
+  return worst;
+}
 function carFlags(c) {
   var due = [c.actExp, c.taxExp, c.insExp].some(function (d) { var n = daysLeft(d); return n !== null && n <= 30; });
   var si = svcInfo(c);
@@ -890,9 +898,7 @@ function carCards() {
     return '<div class="due-tile ' + st + '"><span class="dl">' + label + '</span><b>' + big + '</b><small>' + (d ? thDate(d) : '-') + '</small></div>';
   };
   return '<div class="ccards">' + S.cars.map(function (c) {
-    var t = openTripOf(c.plate), si = svcInfo(c), worst = 'ok';
-    [c.actExp, c.taxExp, c.insExp].forEach(function (d) { var n = daysLeft(d); if (n !== null && n < 0) worst = 'bad'; else if (n !== null && n <= 30 && worst !== 'bad') worst = 'warn'; });
-    if (si && si.cls === 'bad') worst = 'bad'; else if (si && si.cls === 'warn' && worst === 'ok') worst = 'warn';
+    var t = openTripOf(c.plate), si = svcInfo(c), worst = carHealth(c);
     var svc = !si ? '<span class="chip na">ยังไม่มีข้อมูล</span>' :
       '<span class="chip ' + si.cls + '">' + (si.left !== null ? (si.left < 0 ? 'เกิน ' + km(-si.left) : 'อีก ' + km(si.left)) + ' กม.' : '') + (si.left !== null && si.nd !== null ? ' · ' : '') + (si.nd !== null ? (si.nd < 0 ? 'เกิน ' + (-si.nd) : 'อีก ' + si.nd) + ' วัน' : '') + '</span>';
     return '<div class="ccard car st-' + worst + (c.id === S.edit && S.carForm ? ' sel' : '') + '">' +
