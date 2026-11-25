@@ -56,10 +56,10 @@
   button.line { background:transparent; color:var(--pri); border:1.5px solid var(--pri); }
   button.small { width:auto; margin:0; padding:6px 12px; font-size:14px; }
   .ic { display:block; flex:none; }
-  nav { position:fixed; bottom:0; left:0; right:0; display:flex; background:var(--card); border-top:1px solid var(--line); z-index:5; padding-bottom:env(safe-area-inset-bottom); }
-  nav button { flex:1; margin:0; border-radius:0; background:transparent; color:var(--mute); padding:4px 4px 5px; font-size:14px; font-weight:400; display:flex; flex-direction:column; align-items:center; gap:0; line-height:1.25; }
+  nav { position:fixed; left:50%; bottom:calc(10px + env(safe-area-inset-bottom)); transform:translateX(-50%); width:min(300px, calc(100% - 32px)); display:flex; gap:4px; padding:5px; background:var(--card); border:1px solid var(--line); border-radius:99px; z-index:5; box-shadow:0 12px 28px -10px rgba(0,0,0,.45); }
+  nav button { flex:1; margin:0; height:44px; border-radius:99px; background:transparent; color:var(--mute); padding:0; display:grid; place-items:center; box-shadow:none; transition:background .18s, color .18s, transform .12s; }
   nav button.on { color:var(--pri); }
-  nav button.on span { font-weight:500; }
+  nav button:active { transform:scale(.94); }
   .menu { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
   .menu button { margin:0; background:var(--card); color:var(--ink); border:1px solid var(--line); box-shadow:var(--shadow); padding:14px 6px 12px; display:flex; flex-direction:column; align-items:center; gap:6px; font-size:14px; font-weight:700; }
   .menu button .ic { color:var(--pri); }
@@ -246,9 +246,9 @@
   :root[data-theme="dark"] .menu button.on { color:#08160a; }
   :root[data-theme="dark"] .menu button.on .mi { background:rgba(0,0,0,.15); color:#08160a; }
   /* แถบล่าง: ไอคอนที่เลือกอยู่มีพื้นเม็ดยา */
-  nav { background:var(--navbg); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); box-shadow:0 -8px 24px -18px rgba(16,64,22,.5); }
-  nav button svg { padding:2px 16px; border-radius:99px; box-sizing:content-box; transition:background .15s; }
-  nav button.on svg { background:var(--pri-soft); }
+  nav { background:var(--navbg); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); }
+  nav button svg { width:26px; height:26px; }
+  nav button.on { background:var(--pri-soft); }
   /* หน้าแรก */
   .hello b { font-size:22px; }
   .hello-logo { border-radius:50%; border:2px solid var(--brand-soft); padding:6px; }
