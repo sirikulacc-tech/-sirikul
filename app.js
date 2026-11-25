@@ -414,6 +414,10 @@ function cdRow(label, d, extra) {
 /* ---------- ประเภทรถ / สีป้ายทะเบียน ---------- */
 var VTYPES = [['รถเก๋ง', '🚗'], ['รถกระบะ', '🛻'], ['รถตู้', '🚐'], ['รถอเนกประสงค์ (SUV/MPV)', '🚙'], ['รถบรรทุก', '🚚'], ['รถจักรยานยนต์', '🏍️'], ['อื่นๆ', '🚘']];
 var PLATE_COLORS = [['black', 'ขาว-ดำ (รถนั่งไม่เกิน 7 ที่นั่ง)'], ['green', 'ขาว-เขียว (รถบรรทุก/กระบะส่วนบุคคล)'], ['blue', 'ขาว-น้ำเงิน (รถนั่งเกิน 7 ที่นั่ง เช่น รถตู้)'], ['red', 'ป้ายแดง (รถใหม่ยังไม่จดทะเบียน)']];
+// สีป้ายตั้งให้อัตโนมัติจากประเภทรถ (ไม่มีช่องให้เลือก): ขาว-ดำ รถนั่ง/จยย. · ขาว-เขียว กระบะ/บรรทุก · ขาว-น้ำเงิน รถตู้
+function plateColorFor(vtype) {
+  return { 'รถเก๋ง': 'black', 'รถอเนกประสงค์ (SUV/MPV)': 'black', 'รถจักรยานยนต์': 'black', 'อื่นๆ': 'black', 'รถกระบะ': 'green', 'รถบรรทุก': 'green', 'รถตู้': 'blue' }[vtype] || '';
+}
 function vIcon(t) { var v = VTYPES.filter(function (x) { return x[0] === t; })[0]; return v ? v[1] : '🚗'; }
 function plateHtml(c, cls) {
   var pc = ['green', 'blue', 'red'].indexOf(c.plateColor) >= 0 ? ' pc-' + c.plateColor : '';
@@ -581,46 +585,70 @@ var PROVINCES = ['กรุงเทพมหานคร', 'กระบี่'
   'สกลนคร', 'สงขลา', 'สตูล', 'สมุทรปราการ', 'สมุทรสงคราม', 'สมุทรสาคร', 'สระแก้ว', 'สระบุรี', 'สิงห์บุรี', 'สุโขทัย', 'สุพรรณบุรี',
   'สุราษฎร์ธานี', 'สุรินทร์', 'หนองคาย', 'หนองบัวลำภู', 'อ่างทอง', 'อำนาจเจริญ', 'อุดรธานี', 'อุตรดิตถ์', 'อุทัยธานี', 'อุบลราชธานี'];
 function parseRegText(raw) {
-  var text = String(raw || '').replace(/\r/g, '');
+  // OCR บางครั้งให้เลขไทย ตัวอักษรเต็มความกว้าง หรือช่องว่างแปลกๆ จึงทำให้เป็นตัวเลข/ตัวอักษรปกติก่อน
+  var text = String(raw || '').replace(/\r/g, '').replace(/[๐-๙]/g, function (d) { return String(d.charCodeAt(0) - 0x0E50); })
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); }).replace(/[​ ]/g, ' ');
   var lines = text.split('\n').map(function (l) { return l.replace(/\s+/g, ' ').trim(); }).filter(Boolean);
-  var pick = function (labelRe, valueRe) {
+  var pickAt = function (labelRe, valueRe) { // คืน [ค่า, เลขบรรทัดที่เจอ]
     for (var i = 0; i < lines.length; i++) {
       var lm = labelRe.exec(lines[i]);
       if (!lm) continue;
       var cands = [lines[i].slice(lm.index + lm[0].length), lines[i + 1] || '', lines[i + 2] || ''];
       for (var j = 0; j < cands.length; j++) {
         var v = valueRe.exec(cands[j].replace(/^[\s:.\-]+/, ''));
-        if (v) return String(v[1] || v[0]).trim();
+        if (v) return [String(v[1] || v[0]).trim(), i];
       }
     }
-    return '';
+    return ['', -1];
   };
+  var pick = function (labelRe, valueRe) { return pickAt(labelRe, valueRe)[0]; };
   var provRe = new RegExp('(' + PROVINCES.join('|') + ')');
   var plateRe = /((?:[0-9]\s?)?[ก-ฮ]{1,3}\s?-?\s?[0-9]{1,4})(?![0-9])/;
   var out = {};
-  var plate = pick(/เลขทะเบียน/, plateRe) || (plateRe.exec(text) || [])[1] || '';
+  var pl = pickAt(/เลขทะเบียน|ทะเบียนรถ/, plateRe), plate = pl[0] || (plateRe.exec(text) || [])[1] || '';
   out.plate = plate.replace(/\s*-\s*/, ' ').replace(/^([0-9])\s+([ก-ฮ])/, '$1$2').replace(/([ก-ฮ])\s*([0-9])/, '$1 $2');
-  out.province = pick(/จังหวัด/, provRe) || (provRe.exec(text) || [])[1] || (/กรุงเทพ/.test(text) ? 'กรุงเทพมหานคร' : '');
+  // จังหวัดของป้าย: หาใกล้บรรทัดเลขทะเบียนก่อน (กันไปหยิบจังหวัดในที่อยู่เจ้าของรถ)
+  var prov = '';
+  if (pl[1] >= 0) for (var k = pl[1]; k <= pl[1] + 2 && k < lines.length && !prov; k++) prov = (provRe.exec(lines[k]) || [])[1] || '';
+  out.province = prov || pick(/จังหวัด/, provRe) || (provRe.exec(text) || [])[1] || (/กรุงเทพ/.test(text) ? 'กรุงเทพมหานคร' : '');
   var brand = pick(/ยี่ห้อรถ|ยี่ห้อ(?!เครื่อง)/, /([A-Za-z][A-Za-z\- ]{1,20})/).toUpperCase();
   var model = pick(/แบบ(?!รถ)|รุ่น(?!ปี)/, /([A-Za-z0-9][A-Za-z0-9\- ]{0,25})/).toUpperCase();
   if (brand && model.indexOf(brand) === 0) model = model.slice(brand.length).trim();
+  model = model.replace(/\s+(?:19|20|25)[0-9]{2}$/, '').trim(); // ปีแยกไปอยู่ช่อง "ปี" แล้ว
   out.model = [brand, model].filter(Boolean).join(' ');
-  var yr = pick(/รุ่นปี|ปี\s*ค\.?\s*ศ/, /((?:19|20|25)[0-9]{2})/);
+  var yr = pick(/รุ่นปี|ปี\s*ค\.?\s*ศ|ปีที่ผลิต/, /((?:19|20|25)[0-9]{2})/);
   out.year = yr ? String(Number(yr) > 2400 ? Number(yr) - 543 : Number(yr)) : '';
   out.color = pick(/(?:^|\s)สี(?![ก-๙]*เครื่อง)/, /([ก-๙]{2,}(?: ?[ก-๙]{2,})?)/);
-  out.vin = (pick(/เลขตัวรถ|เลขตัวถัง|เลขถัง/, /([A-HJ-NPR-Z0-9]{8,20})/i) || (/\b([A-HJ-NPR-Z0-9]{17})\b/i.exec(text) || [])[1] || '').toUpperCase();
-  out.engineNo = pick(/เลขเครื่องยนต์|เลขเครื่อง/, /([A-Z0-9][A-Z0-9\-]{4,20})/i).toUpperCase();
-  var cat = (/รย\.?\s*(\d{1,2})/.exec(text) || [])[1];
-  if (cat === '1') { out.vtype = 'รถเก๋ง'; out.plateColor = 'black'; }
-  else if (cat === '2') { out.vtype = 'รถตู้'; out.plateColor = 'blue'; }
-  else if (cat === '3') { out.vtype = 'รถกระบะ'; out.plateColor = 'green'; }
-  else if (cat === '12') { out.vtype = 'รถจักรยานยนต์'; out.plateColor = 'black'; }
+  // เลขตัวถัง: VIN จริงไม่มีตัว I O Q จึงแก้ที่ OCR มักอ่านพลาด (O→0, I→1, Q→0) และรวมช่องว่างที่ OCR แทรกกลางเลข
+  var fixVin = function (v) { v = v.replace(/[ \-]/g, '').toUpperCase(); return v.length === 17 ? v.replace(/[OQ]/g, '0').replace(/I/g, '1') : v; };
+  var vinRaw = pick(/เลขตัวรถ|เลขตัวถัง|เลขถัง/, /([A-Z0-9][A-Z0-9 \-]{8,24})/i);
+  var vin = vinRaw ? fixVin(vinRaw) : '';
+  if (!/^[A-Z0-9]{10,20}$/.test(vin)) vin = '';
+  out.vin = vin || ((/\b([A-HJ-NPR-Z0-9]{17})\b/i.exec(text) || [])[1] || '').toUpperCase();
+  var eng = pick(/เลขเครื่องยนต์|เลขเครื่อง/, /([A-Z0-9][A-Z0-9 \-]{4,24})/i).replace(/[ ]/g, '').toUpperCase();
+  out.engineNo = /^[A-Z0-9\-]{5,20}$/.test(eng) ? eng : '';
+  // ประเภทรถ: ดูจาก "ลักษณะ" ก่อน แล้วค่อยใช้รหัส รย.
+  var cat = (/ร\s?\.?\s?ย\s?\.?\s?(\d{1,2})(?![0-9])/.exec(text) || [])[1];
+  var look = pick(/ลักษณะ(?!รถ[ก-๙]*จดทะเบียน)/, /([ก-๙A-Za-z][ก-๙A-Za-z0-9\/ ()]{1,30})/);
+  var vt = '';
+  if (/กระบะ|ปิค?กอัพ|ปิ[คก]อัพ|pick\s?-?up/i.test(look)) vt = 'รถกระบะ';
+  else if (/ตู้|van\b/i.test(look)) vt = 'รถตู้';
+  else if (/เก๋ง|sedan|hatch|แฮทช์/i.test(look)) vt = 'รถเก๋ง';
+  else if (/suv|mpv|อเนกประสงค์|แวกอน|วากอน|wagon/i.test(look)) vt = 'รถอเนกประสงค์ (SUV/MPV)';
+  else if (/จักรยานยนต์|มอเตอร์ไซค์/.test(look + ' ' + (cat === '12' ? 'จักรยานยนต์' : ''))) vt = 'รถจักรยานยนต์';
+  else if (/บรรทุก/.test(look)) vt = 'รถบรรทุก';
+  if (!vt) vt = { '1': 'รถเก๋ง', '2': 'รถตู้', '3': 'รถกระบะ', '12': 'รถจักรยานยนต์' }[cat] || '';
+  if (vt === 'รถบรรทุก' && cat === '3') vt = 'รถกระบะ';
+  if (vt) out.vtype = vt;
+  // สีป้ายตามรหัส รย. (ถ้าไม่มี ใช้ตามประเภทรถ): รย.1 ขาว-ดำ · รย.2 ขาว-น้ำเงิน · รย.3 ขาว-เขียว
+  var pc = { '1': 'black', '2': 'blue', '3': 'green', '12': 'black' }[cat] || plateColorFor(vt);
+  if (pc) out.plateColor = pc;
   out.fuel = pick(/เชื้อเพลิง/, /(เบนซิน|ดีเซล|ไฟฟ้า|ไฮบริด|LPG|NGV|แก๊ส[ก-๙]*)/i);
   Object.keys(out).forEach(function (k) { if (!out[k]) delete out[k]; });
   return out;
 }
 
-var OCR_LABELS = { vtype: 'ประเภทรถ', plateColor: 'สีป้าย', plate: 'ทะเบียน', province: 'จังหวัด', model: 'ยี่ห้อ/รุ่น', year: 'ปี', color: 'สี', fuel: 'เชื้อเพลิง', vin: 'เลขตัวถัง', engineNo: 'เลขเครื่อง' };
+var OCR_LABELS = { vtype: 'ประเภทรถ', plate: 'ทะเบียน', province: 'จังหวัด', model: 'ยี่ห้อ/รุ่น', year: 'ปี', color: 'สี', fuel: 'เชื้อเพลิง', vin: 'เลขตัวถัง', engineNo: 'เลขเครื่อง' };
 var INSURERS = ['วิริยะประกันภัย', 'ทิพยประกันภัย', 'กรุงเทพประกันภัย', 'สินมั่นคงประกันภัย', 'เมืองไทยประกันภัย', 'ไทยศรีประกันภัย', 'ไทยประกันภัย', 'อินทรประกันภัย', 'ชับบ์สามัคคีประกันภัย', 'แอลเอ็มจี ประกันภัย', 'เอเชียประกันภัย 1950', 'นวกิจประกันภัย', 'ไทยวิวัฒน์ประกันภัย', 'ธนชาตประกันภัย', 'โตเกียวมารีนประกันภัย'];
 
 function serviceCard(car, d) {
@@ -724,7 +752,7 @@ function ensureDlist() {
   if (S.dlist || S.dlist === false) return;
   S.dlist = false;
   // วาดหน้าใหม่เฉพาะหน้าที่ใช้รายชื่อนี้ ไม่ให้ฟอร์มที่กำลังกรอกอยู่หน้าอื่นถูกล้าง
-  call('listDrivers', { pin: S.pin }).then(function (d) { S.dlist = d; if (ADMIN_MODE && (S.asub === 'overview' || S.asub === 'drivers')) render(); }).catch(function (e) { S.dlist = null; toast(e.message, 'err'); });
+  call('listDrivers', { pin: S.pin }).then(function (d) { S.dlist = Array.isArray(d) ? d : []; if (ADMIN_MODE && (S.asub === 'overview' || S.asub === 'drivers')) render(); }).catch(function (e) { S.dlist = null; toast(e.message, 'err'); });
 }
 function kpi(label, value, sub, cls, icon) { return '<div class="kpi ' + (cls || '') + (icon ? ' hasic' : '') + '">' + (icon ? '<div class="kic">' + ic(icon, 22) + '</div>' : '') + '<div class="kb"><div class="l">' + label + '</div><div class="v">' + value + '</div><div class="s">' + (sub || '&nbsp;') + '</div></div></div>'; }
 function dt(head, rows, numCols, foot, rowCls) {
@@ -981,7 +1009,7 @@ function carForm() {
     f('จังหวัด (แสดงบนป้ายทะเบียน)', '<input name="province" maxlength="40" value="' + v('province') + '" placeholder="เช่น กรุงเทพมหานคร">') +
     (e.id ? '<div class="full mute" style="font-size:13px;margin-top:4px">แก้เลขทะเบียนได้ QR เดิมยังใช้ได้ และประวัติทั้งหมดจะย้ายไปอยู่ใต้ทะเบียนใหม่</div>' : '') +
     f('ประเภทรถ', '<select name="vtype"><option value="">เลือกประเภท</option>' + VTYPES.map(function (x) { return '<option' + (e.vtype === x[0] ? ' selected' : '') + '>' + x[0] + '</option>'; }).join('') + '</select>') +
-    f('สีป้ายทะเบียน', '<select name="plateColor">' + PLATE_COLORS.map(function (x) { return '<option value="' + x[0] + '"' + ((e.plateColor || 'black') === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select>') +
+    '<input type="hidden" name="plateColor" value="' + esc(e.plateColor || 'black') + '">' +
     f('ยี่ห้อ/รุ่น', '<input name="model" maxlength="80" value="' + v('model') + '">') +
     f('ปี (ค.ศ.)', '<input name="year" inputmode="numeric" maxlength="4" value="' + v('year') + '">') +
     f('สี', '<input name="color" maxlength="30" value="' + v('color') + '">') +
@@ -1133,6 +1161,11 @@ function bindForms() {
     catch (e) { toast(e.message, 'err'); }
   });
   hook('#fSettings', 'saveSettings', function (d) { return { company: d.company, logo: pendingLogo, pin: S.pin }; }, 'บันทึกการตั้งค่าแล้ว', function () { pendingLogo = ''; });
+  var fcar = $('#fCar');
+  if (fcar) fcar.elements['vtype'].addEventListener('change', function () {
+    var pc = plateColorFor(this.value), cur = fcar.elements['plateColor'];
+    if (pc && cur.value !== 'red') cur.value = pc; // ป้ายแดงเป็นกรณีพิเศษ ไม่แตะ
+  });
   var of = $('#ocrFile');
   if (of) of.addEventListener('change', async function () {
     var file = of.files[0]; if (!file) return;
@@ -1146,6 +1179,7 @@ function bindForms() {
       r.fields = parseRegText(r.text);
       var form = $('#fCar'); if (!form) return;
       var E = form.elements, editing = !!E['id'].value, got = [];
+      if (r.fields.plateColor && !editing) E['plateColor'].value = r.fields.plateColor;
       Object.keys(OCR_LABELS).forEach(function (k) {
         var v = r.fields[k];
         if (!v || (editing && E[k].value)) return;
