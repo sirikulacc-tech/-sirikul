@@ -295,7 +295,7 @@ function headerLeft() {
   if (S.tab === 'car' && S.cars.length) {
     var car = curCar(), t = openTripOf(car.plate);
     return '<div class="hcar"><div class="hplate">' + plateHtml(car, 'st-' + carHealth(car)) +
-      '<span class="hchip type">' + vIcon(car.vtype) + ' ' + esc(car.vtype || (t ? 'ถูกเบิกอยู่' : 'ว่าง')) + '</span></div>' +
+      '<span class="hchip type">' + vIcon(car.vtype) + ' ' + esc(vShort(car.vtype || (t ? 'ถูกเบิกอยู่' : 'ว่าง'))) + '</span></div>' +
       '<div class="hexp">' + hexpRow('พ.ร.บ.', car.actExp) + hexpRow('ภาษี', car.taxExp) + hexpRow('ประกัน', car.insExp, car.insurer) + '</div></div>';
   }
   return '<div class="htitle">' + (S.tab === 'expense' ? 'บันทึกค่าใช้จ่าย' : S.tab === 'car' ? 'รถ' : 'หน้าแรก') + '</div>';
@@ -428,6 +428,8 @@ var PLATE_COLORS = [['black', 'ขาว-ดำ (รถนั่งไม่เ�
 function plateColorFor(vtype) {
   return { 'รถเก๋ง': 'black', 'รถอเนกประสงค์ (SUV/MPV)': 'black', 'รถจักรยานยนต์': 'black', 'อื่นๆ': 'black', 'รถกระบะ': 'green', 'รถบรรทุก': 'green', 'รถตู้': 'blue' }[vtype] || '';
 }
+// ชื่อประเภทรถแบบสั้นสำหรับแถบด้านบน (พื้นที่จำกัด)
+function vShort(t) { return { 'รถอเนกประสงค์ (SUV/MPV)': 'SUV/MPV', 'รถจักรยานยนต์': 'จักรยานยนต์' }[t] || String(t).replace(/\s*\(.*\)\s*$/, ''); }
 function vIcon(t) { var v = VTYPES.filter(function (x) { return x[0] === t; })[0]; return v ? v[1] : '🚗'; }
 function plateHtml(c, cls) {
   var pc = ['green', 'blue', 'red'].indexOf(c.plateColor) >= 0 ? ' pc-' + c.plateColor : '';
