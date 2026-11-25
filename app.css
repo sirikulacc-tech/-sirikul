@@ -955,3 +955,12 @@ a.carlink:hover { border-bottom-style:solid; }
 .seeall { float:right; width:auto; margin:0; font-size:13px; }
 .tl-hm { margin-left:auto; width:auto; }
 @media print { .hmbar, .hmrange { display:none !important; } }
+
+/* ===== ประกันภัยรถยนต์ (ฟอร์มรถ + การ์ดข้อมูลรถ) ===== */
+.fsec { margin-top:14px; padding-top:12px; border-top:1.5px solid var(--line); }
+.fsec h3 { margin:0; font-size:16px; color:var(--pri); }
+.fgrid textarea { width:100%; box-sizing:border-box; resize:vertical; min-height:72px; }
+.polcard .mono { font-variant-numeric:tabular-nums; letter-spacing:.3px; word-break:break-all; }
+.polcard .kv > span:last-child { text-align:right; }
+.polnote { margin-top:10px; padding:10px 12px; border-radius:12px; background:var(--input); border:1px solid var(--line); font-size:14px; line-height:1.55; }
+a.telink { display:inline-block; padding:6px 14px; border-radius:99px; background:var(--pri-soft); color:var(--pri); font-weight:800; text-decoration:none; }

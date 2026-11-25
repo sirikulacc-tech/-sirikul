@@ -28,9 +28,12 @@ const SCHEMA = {
       ['id', 'รหัส'], ['plate', 'ทะเบียน'], ['model', 'ยี่ห้อ/รุ่น'], ['year', 'ปี'], ['color', 'สี'], ['fuel', 'เชื้อเพลิง'],
       ['vin', 'เลขตัวถัง'], ['engineNo', 'เลขเครื่อง'],
       ['actExp', 'พ.ร.บ.หมดอายุ'], ['taxExp', 'ภาษีหมดอายุ'], ['insExp', 'ประกันหมดอายุ'], ['active', 'ใช้งาน'],
-      ['regDocId', 'ไฟล์สำเนาทะเบียน (Drive ID)'], ['regDocMime', 'ชนิดไฟล์สำเนาทะเบียน'], ['province', 'จังหวัด'], ['insurer', 'บริษัทประกันภัย'], ['vtype', 'ประเภทรถ'], ['plateColor', 'สีป้ายทะเบียน']
+      ['regDocId', 'ไฟล์สำเนาทะเบียน (Drive ID)'], ['regDocMime', 'ชนิดไฟล์สำเนาทะเบียน'], ['province', 'จังหวัด'], ['insurer', 'บริษัทประกันภัย'], ['vtype', 'ประเภทรถ'], ['plateColor', 'สีป้ายทะเบียน'],
+      ['insClass', 'ประเภท/ชั้นประกันภัย'], ['insPolicyNo', 'เลขกรมธรรม์'], ['insStart', 'ประกันเริ่มคุ้มครอง'], ['insSum', 'ทุนประกัน'], ['insPremium', 'เบี้ยประกันรวม'],
+      ['insDeduct', 'ค่าเสียหายส่วนแรก'], ['insRepair', 'ซ่อมห้าง/ซ่อมอู่'], ['insAgent', 'ตัวแทน/นายหน้า'], ['insPhone', 'เบอร์แจ้งเหตุ/ตัวแทน'], ['insNote', 'หมายเหตุประกันภัย'],
+      ['insDocId', 'ไฟล์กรมธรรม์ (Drive ID)'], ['insDocMime', 'ชนิดไฟล์กรมธรรม์']
     ],
-    textCols: ['year', 'vin', 'engineNo', 'actExp', 'taxExp', 'insExp']
+    textCols: ['year', 'vin', 'engineNo', 'actExp', 'taxExp', 'insExp', 'insPolicyNo', 'insStart', 'insPhone']
   },
   usage: {
     title: 'การใช้รถ',
@@ -162,6 +165,7 @@ function api(action, payload) {
       // อ่านข้อมูล (หน้าเว็บนำไปคำนวณเอง)
       case 'data': return ok_(data_());
       case 'getRegDoc': return ok_(getRegDoc_(payload));
+      case 'getPolicyDoc': return ok_(getPolicyDoc_(payload));
       case 'driverCheck': return ok_(driverCheck_(payload));
       case 'dataVer': return ok_({ ver: dataVer_() });
       case 'registerDriver': return ok_(registerDriver_(payload));
@@ -177,6 +181,7 @@ function api(action, payload) {
       case 'saveDriver': requirePin_(payload.pin); return ok_(saveDriver_(payload));
       case 'setDriverActive': requirePin_(payload.pin); return ok_(setDriverActive_(payload));
       case 'saveCar': requirePin_(payload.pin); return ok_(saveCar_(payload));
+      case 'carPrivate': requirePin_(payload.pin); return ok_(carPrivate_());
       case 'setCarActive': requirePin_(payload.pin); return ok_(setCarActive_(payload));
       case 'cancelTrip': requirePin_(payload.pin); return ok_(cancelTrip_(payload));
       case 'saveSettings': requirePin_(payload.pin); return ok_(saveSettings_(payload));
@@ -220,7 +225,7 @@ function data_() {
   const latest = {};
   usage.forEach(function (u, i) { latest[u.plate] = i; });
   return {
-    cars: readRows_('cars').map(clean_),
+    cars: readRows_('cars').map(cleanCar_),
     usage: usage.filter(function (u, i) { return String(u.ts).slice(0, 10) >= since || u.status === 'open' || latest[u.plate] === i; }).map(clean_),
     expenses: readRows_('expenses').filter(function (e) { return String(e.date) >= since; }).map(clean_),
     maintenance: readRows_('maintenance').map(clean_),
@@ -232,6 +237,9 @@ function data_() {
     maintTypes: MAINT_TYPES
   };
 }
+
+// ข้อมูลรถที่ส่งให้ทุกคน: ตัด "เบี้ยประกัน" ออก (ตัวเลขเงิน ดูได้เฉพาะแอดมินผ่าน carPrivate)
+function cleanCar_(r) { const o = clean_(r); delete o.insPremium; return o; }
 
 // ตัดข้อมูลภายในที่หน้าเว็บไม่ต้องใช้
 function clean_(r) {
@@ -398,13 +406,14 @@ function saveCar_(p) {
   const plate = str_(p.plate, 20);
   if (!plate) throw new Error('กรุณากรอกทะเบียน');
   const reg = p.regDoc ? saveRegDoc_(p.regDoc, plate) : null;
+  const pol = p.policyDoc ? saveDoc_(p.policyDoc, plate, 'กรมธรรม์', 'ไฟล์กรมธรรม์') : null;
   return lock_(function () {
     const cars = readRows_('cars');
     const old = p.id ? cars.filter(function (r) { return r.id === p.id; })[0] : null;
     if (p.id && !old) throw new Error('ไม่พบรถที่จะแก้ไข');
     const dup = cars.filter(function (r) { return r.plate === plate && (!old || r.id !== old.id); })[0];
     if (dup) throw new Error('ทะเบียน ' + plate + ' มีอยู่แล้วในระบบ' + (dup.active === 'N' ? ' (อยู่ในรายการรถที่นำออก กด "นำกลับมาใช้" แทน)' : ''));
-    const rec = old ? Object.assign({}, old) : { id: newCarId_(cars), regDocId: '', regDocMime: '', active: 'Y' };
+    const rec = old ? Object.assign({}, old) : { id: newCarId_(cars), regDocId: '', regDocMime: '', insDocId: '', insDocMime: '', active: 'Y' };
     rec.plate = plate;
     rec.province = str_(p.province, 40);
     rec.vtype = str_(p.vtype, 30);
@@ -415,11 +424,24 @@ function saveCar_(p) {
     rec.actExp = p.actExp ? dateStr_(p.actExp) : '';
     rec.taxExp = p.taxExp ? dateStr_(p.taxExp) : '';
     rec.insExp = p.insExp ? dateStr_(p.insExp) : '';
+    // ข้อมูลกรมธรรม์ประกันภัยรถยนต์ (ใบกรมธรรม์ / ตารางกรมธรรม์)
+    rec.insClass = str_(p.insClass, 30); rec.insPolicyNo = str_(p.insPolicyNo, 40);
+    rec.insStart = p.insStart ? dateStr_(p.insStart) : '';
+    rec.insSum = money_(p.insSum, 'ทุนประกัน'); rec.insDeduct = money_(p.insDeduct, 'ค่าเสียหายส่วนแรก');
+    if (p.insPremium !== undefined) rec.insPremium = money_(p.insPremium, 'เบี้ยประกัน'); // ไม่ส่งมา = ไม่แตะค่าเดิม (หน้าเว็บส่งเฉพาะเมื่อโหลดค่าเดิมมาแล้ว)
+    rec.insRepair = ['ซ่อมห้าง', 'ซ่อมอู่'].indexOf(p.insRepair) >= 0 ? p.insRepair : '';
+    rec.insAgent = str_(p.insAgent, 80); rec.insPhone = String(p.insPhone || '').replace(/[^\d+\-\s]/g, '').trim().slice(0, 20); rec.insNote = str_(p.insNote, 500);
     if (reg) {
       if (old && old.regDocId) {
         try { DriveApp.getFileById(old.regDocId).setTrashed(true); } catch (e) { /* ไฟล์เดิมอาจถูกลบไปแล้ว */ }
       }
       rec.regDocId = reg.id; rec.regDocMime = reg.mime;
+    }
+    if (pol) {
+      if (old && old.insDocId) {
+        try { DriveApp.getFileById(old.insDocId).setTrashed(true); } catch (e) { /* ไฟล์เดิมอาจถูกลบไปแล้ว */ }
+      }
+      rec.insDocId = pol.id; rec.insDocMime = pol.mime;
     }
     if (old) writeRow_(sheet_('cars'), old._row, 'cars', rec); else appendRow_('cars', rec);
     if (old && old.plate !== plate) renamePlate_(old.plate, plate);
@@ -539,15 +561,18 @@ function ocrRegDoc_(p) {
 
 
 /* ---------- สำเนาทะเบียนรถ ---------- */
-function saveRegDoc_(dataUrl, plate) {
+function saveRegDoc_(dataUrl, plate) { return saveDoc_(dataUrl, plate, 'สำเนาทะเบียน', 'สำเนาทะเบียน'); }
+
+// เก็บไฟล์เอกสารรถ (รูปหรือ PDF) ในโฟลเดอร์ "เอกสารรถ" prefix = คำนำหน้าชื่อไฟล์ label = ชื่อเรียกในข้อความผิดพลาด
+function saveDoc_(dataUrl, plate, prefix, label) {
   const m = /^data:(image\/(?:jpeg|png|webp)|application\/pdf);base64,(.+)$/.exec(String(dataUrl));
-  if (!m) throw new Error('สำเนาทะเบียนต้องเป็นรูปภาพหรือ PDF');
+  if (!m) throw new Error(label + 'ต้องเป็นรูปภาพหรือ PDF');
   const bytes = Utilities.base64Decode(m[2]);
-  if (bytes.length > MAX_DOC_BYTES) throw new Error('ไฟล์สำเนาทะเบียนใหญ่เกิน 6 MB');
+  if (bytes.length > MAX_DOC_BYTES) throw new Error(label + 'ใหญ่เกิน 6 MB');
   const main = DriveApp.getFolderById(PropertiesService.getScriptProperties().getProperty('MAIN_FOLDER_ID'));
   const dir = getOrCreateFolder_(main, 'เอกสารรถ');
   const ext = m[1] === 'application/pdf' ? 'pdf' : (m[1] === 'image/jpeg' ? 'jpg' : m[1].split('/')[1]);
-  const file = dir.createFile(Utilities.newBlob(bytes, m[1], 'สำเนาทะเบียน_' + plate.replace(/[^\wก-๙-]/g, '') + '.' + ext));
+  const file = dir.createFile(Utilities.newBlob(bytes, m[1], prefix + '_' + plate.replace(/[^\wก-๙-]/g, '') + '.' + ext));
   return { id: file.getId(), mime: m[1] };
 }
 
@@ -559,6 +584,30 @@ function getRegDoc_(p) {
   const mime = car.regDocMime || file.getMimeType();
   if (mime === 'application/pdf') return { mime: mime, url: file.getUrl() };
   return { mime: mime, dataUrl: 'data:' + mime + ';base64,' + Utilities.base64Encode(file.getBlob().getBytes()) };
+}
+
+// ดูไฟล์กรมธรรม์ประกันภัย (เหมือนสำเนาทะเบียน: คนขับดูได้เมื่อเกิดเหตุ)
+function getPolicyDoc_(p) {
+  const car = findCar_(p.plate);
+  if (!car.insDocId) throw new Error('ยังไม่มีไฟล์กรมธรรม์ของรถคันนี้ ให้แอดมินอัปโหลดในหน้าจัดการรถ');
+  const file = DriveApp.getFileById(car.insDocId);
+  const mime = car.insDocMime || file.getMimeType();
+  if (mime === 'application/pdf') return { mime: mime, url: file.getUrl() };
+  return { mime: mime, dataUrl: 'data:' + mime + ';base64,' + Utilities.base64Encode(file.getBlob().getBytes()) };
+}
+
+// เบี้ยประกัน (ตัวเลขเงิน) ของทุกคัน ให้หน้าแอดมินเท่านั้น (ต้องผ่าน PIN)
+function carPrivate_() {
+  return readRows_('cars').map(function (c) { return { id: c.id, insPremium: c.insPremium }; });
+}
+
+// จำนวนเงิน: ว่างได้ ไม่ติดลบ (รับ "1,234.50")
+function money_(v, label) {
+  const s = String(v == null ? '' : v).replace(/[,\s]/g, '');
+  if (s === '') return '';
+  const n = Number(s);
+  if (!isFinite(n) || n < 0) throw new Error(label + ' ไม่ถูกต้อง');
+  return Math.round(n * 100) / 100;
 }
 
 /* ---------- ยกเลิกรายการเบิกที่ผิด (แอดมิน) ---------- */
@@ -693,7 +742,11 @@ function ss_() {
   return SpreadsheetApp.openById(id);
 }
 
-function sheet_(key) { return ss_().getSheetByName(SCHEMA[key].title); }
+function sheet_(key) {
+  const sh = ss_().getSheetByName(SCHEMA[key].title), n = SCHEMA[key].cols.length;
+  if (sh.getMaxColumns() < n) sh.insertColumnsAfter(sh.getMaxColumns(), n - sh.getMaxColumns()); // Sheet ใหม่มีแค่ 26 คอลัมน์
+  return sh;
+}
 
 function readRows_(key) {
   const sc = SCHEMA[key];
@@ -724,7 +777,12 @@ function toArray_(key, obj) {
 // เพิ่มหัวคอลัมน์ใหม่ให้เอง เมื่อโค้ดมีคอลัมน์มากกว่าใน Sheet (ไม่ต้องรัน setup ซ้ำ)
 function ensureHeader_(key, sh) {
   const cols = SCHEMA[key].cols;
-  if (sh.getLastColumn() < cols.length) sh.getRange(1, 1, 1, cols.length).setValues([cols.map(function (c) { return c[1]; })]);
+  const had = sh.getLastColumn();
+  if (had < cols.length) {
+    sh.getRange(1, 1, 1, cols.length).setValues([cols.map(function (c) { return c[1]; })]);
+    // คอลัมน์ใหม่ที่เป็นข้อความ (เช่น เลขกรมธรรม์) ตั้งเป็นรูปแบบข้อความ กัน Sheet แปลงเป็นตัวเลขจนศูนย์นำหน้าหาย
+    cols.forEach(function (c, i) { if (i >= had && SCHEMA[key].textCols.indexOf(c[0]) >= 0) sh.getRange(2, i + 1, Math.max(sh.getMaxRows() - 1, 1), 1).setNumberFormat('@'); });
+  }
 }
 
 function appendRow_(key, obj) {
