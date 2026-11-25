@@ -921,3 +921,7 @@ button, .chip, .fchip, .cs-st, .hchip { font-weight:600; }
 .newdrv-note b { color:var(--warn); }
 .newdrv-note button { align-self:flex-start; margin:4px 0 0; width:auto; }
 .linkbtn { width:auto; margin:8px 0 0; padding:0; background:transparent; color:var(--pri); border:0; box-shadow:none; font-size:14px; font-weight:700; text-decoration:underline; text-underline-offset:3px; text-align:left; }
+
+/* เบิกรถทีละขั้น: ขั้นที่ขึ้นใหม่เลื่อนเข้ามาเบาๆ */
+#fCheckout .step.hide { display:none; }
+#fCheckout .step.step-in { animation:fade .25s ease both; }

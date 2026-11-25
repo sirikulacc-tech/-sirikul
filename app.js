@@ -80,21 +80,43 @@ function licCardHtml(d) {
     '<div>หมดอายุ ' + thDateLong(d) + '</div><div class="lc-b">' + (bad ? 'ไม่ควรขับรถจนกว่าจะต่ออายุ' : 'อย่าลืมไปต่อใบขับขี่') + '</div>' +
     '<button type="button" class="usebtn" data-act="editlic">แก้ไขวันหมดอายุ</button></div>';
 }
-function updateDriverUI() {
+// เบิกรถทีละขั้น: 1 ชื่อ → 2 เลขไมล์ → 3 วัตถุประสงค์ → 4 ปลายทาง/รูป/ปุ่มเบิกรถ
+// ขั้นต่อไปขึ้นเมื่อขั้นก่อนหน้าเสร็จ ขึ้นแล้วไม่ซ่อนกลับ (ยกเว้นชื่อไม่ถูกต้อง จะกลับไปขั้นแรก)
+function updateSteps(focus) {
+  var f = $('#fCheckout'); if (!f) return;
+  focus = focus || S.stepFocus; S.stepFocus = false;
+  var E = f.elements, n = E['name'].value.trim(), s = 1;
+  if (n && isKnownDriver(n) && !S.forceExtra) { s = 2; if (E['odoStart'].value !== '') { s = 3; if (E['purpose'].value.trim()) s = 4; } }
+  var prev = Number(f.dataset.stage || 1), st = s === 1 ? 1 : Math.max(prev, s);
+  f.dataset.stage = st;
+  f.querySelectorAll('.step').forEach(function (el) {
+    var k = Number(el.dataset.step), show = k <= st;
+    if (show && el.classList.contains('hide')) el.classList.add('step-in');
+    el.classList.toggle('hide', !show);
+  });
+  if (focus && st > prev) {
+    var nx = f.querySelector('.step[data-step="' + st + '"] input:not([type=hidden]):not([type=file])');
+    if (nx) nx.focus({ preventScroll: false });
+  }
+}
+function updateDriverUI() { updateDriverUI_(); updateSteps(); }
+// เขียน innerHTML เฉพาะเมื่อข้อความเปลี่ยนจริง (กันปุ่มถูกสลับตัวระหว่างที่ผู้ใช้กำลังแตะ ทำให้การแตะหาย)
+function put(el, html) { if (el && el._h !== html) { el.innerHTML = html; el._h = html; } }
+function updateDriverUI_() {
   var f = $('#fCheckout'); if (!f) return;
   var n = f.elements['name'].value.trim(), note = $('#drvNote');
   f.querySelectorAll('.qchips[data-field=name] .qchip').forEach(function (c) { c.classList.toggle('on', c.dataset.v === n); });
   var nameEl = f.elements['name'];
   if (!n) {
-    showDriverExtra(false); nameEl.setCustomValidity(''); $('#licNote').innerHTML = ''; $('#licCard').innerHTML = '';
-    note.innerHTML = '<button type="button" class="linkbtn" data-act="newdriver">ยังไม่มีชื่อในระบบ? เพิ่มชื่อของฉันก่อนเบิกรถ</button>';
+    showDriverExtra(false); nameEl.setCustomValidity(''); put($('#licNote'), ''); put($('#licCard'), '');
+    put(note, '<button type="button" class="linkbtn" data-act="newdriver">ยังไม่มีชื่อในระบบ? เพิ่มชื่อของฉันก่อนเบิกรถ</button>');
     return;
   }
   if (isKnownDriver(n) && !S.forceExtra) {
     nameEl.setCustomValidity('');
     if ($('#drvExtra').dataset.mode !== 'lic') showDriverExtra(false);
-    note.innerHTML = '<span class="cd-ok">✓ พบชื่อในระบบแล้ว ไม่ต้องกรอกข้อมูลเพิ่ม</span>';
-    var paint = function () { $('#licCard').innerHTML = licCardHtml(S.drvLic[n]); $('#licNote').innerHTML = licCardHtml(S.drvLic[n]) ? '' : licNote(S.drvLic[n]); };
+    put(note, '<span class="cd-ok">✓ พบชื่อในระบบแล้ว ไม่ต้องกรอกข้อมูลเพิ่ม</span>');
+    var paint = function () { put($('#licCard'), licCardHtml(S.drvLic[n])); put($('#licNote'), licCardHtml(S.drvLic[n]) ? '' : licNote(S.drvLic[n])); };
     if (S.drvLic[n] !== undefined) paint();
     else call('driverCheck', { name: n }).then(function (r) {
       S.drvLic[n] = (r && r.licenseExp) || '';
@@ -102,10 +124,10 @@ function updateDriverUI() {
     }).catch(function () { /* เช็กไม่ได้ก็เบิกต่อได้ */ });
   } else {
     // ชื่อใหม่: ต้องเพิ่มชื่อ เบอร์โทร และวันหมดอายุใบขับขี่ที่หน้า "เพิ่มชื่อคนขับ" ก่อน แล้วค่อยเบิกรถต่อ
-    showDriverExtra(false); $('#licCard').innerHTML = ''; $('#licNote').innerHTML = '';
+    showDriverExtra(false); put($('#licCard'), ''); put($('#licNote'), '');
     nameEl.setCustomValidity('ยังไม่มีชื่อนี้ในระบบ กรุณากด "เพิ่มชื่อของฉัน" ก่อนเบิกรถ');
-    note.innerHTML = '<div class="newdrv-note"><b>ยังไม่มีชื่อ "' + esc(n) + '" ในระบบ</b><span>เพิ่มชื่อ เบอร์โทร และวันหมดอายุใบขับขี่ก่อน (ทำครั้งเดียว) แล้วค่อยเบิกรถต่อ</span>' +
-      '<button type="button" class="small" data-act="newdriver">+ เพิ่มชื่อของฉัน</button></div>';
+    put(note, '<div class="newdrv-note"><b>ยังไม่มีชื่อ "' + esc(n) + '" ในระบบ</b><span>เพิ่มชื่อ เบอร์โทร และวันหมดอายุใบขับขี่ก่อน (ทำครั้งเดียว) แล้วค่อยเบิกรถต่อ</span>' +
+      '<button type="button" class="small" data-act="newdriver">+ เพิ่มชื่อของฉัน</button></div>');
   }
 }
 function nameField(label) {
@@ -561,20 +583,21 @@ function viewTrip(car, t) {
     var purposes = uniq(topValues(S.allUsage.map(function (u) { return u.purpose; }), 6).concat(DEFAULT_PURPOSES)).slice(0, 8);
     var dests = topValues(S.allUsage.map(function (u) { return u.dest; }), 8);
     var last = car.lastOdo;
+    // ทำทีละขั้น: ยังไม่เลือกชื่อคนขับ ขั้นต่อไปจะยังไม่ขึ้น (ดู updateSteps)
     return '<form class="card" id="fCheckout">' +
       '<input type="hidden" name="plate" value="' + esc(car.plate) + '">' +
-      '<label>ชื่อคนขับ <span class="req">*</span></label>' + chips('name', names) +
+      '<div class="step" data-step="1"><label>ชื่อคนขับ <span class="req">*</span></label>' + chips('name', names) +
       '<input name="name" list="drivers" maxlength="60" required autocomplete="name" value="' + esc(S.name) + '" placeholder="แตะชื่อด้านบน หรือพิมพ์ชื่อของคุณ">' +
       '<datalist id="drivers">' + S.drivers.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
-      driverFields() +
-      '<label>เลขไมล์ก่อนออก (กม.) <span class="req">*</span> <small class="mute">ดูจากหน้าปัดรถ' + (last !== '' ? ' · ล่าสุดในระบบ ' + km(last) : '') + '</small></label>' +
+      driverFields() + '</div>' +
+      '<div class="step hide" data-step="2"><label>เลขไมล์ก่อนออก (กม.) <span class="req">*</span> <small class="mute">ดูจากหน้าปัดรถ' + (last !== '' ? ' · ล่าสุดในระบบ ' + km(last) : '') + '</small></label>' +
       '<input name="odoStart" type="number" inputmode="numeric" min="0" required placeholder="พิมพ์เลขไมล์ที่เห็นบนหน้าปัด">' +
-      (last !== '' ? '<button type="button" class="usebtn" data-act="uselast" data-v="' + esc(last) + '">ใช้เลขไมล์ล่าสุด (' + km(last) + ')</button>' : '') +
-      '<label>วัตถุประสงค์การใช้รถ <span class="req">*</span></label>' + chips('purpose', purposes) +
-      '<input name="purpose" maxlength="200" required placeholder="แตะเลือกด้านบน หรือพิมพ์เอง">' +
-      '<label>ปลายทาง / เส้นทาง</label>' + chips('dest', dests) +
+      (last !== '' ? '<button type="button" class="usebtn" data-act="uselast" data-v="' + esc(last) + '">ใช้เลขไมล์ล่าสุด (' + km(last) + ')</button>' : '') + '</div>' +
+      '<div class="step hide" data-step="3"><label>วัตถุประสงค์การใช้รถ <span class="req">*</span></label>' + chips('purpose', purposes) +
+      '<input name="purpose" maxlength="200" required placeholder="แตะเลือกด้านบน หรือพิมพ์เอง"></div>' +
+      '<div class="step hide" data-step="4"><label>ปลายทาง / เส้นทาง</label>' + chips('dest', dests) +
       '<input name="dest" maxlength="120" placeholder="พิมพ์สถานที่ หรือเลือกจากรายการ">' +
-      imageField('ถ่ายรูปหน้าปัดไมล์/สภาพรถ (ถ้ามี)') + '<button type="submit">เบิกรถ</button></form>';
+      imageField('ถ่ายรูปหน้าปัดไมล์/สภาพรถ (ถ้ามี)') + '<button type="submit">เบิกรถ</button></div></form>';
   }
   return '<form class="card" id="fReturn">' +
     '<div class="tripbox"><div><span class="mute">เบิกโดย</span> <b>' + esc(t.name) + '</b></div><div class="mute">' + thTime(t.ts) + ' · ไมล์ก่อน ' + km(t.odoStart) + '</div>' +
@@ -1284,11 +1307,20 @@ function bindForms() {
     };
     EC['name'].addEventListener('input', function () { clearTimeout(tmr); tmr = setTimeout(onName, 350); });
     EC['name'].addEventListener('change', onName);
-    EC['licenseExp'].addEventListener('change', function () { $('#licNote').innerHTML = licNote(EC['licenseExp'].value); });
+    EC['licenseExp'].addEventListener('change', function () { put($('#licNote'), licNote(EC['licenseExp'].value)); });
     // ปุ่มในการ์ดเตือนใบขับขี่ถูกสร้างทีหลัง จึงรับการกดผ่านฟอร์ม
     fc.addEventListener('click', function (e) {
       if (e.target.closest('[data-act=editlic]')) { e.preventDefault(); showDriverExtra('lic'); EC['licenseExp'].focus(); }
       else if (e.target.closest('[data-act=newdriver]')) { e.preventDefault(); S.newName = EC['name'].value.trim(); S.sub = 'newdriver'; S.lastSheet = ''; render(); window.scrollTo(0, 0); }
+    });
+    fc.addEventListener('input', function (e) { if (e.target !== EC['name']) updateSteps(); });
+    // กด Enter ระหว่างทาง = ไปช่องถัดไป (ไม่ส่งฟอร์มก่อนครบทุกขั้น)
+    fc.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' || e.target.tagName !== 'INPUT' || e.target.type === 'file') return;
+      var st = Number(fc.dataset.stage || 1); if (st >= 4 && e.target.name === 'dest') return;
+      e.preventDefault(); updateSteps(true);
+      var ins = [].slice.call(fc.querySelectorAll('.step:not(.hide) input:not([type=hidden]):not([type=file])')), i = ins.indexOf(e.target);
+      if (ins[i + 1]) ins[i + 1].focus();
     });
     updateDriverUI();
   }
@@ -1296,8 +1328,10 @@ function bindForms() {
     g.addEventListener('click', function (e) {
       var c = e.target.closest('.qchip'); if (!c) return;
       var f = g.closest('form'), inp = f && f.elements[g.dataset.field]; if (!inp) return;
+      if (f.id === 'fCheckout') S.stepFocus = true; // แตะปุ่มลัดแล้วเลื่อนโฟกัสไปช่องของขั้นถัดไปให้เลย
       inp.value = c.dataset.v; g.querySelectorAll('.qchip').forEach(function (x) { x.classList.toggle('on', x === c); });
       if (g.dataset.field === 'name') { var pf = profile(inp.value); if (pf.phone) f.elements['phone'].value = pf.phone; if (pf.lic) f.elements['licenseExp'].value = pf.lic; updateDriverUI(); }
+      if (f.id === 'fCheckout') updateSteps(true);
     });
   });
   var fr = $('#fReturn');
@@ -1348,7 +1382,7 @@ function bindForms() {
       else if (a === 'drvactive') setDriverActive(b.dataset.n, b.dataset.v);
       else if (a === 'dfst') { S.df.st = b.dataset.s; render(); }
       else if (a === 'print') window.print();
-      else if (a === 'uselast') { var fo = b.closest('form'); fo.elements['odoStart'].value = b.dataset.v; fo.elements['odoStart'].focus(); }
+      else if (a === 'uselast') { var fo = b.closest('form'); fo.elements['odoStart'].value = b.dataset.v; fo.elements['odoStart'].dispatchEvent(new Event('input', { bubbles: true })); updateSteps(true); }
       else if (a === 'install' && FS.prompt) { FS.prompt.prompt(); FS.prompt.userChoice.then(function () { FS.prompt = null; render(); }); }
       else if (a === 'installhide') { sset('localStorage', 'installHide', '1'); render(); }
       else if (a === 'removelogo') {
@@ -1505,7 +1539,7 @@ function hook(sel, action, build, okMsg, after, check) {
       toast(okMsg || 'บันทึกเรียบร้อย', 'ok');
       after(); await load(); render(); window.scrollTo(0, 0);
     } catch (e) {
-      if (action === 'checkout' && /เบอร์โทร|ใบขับขี่/.test(e.message)) { S.forceExtra = true; showDriverExtra('new'); $('#drvNote').innerHTML = ''; }
+      if (action === 'checkout' && /เบอร์โทร|ใบขับขี่/.test(e.message)) { S.forceExtra = true; showDriverExtra('new'); put($('#drvNote'), ''); }
       if (/PIN/.test(e.message)) { S.pin = ''; sset('sessionStorage', 'adminPin', ''); }
       toast(e.message, 'err'); btn.disabled = false; btn.textContent = orig;
     }
