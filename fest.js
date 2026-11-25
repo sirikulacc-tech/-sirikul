@@ -1,5 +1,5 @@
 /* ===== ธีมเทศกาล (Sirikul Accounting) =====
-   12 เทศกาล แต่ละแบบมีภาษาภาพของตัวเอง: แบนเนอร์ดูเดิลที่เล่นกับคำว่า "Sirikul Accounting" และโลโก้ + เอฟเฟกต์เบาๆ ลอยทั่วจอ + สีแถบหัว
+   16 เทศกาล แต่ละแบบมีภาษาภาพของตัวเอง: แบนเนอร์ดูเดิลที่เล่นกับคำว่า "Sirikul Accounting" และโลโก้ + เอฟเฟกต์เบาๆ ลอยทั่วจอ + สีแถบหัว
    เลือกธีมอัตโนมัติตามวันที่ (วันลอยกระทงคำนวณจากข้างขึ้นข้างแรม) แอดมินเลือกเอง/ปิดได้ในหน้า "ตั้งค่า" (เก็บที่ Apps Script: themeMode)
    ลองดูตัวอย่างโดยเติม ?theme=รหัส ท้ายลิงก์ เช่น ?theme=songkran (ปิด: ?theme=off)
    ไฟล์นี้ต้องโหลดก่อน app.js สไตล์อยู่ใน fest.css ธีมที่ไม่ได้ใช้จะไม่โหลดฟอนต์ตกแต่ง */
@@ -16,7 +16,11 @@ var FEST = (function () {
     { id: 'children', name: 'วันเด็ก', emoji: '🎈', when: 'เสาร์ที่ 2 ของ ม.ค. (3 วันก่อน)' },
     { id: 'veg', name: 'เทศกาลกินเจ', emoji: '🥬', when: '9 วัน ช่วง ก.ย. – ต.ค.' },
     { id: 'mother', name: 'วันแม่', emoji: '🤍', when: '5 – 12 ส.ค.' },
-    { id: 'father', name: 'วันพ่อ', emoji: '💛', when: '28 พ.ย. – 5 ธ.ค.' }
+    { id: 'father', name: 'วันพ่อ', emoji: '💛', when: '28 พ.ย. – 5 ธ.ค.' },
+    { id: 'visakha', name: 'วิสาขบูชา', emoji: '🪷', when: 'วันเพ็ญเดือน 6 (ช่วง พ.ค.)' },
+    { id: 'lent', name: 'เข้าพรรษา', emoji: '🕯️', when: 'วันเพ็ญเดือน 8 (ช่วง ก.ค.)' },
+    { id: 'easter', name: 'อีสเตอร์', emoji: '🐰', when: 'ศุกร์ประเสริฐ – วันอีสเตอร์' },
+    { id: 'labour', name: 'วันแรงงาน', emoji: '🛠️', when: '29 เม.ย. – 3 พ.ค.' }
   ];
   var BY = {}; LIST.forEach(function (t) { BY[t.id] = t; });
 
@@ -27,10 +31,19 @@ var FEST = (function () {
   // วันลอยกระทง = คืนวันเพ็ญแรกที่ตกในช่วง 30 ต.ค. – 29 พ.ย. วัดแสงจันทร์ที่ 18:00 น. เวลาไทย (11:00 UTC) ประมาณจากรอบข้างขึ้นข้างแรม คลาดเคลื่อนได้ไม่เกิน 1 วัน
   // (ปีที่ปฏิทินไทยมีอธิกมาส วันจริงอาจต่างจากที่คำนวณได้ ให้แอดมินเลือกธีมเองในหน้า "ตั้งค่า")
   function moonAge(t) { var jd = t / DAY + 2440587.5, a = (jd - 2451550.1) % 29.530588853; return a < 0 ? a + 29.530588853 : a; }
-  function loyDay(y) {
-    var df = [], i; for (i = 0; i < 31; i++) df.push(Math.abs(moonAge(Date.UTC(y, 9, 30 + i, 11)) - 14.765));
-    for (i = 0; i < 31; i++) if (df[i] < 0.7 && (i === 0 || df[i] <= df[i - 1]) && (i === 30 || df[i] <= df[i + 1])) { var dt = new Date(Date.UTC(y, 9, 30 + i)); return dn(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate()); }
+  // วันเพ็ญแรกที่ตกในช่วง n วัน นับจากวันที่ d0 ของเดือน mi (0-11) (ใช้กับลอยกระทง วิสาขบูชา อาสาฬหบูชา)
+  function fullDay(y, mi, d0, n) {
+    var df = [], i; for (i = 0; i < n; i++) df.push(Math.abs(moonAge(Date.UTC(y, mi, d0 + i, 11)) - 14.765));
+    for (i = 0; i < n; i++) if (df[i] < 0.7 && (i === 0 || df[i] <= df[i - 1]) && (i === n - 1 || df[i] <= df[i + 1])) { var dt = new Date(Date.UTC(y, mi, d0 + i)); return dn(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate()); }
     return -1;
+  }
+  function loyDay(y) { return fullDay(y, 9, 30, 31); }
+  // วันอีสเตอร์ (ปฏิทินเกรกอเรียน)
+  function easterDay(y) {
+    var a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3),
+      h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451),
+      mo = Math.floor((h + l - 7 * m + 114) / 31), da = ((h + l - 7 * m + 114) % 31) + 1;
+    return dn(y, mo, da);
   }
   // วันเด็ก = เสาร์ที่ 2 ของ ม.ค.
   function childDay(y) { var d = new Date(Date.UTC(y, 0, 1)), w = d.getUTCDay(), first = 1 + ((6 - w + 7) % 7); return dn(y, 1, first + 7); }
@@ -43,6 +56,10 @@ var FEST = (function () {
     var cd0 = childDay(y); if (m === 1 && t >= cd0 - 3 && t <= cd0) return 'children';
     var c = CNY[y]; if (c) { var cd = dn(y, c[0], c[1]); if (t >= cd - 3 && t <= cd + 6) return 'cny'; }
     if (m === 2 && d >= 8 && d <= 14) return 'valentine';
+    var ea = easterDay(y); if (t >= ea - 2 && t <= ea) return 'easter';
+    if ((m === 4 && d >= 29) || (m === 5 && d <= 3)) return 'labour';
+    var vi = fullDay(y, 4, 5, 30); if (vi >= 0 && t >= vi - 3 && t <= vi + 1) return 'visakha';
+    var as = fullDay(y, 6, 5, 30); if (as >= 0 && t >= as - 1 && t <= as + 2) return 'lent';
     if ((m === 3) || (m === 4 && d <= 8)) return 'tax';
     if (m === 4 && d >= 10 && d <= 16) return 'songkran';
     var vs = vegStart(y); if (vs >= 0 && t >= vs - 1 && t <= vs + 9) return 'veg';
@@ -75,7 +92,11 @@ var FEST = (function () {
     children: 'family=Chewy',
     veg: 'family=Lobster',
     mother: 'family=Playfair+Display:ital,wght@1,700',
-    father: 'family=Bungee'
+    father: 'family=Bungee',
+    visakha: 'family=Cormorant+Garamond:ital,wght@600',
+    lent: 'family=Marko+One',
+    easter: 'family=Sniglet:wght@800',
+    labour: 'family=Staatliches'
   };
   var loaded = {};
   function loadFonts(id) {
@@ -263,6 +284,53 @@ var FEST = (function () {
     };
   };
 
+  ART.visakha = function () {
+    var i, m = '';
+    for (i = 0; i < 24; i++) { var a = i * 15; m += '<path d="M50 -14L55 -2L45 -2Z" fill="#d9a521" opacity="' + (i % 2 ? .9 : .5) + '" transform="rotate(' + a + ' 50 50)"/>'; }
+    var leaf = function (x, y, r, s) { return '<g transform="translate(' + x + ' ' + y + ') rotate(' + r + ') scale(' + s + ')"><path d="M0 0C-22 -6 -24 -32 -3 -38C0 -50 2 -50 4 -38C24 -32 20 -6 0 0Z" fill="#8bb174" stroke="#4f7942" stroke-width="2"/><path d="M0 0V-34" stroke="#4f7942" stroke-width="1.6"/></g>'; };
+    var can = function (x, h, d) { return '<g transform="translate(' + x + ' 0)"><rect x="-6" y="' + (100 - h) + '" width="12" height="' + h + '" rx="3" fill="#fffaf0" stroke="#d9a521" stroke-width="2"/><g transform="translate(0 ' + (100 - h - 2) + ')"><g class="fl" style="animation-delay:' + d + 's"><path d="M0 -4C-8 -14 -2 -22 0 -30C3 -22 8 -14 0 -4Z" fill="#ffb703"/><path d="M0 -4C-4 -10 -1 -14 0 -18C2 -14 4 -10 0 -4Z" fill="#fff3b0"/></g></g></g>'; };
+    return {
+      back: '<g class="mand">' + m + '</g><circle cx="50" cy="50" r="62" fill="none" stroke="#d9a521" stroke-width="2.2" stroke-dasharray="2 6" stroke-linecap="round"/><circle cx="50" cy="50" r="56" fill="#fff6d8" fill-opacity=".8"/>',
+      front: '<g fill="#fff" stroke="#e58fb4" stroke-width="2"><ellipse cx="50" cy="102" rx="7" ry="18" transform="rotate(-50 50 112)"/><ellipse cx="50" cy="102" rx="7" ry="18" transform="rotate(50 50 112)"/><ellipse cx="50" cy="100" rx="7" ry="19"/></g>',
+      art: sv('0 0 240 120', leaf(30, 118, -28, 1) + leaf(76, 118, 22, .8) + can(120, 62, 0) + can(150, 82, .6) + can(180, 50, 1.2) + '<path d="M104 104h92" stroke="#d9a521" stroke-width="3" stroke-linecap="round"/>', 'd cands', 'right:8px;bottom:0;width:230px;height:auto;'),
+      extra: ''
+    };
+  };
+
+  ART.lent = function () {
+    var orn = '', i; for (i = 0; i < 6; i++) orn += '<path d="M' + (52 + (i % 2) * 0) + ' ' + (36 + i * 20) + 'q-14 -4 -16 10q4 -2 8 -2q-6 8 8 12q14 -4 8 -12q4 0 8 2q-2 -14 -16 -10z" fill="none" stroke="#ffd166" stroke-width="2" opacity=".85" transform="translate(' + ((i % 2) * 0) + ' 0)"/>';
+    var candle = sv('0 0 110 150', '<g transform="translate(55 22)"><g class="fl"><path d="M0 -2C-12 -16 -3 -26 0 -40C5 -26 12 -16 0 -2Z" fill="#ffb703"/><path d="M0 -2C-6 -10 -1 -16 0 -22C3 -16 6 -10 0 -2Z" fill="#fff3b0"/></g></g><rect x="30" y="24" width="50" height="116" rx="12" fill="#fff0c2" stroke="#8a4b00" stroke-width="3"/><rect x="24" y="130" width="62" height="14" rx="5" fill="#8a4b00"/>' + orn.replace(/<path/g, '<path').replace(/translate\(0 0\)/g, ''), 'd candle', 'right:18px;bottom:8px;width:84px;height:auto;');
+    return {
+      back: '<circle cx="50" cy="50" r="58" fill="#c75b00" stroke="#ffd166" stroke-width="3" stroke-dasharray="1 9" stroke-linecap="round"/><path d="M-6 100q56 22 112 0" fill="none" stroke="#ffd166" stroke-width="3" opacity=".7"/>',
+      front: '<path d="M6 86C22 74 44 108 50 108S78 74 94 86C92 108 72 118 50 118S8 108 6 86Z" fill="#ffd166" stroke="#8a4b00" stroke-width="2.4" stroke-linejoin="round"/><path d="M20 96q30 14 60 0" fill="none" stroke="#c75b00" stroke-width="2.4" stroke-linecap="round"/>',
+      art: sv('0 0 200 140', '<g transform="translate(160 62)"><g class="fl"><path d="M0 -2C-14 -18 -4 -30 0 -46C6 -30 14 -18 0 -2Z" fill="#ffb703"/><path d="M0 -2C-7 -10 -1 -18 0 -24C3 -18 7 -10 0 -2Z" fill="#fff3b0"/></g></g><circle cx="160" cy="48" r="34" fill="#ffd166" opacity=".16"/>', 'd glow', 'right:34px;top:0;width:150px;height:auto;') + candle,
+      extra: ''
+    };
+  };
+
+  ART.easter = function () {
+    var egg = function (x, y, c1, c2, r, st) { return '<g transform="translate(' + x + ' ' + y + ') rotate(' + r + ')"><ellipse rx="22" ry="29" fill="' + c1 + '" stroke="#fff" stroke-width="3"/>' + st.replace(/C2/g, c2) + '</g>'; };
+    var zig = '<path d="M-17 -6l6 -6l6 6l6 -6l6 6l6 -6l6 6" fill="none" stroke="C2" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>', dots = '<circle cx="-8" cy="8" r="4" fill="C2"/><circle cx="8" cy="12" r="4" fill="C2"/><circle cx="0" cy="-6" r="4" fill="C2"/>', band = '<path d="M-21 6h42" stroke="C2" stroke-width="7"/><path d="M-19 16h38" stroke="C2" stroke-width="3" stroke-dasharray="2 5" stroke-linecap="round"/>';
+    return {
+      back: '',
+      front: '<g class="ear"><ellipse cx="32" cy="-14" rx="9" ry="26" transform="rotate(-8 32 -14)" fill="#fff" stroke="#ffb3c6" stroke-width="3"/><ellipse cx="32" cy="-12" rx="4" ry="17" transform="rotate(-8 32 -14)" fill="#ffc2d4"/></g><g class="ear r"><ellipse cx="68" cy="-14" rx="9" ry="26" transform="rotate(8 68 -14)" fill="#fff" stroke="#ffb3c6" stroke-width="3"/><ellipse cx="68" cy="-12" rx="4" ry="17" transform="rotate(8 68 -14)" fill="#ffc2d4"/></g>',
+      art: sv('0 0 230 120', '<path d="M6 112q10 -26 14 -2q6 -28 12 0q8 -24 12 2q8 -22 14 0q12 -28 14 2M130 112q8 -26 12 0q8 -26 12 2q8 -20 14 0q8 -26 12 2q8 -22 14 0q8 -24 12 2" fill="none" stroke="#6bbf59" stroke-width="5" stroke-linecap="round"/>' +
+        '<g class="eggs">' + egg(54, 80, '#ffd6e0', '#ff7aa2', -10, zig) + egg(112, 74, '#cfe8ff', '#4d9de0', 6, dots) + egg(168, 82, '#fff1b8', '#f4a300', -4, band) + egg(206, 90, '#d9f2c8', '#5cb85c', 12, dots) + '</g>', 'd eggs', 'right:10px;bottom:-4px;width:220px;height:auto;'),
+      extra: ''
+    };
+  };
+
+  ART.labour = function () {
+    var gear = function (r, n, col) { var p = [], k, step = Math.PI * 2 / n; for (k = 0; k < n; k++) { var a = k * step; [[-.28, .8], [-.14, 1], [.14, 1], [.28, .8]].forEach(function (q) { p.push((Math.cos(a + q[0] * step * 1.6) * r * q[1]).toFixed(1) + ',' + (Math.sin(a + q[0] * step * 1.6) * r * q[1]).toFixed(1)); }); }
+      return '<polygon points="' + p.join(' ') + '" fill="' + col + '" stroke="#1b1c1f" stroke-width="3" stroke-linejoin="round"/><circle r="' + (r * .34) + '" fill="#2b2d31" stroke="#1b1c1f" stroke-width="3"/>'; };
+    return {
+      back: '',
+      front: '<g><path d="M8 24C8 -6 92 -6 92 24Z" fill="#ffc400" stroke="#1b1c1f" stroke-width="3" stroke-linejoin="round"/><rect x="2" y="22" width="96" height="9" rx="4.5" fill="#ffd84d" stroke="#1b1c1f" stroke-width="3"/><path d="M50 -4V22M34 2V22M66 2V22" stroke="#1b1c1f" stroke-width="2.6" stroke-opacity=".55"/><path d="M24 14q8 -10 20 -11" stroke="#fff" stroke-opacity=".6" stroke-width="3" fill="none" stroke-linecap="round"/></g>',
+      art: sv('0 0 190 130', '<g transform="translate(60 74)"><g class="gr">' + gear(44, 10, '#ffc400') + '</g></g><g transform="translate(138 42)"><g class="gr rv">' + gear(26, 8, '#e8590c') + '</g></g><g transform="translate(150 100) rotate(-35)"><rect x="-4" y="-32" width="8" height="64" rx="3" fill="#cfd4da" stroke="#1b1c1f" stroke-width="3"/><path d="M-12 -34a12 12 0 1 1 24 0l-6 0v-8h-12v8z" fill="#cfd4da" stroke="#1b1c1f" stroke-width="3" stroke-linejoin="round"/></g>', 'd gears', 'right:8px;bottom:6px;width:180px;height:auto;'),
+      extra: ''
+    };
+  };
+
   /* ---------- เอฟเฟกต์ลอยทั่วจอ (เบาๆ ปิดได้) ---------- */
   var FXD = {
     songkran: { n: 16, ch: ['💧', '💧', '🫧'], cls: 'fall' },
@@ -276,7 +344,11 @@ var FEST = (function () {
     children: { n: 14, ch: ['🎈', '⭐', '🎈', '✨', '🎈'], cls: 'rise' },
     veg: { n: 14, ch: ['🌿', '🍃', '🥬', '·'], cls: 'fall' },
     mother: { n: 18, ch: ['✿', '🤍', '❀', '·'], cls: 'fall snow' },
-    father: { n: 14, ch: ['⭐', '💛', '★', '·'], cls: 'rise' }
+    father: { n: 14, ch: ['⭐', '💛', '★', '·'], cls: 'rise' },
+    visakha: { n: 14, ch: ['🪷', '✨', '·', '🤍'], cls: 'rise' },
+    lent: { n: 12, ch: ['🕯️', '✨', '·', '🪷'], cls: 'rise' },
+    easter: { n: 16, ch: ['🥚', '🌷', '🐣', '·', '🌸'], cls: 'fall' },
+    labour: { n: 12, ch: ['⚙', '🔧', '★', '·'], cls: 'rise' }
   };
   function fxHtml(id) {
     var d = FXD[id]; if (!d) return ''; var o = '';
