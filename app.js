@@ -330,18 +330,20 @@ function headerLeft() {
     var car = curCar(), t = openTripOf(car.plate);
     return '<div class="hcar"><div class="hplate">' + plateHtml(car, 'st-' + carHealth(car)) +
       '<span class="hchip type">' + vIcon(car.vtype) + ' ' + esc(vShort(car.vtype || (t ? 'ถูกเบิกอยู่' : 'ว่าง'))) + '</span></div>' +
-      '<div class="hexp">' + hexpRow('พ.ร.บ.', car.actExp) + hexpRow('ภาษี', car.taxExp) + hexpRow('ประกัน', car.insExp, car.insurer) + '</div></div>';
+      '<div class="hexp">' + hexpRow('พ.ร.บ.', car.actExp) + hexpRow('ภาษี', car.taxExp) + hexpRow('ประกัน', car.insExp, car.insurer, !!(car.insurer || car.insClass || car.insPolicyNo || car.insDocId)) + '</div></div>';
   }
   return '<div class="htitle">' + (S.tab === 'expense' ? 'บันทึกค่าใช้จ่าย' : S.tab === 'car' ? 'รถ' : 'หน้าแรก') + '</div>';
 }
 // แถวเดียวต่อรายการ: ชื่อ · วันหมดอายุ (ปีย่อ) · บริษัทประกัน · จำนวนวันที่เหลือ
-function hexpRow(label, d, sub) {
+function hexpRow(label, d, sub, hasPol) {
   var n = daysLeft(d), cls = n === null ? 'na' : n < 0 ? 'bad' : n <= 30 ? 'warn' : 'ok';
   var txt = n === null ? 'ไม่ระบุ' : n < 0 ? 'เกิน ' + (-n) + ' วัน' : n === 0 ? 'วันนี้' : n + ' วัน';
   var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || ''), short = m ? m[3] + '/' + m[2] + '/' + String(Number(m[1]) + 543).slice(2) : '';
   var co = sub ? String(sub).replace(/\s*ประกันภัย\s*/, ' ').trim() : ''; // แถบด้านบนย่อชื่อบริษัท เช่น "วิริยะประกันภัย" -> "วิริยะ"
   var full = label + (d ? ' หมดอายุ ' + thDate(d) : '') + (sub ? ' · ' + sub : '') + (n === null ? '' : n < 0 ? ' · เกินกำหนด ' + (-n) + ' วัน' : ' · เหลือ ' + n + ' วัน');
-  return '<div class="hx" title="' + esc(full) + '"><span class="hx-l">' + label + '</span><span class="hx-d">' + short + (co ? ' · ' + esc(co) : '') + '</span><b class="' + cls + '">' + txt + '</b></div>';
+  // แถวประกัน: ชื่อบริษัทย้ายไปบรรทัดที่สอง (ไม่ถูกตัด) กดแล้วแสดงข้อมูลกรมธรรม์
+  var coLine = hasPol ? '<button type="button" class="hx-co" data-act="insinfo">' + ic('shield', 12) + '<span>' + (co ? esc(sub) : 'ข้อมูลกรมธรรม์') + '</span><i aria-hidden="true">›</i></button>' : '';
+  return '<div class="hx' + (hasPol ? ' hx-wrap' : '') + '" title="' + esc(full) + '"><span class="hx-l">' + label + '</span><span class="hx-d">' + short + '</span><b class="' + cls + '">' + txt + '</b>' + coLine + '</div>';
 }
 
 /* ---------- เฟรมหลัก ---------- */
@@ -518,7 +520,6 @@ function viewCar() {
     '<div class="cs-odo"><span>🛣️ ไมล์ล่าสุด</span>' + odoDigits(car.lastOdo) + '<em>กม.</em></div>' +
     svc + '</div>';
   h += '<div class="mlist">' +
-    (!t && !bookable(car) ? '<div class="nobook">' + (carMode(car) === 'exec' ? '🔒 รถกรรมการ ไม่เปิดให้เบิกผ่านระบบนี้' : 'รถคันนี้ไม่ต้องเบิก') + '</div>' : '') +
     (!t && !bookable(car) ? '' : mRow('trip', t ? '🔑' : '🚗', t ? 'คืนรถ' : 'เบิกรถ', t ? 'เบิกโดย ' + esc(t.name) + ' · ' + thTime(t.ts) : 'บันทึกการใช้รถก่อนออกเดินทาง', true)) +
     mRow('info', '📋', 'ข้อมูลรถ', 'รายละเอียดรถ ภาษี พ.ร.บ. ประกัน สำเนาทะเบียน') +
     mRow('history', '🕘', 'ประวัติการใช้งาน', 'ใครใช้ เมื่อไหร่ ไปไหน') +
@@ -861,6 +862,13 @@ async function showReg() {
   } catch (e) { body.innerHTML = '<h2>ดูสำเนาทะเบียนไม่ได้</h2>' + esc(e.message); }
 }
 
+// กดชื่อบริษัทประกันที่แถบด้านบน: แสดงข้อมูลกรมธรรม์ของรถคันนี้ในหน้าต่างเล็ก
+function showPolicyInfo() {
+  var car = curCar(); if (!car) return;
+  $('#modal').style.display = 'block'; $('#modalClose').style.display = '';
+  $('#modalBody').innerHTML = '<h2>กรมธรรม์ ' + esc(car.plate) + '</h2>' + policyCard(car).replace('<h2>ประกันภัยรถยนต์</h2>', '').replace('class="card polcard"', 'class="polcard inmodal"');
+  var b = $('#modalBody [data-act=policy]'); if (b) b.addEventListener('click', showPolicy);
+}
 async function showPolicy() {
   var body = $('#modalBody'); $('#modal').style.display = 'block';
   body.innerHTML = '<div class="center mute">กำลังโหลดไฟล์กรมธรรม์...</div>';
@@ -1761,6 +1769,7 @@ function bindForms() {
       else if (a === 'closesheet') closeSheet();
       else if (a === 'reg') showReg();
       else if (a === 'policy') showPolicy();
+      else if (a === 'insinfo') showPolicyInfo();
       else if (a === 'cfst') { S.cf.st = b.dataset.s; render(); }
       else if (a === 'cfvt') { S.cf.vt = b.dataset.s; render(); }
       else if (a === 'cfsort') { if (S.cf.sort === b.dataset.s) S.cf.dir = -S.cf.dir; else { S.cf.sort = b.dataset.s; S.cf.dir = 1; } render(); }

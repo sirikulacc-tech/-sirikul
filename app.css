@@ -1009,3 +1009,11 @@ a.telink { display:inline-block; padding:6px 14px; border-radius:99px; backgroun
 .mpfoot { margin-top:8px; }
 .mpfoot button { width:auto; margin:0; }
 @media (max-width: 899px) { .modgrid { grid-template-columns:1fr; } .modrow .modsel { flex-basis:170px; } }
+
+/* แถวประกันบนแถบหน้าคนขับ: ชื่อบริษัทอยู่บรรทัดที่สอง กดดูกรมธรรม์ได้ */
+header.carhead .hx.hx-wrap { flex-wrap:wrap; row-gap:2px; padding-bottom:3px; }
+header.carhead .hx .hx-co { flex:0 0 100%; display:flex; align-items:center; gap:5px; width:100%; margin:0; padding:2px 6px 2px 4px; border:0; border-radius:6px; background:rgba(255,255,255,.12); color:#fff; font-size:11.5px; font-weight:700; text-align:left; box-shadow:none; line-height:1.3; }
+header.carhead .hx .hx-co span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+header.carhead .hx .hx-co i { font-style:normal; font-size:15px; line-height:1; opacity:.85; }
+header.carhead .hx .hx-co:active { background:rgba(255,255,255,.22); }
+.polcard.inmodal { margin:6px 0 0; padding:0; border:0; box-shadow:none; background:transparent; }
