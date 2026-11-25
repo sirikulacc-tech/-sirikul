@@ -920,8 +920,24 @@ button, .chip, .fchip, .cs-st, .hchip { font-weight:600; }
 .newdrv-note { display:flex; flex-direction:column; gap:6px; padding:12px 14px; border-radius:14px; border:1.5px dashed var(--warn); background:var(--warn-bg); font-size:14px; }
 .newdrv-note b { color:var(--warn); }
 .newdrv-note button { align-self:flex-start; margin:4px 0 0; width:auto; }
-.linkbtn { width:auto; margin:8px 0 0; padding:0; background:transparent; color:var(--pri); border:0; box-shadow:none; font-size:14px; font-weight:700; text-decoration:underline; text-underline-offset:3px; text-align:left; }
+.newdrv-link { width:auto; margin:8px 0 0; padding:0; background:transparent; color:var(--pri); border:0; box-shadow:none; font-size:14px; font-weight:700; text-decoration:underline; text-underline-offset:3px; text-align:left; }
 
 /* เบิกรถทีละขั้น: ขั้นที่ขึ้นใหม่เลื่อนเข้ามาเบาๆ */
 #fCheckout .step.hide { display:none; }
 #fCheckout .step.step-in { animation:fade .25s ease both; }
+
+/* ===== การ์ดสรุปที่กดได้ / ลิงก์ทะเบียน / แถบตัวกรอง / ตัวบอกอัปเดตอัตโนมัติ (หน้าแอดมิน) ===== */
+.kpi { position:relative; }
+.kpi-link { cursor:pointer; outline:none; }
+.kpi-link::after { content:"›"; position:absolute; right:14px; top:10px; font-size:24px; line-height:1; color:var(--mute); transition:transform .15s, color .15s; }
+@media (hover:hover) { .kpi-link:hover { border-color:var(--pri); } .kpi-link:hover::after { transform:translateX(3px); color:var(--pri); } }
+.kpi-link:focus-visible { box-shadow:0 0 0 3px color-mix(in srgb, var(--pri) 40%, transparent); }
+a.carlink { color:var(--pri); text-decoration:none; border-bottom:1.5px dashed color-mix(in srgb, var(--pri) 55%, transparent); }
+a.carlink:hover { border-bottom-style:solid; }
+.fbar { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:12px; padding:10px 14px; border-radius:14px; background:var(--pri-soft); font-size:14px; }
+.fbar button { width:auto; margin:0; }
+.live { display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:var(--mute); padding:6px 12px; border-radius:99px; background:var(--input); border:1px solid var(--line); white-space:nowrap; }
+.live b { color:var(--ink); font-variant-numeric:tabular-nums; }
+.live i { width:8px; height:8px; border-radius:50%; background:var(--ok); animation:livepulse 2s ease-in-out infinite; }
+@keyframes livepulse { 0%,100% { box-shadow:0 0 0 0 color-mix(in srgb, var(--ok) 55%, transparent); } 50% { box-shadow:0 0 0 6px transparent; } }
+@media (prefers-reduced-motion:reduce) { .live i { animation:none; } }

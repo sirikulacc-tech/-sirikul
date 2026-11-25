@@ -163,6 +163,7 @@ function api(action, payload) {
       case 'data': return ok_(data_());
       case 'getRegDoc': return ok_(getRegDoc_(payload));
       case 'driverCheck': return ok_(driverCheck_(payload));
+      case 'dataVer': return ok_({ ver: dataVer_() });
       case 'registerDriver': return ok_(registerDriver_(payload));
       // บันทึกของคนขับ
       case 'checkout': return ok_(checkout_(payload));
@@ -224,6 +225,7 @@ function data_() {
     expenses: readRows_('expenses').filter(function (e) { return String(e.date) >= since; }).map(clean_),
     maintenance: readRows_('maintenance').map(clean_),
     driverNames: readRows_('drivers').filter(function (d) { return d.active !== 'N' && d.name; }).map(function (d) { return String(d.name); }),
+    ver: dataVer_(),
     settings: settings_(),
     pinRequired: !!PropertiesService.getScriptProperties().getProperty('ADMIN_PIN'),
     expenseTypes: EXPENSE_TYPES,
@@ -436,7 +438,7 @@ function renamePlate_(from, to) {
     const vals = rng.getValues();
     let changed = false;
     vals.forEach(function (r) { if (String(r[0]) === from) { r[0] = to; changed = true; } });
-    if (changed) rng.setValues(vals);
+    if (changed) { rng.setValues(vals); touch_(); }
   });
 }
 
@@ -680,6 +682,11 @@ function clearSampleData() {
   });
 }
 
+// เลขเวอร์ชันของข้อมูล: เพิ่มทุกครั้งที่แอปเขียน Sheet หน้าแอดมินถามค่านี้เป็นระยะ (เบามาก) แล้วโหลดข้อมูลใหม่เมื่อเลขเปลี่ยน
+// หมายเหตุ: ถ้าแก้ Sheet ด้วยมือ เลขนี้ไม่เปลี่ยน หน้าแอดมินจะรีเฟรชเองทุก 5 นาทีแทน
+function dataVer_() { return PropertiesService.getScriptProperties().getProperty('DATA_VER') || '0'; }
+function touch_() { PropertiesService.getScriptProperties().setProperty('DATA_VER', String(Date.now())); }
+
 function ss_() {
   const id = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
   if (!id) throw new Error('ยังไม่ได้รัน setup()');
@@ -725,11 +732,13 @@ function appendRow_(key, obj) {
   ensureHeader_(key, sh);
   const row = sh.getLastRow() + 1;
   sh.getRange(row, 1, 1, SCHEMA[key].cols.length).setValues([toArray_(key, obj)]);
+  touch_();
 }
 
 function writeRow_(sh, rowNo, key, obj) {
   ensureHeader_(key, sh);
   sh.getRange(rowNo, 1, 1, SCHEMA[key].cols.length).setValues([toArray_(key, obj)]);
+  touch_();
 }
 
 function findCar_(plate) {

@@ -109,7 +109,7 @@ function updateDriverUI_() {
   var nameEl = f.elements['name'];
   if (!n) {
     showDriverExtra(false); nameEl.setCustomValidity(''); put($('#licNote'), ''); put($('#licCard'), '');
-    put(note, '<button type="button" class="linkbtn" data-act="newdriver">ยังไม่มีชื่อในระบบ? เพิ่มชื่อของฉันก่อนเบิกรถ</button>');
+    put(note, '<button type="button" class="newdrv-link" data-act="newdriver">ยังไม่มีชื่อในระบบ? เพิ่มชื่อของฉันก่อนเบิกรถ</button>');
     return;
   }
   if (isKnownDriver(n) && !S.forceExtra) {
@@ -809,7 +809,7 @@ function ensureDlist() {
   // วาดหน้าใหม่เฉพาะหน้าที่ใช้รายชื่อนี้ ไม่ให้ฟอร์มที่กำลังกรอกอยู่หน้าอื่นถูกล้าง
   call('listDrivers', { pin: S.pin }).then(function (d) { S.dlist = Array.isArray(d) ? d : []; if (ADMIN_MODE && (S.asub === 'overview' || S.asub === 'drivers')) render(); }).catch(function (e) { S.dlist = null; toast(e.message, 'err'); });
 }
-function kpi(label, value, sub, cls, icon) { return '<div class="kpi ' + (cls || '') + (icon ? ' hasic' : '') + '">' + (icon ? '<div class="kic">' + ic(icon, 22) + '</div>' : '') + '<div class="kb"><div class="l">' + label + '</div><div class="v">' + value + '</div><div class="s">' + (sub || '&nbsp;') + '</div></div></div>'; }
+function kpi(label, value, sub, cls, icon, go) { return '<div class="kpi ' + (cls || '') + (icon ? ' hasic' : '') + (go ? ' kpi-link' : '') + '"' + (go ? ' role="button" tabindex="0" data-act="kpigo" data-k="' + go + '" title="กดเพื่อดูรายละเอียด"' : '') + '>' + (icon ? '<div class="kic">' + ic(icon, 22) + '</div>' : '') + '<div class="kb"><div class="l">' + label + '</div><div class="v">' + value + '</div><div class="s">' + (sub || '&nbsp;') + '</div></div></div>'; }
 function dt(head, rows, numCols, foot, rowCls) {
   numCols = numCols || [];
   var cell = function (tag, v, i) { return '<' + tag + (numCols.indexOf(i) >= 0 ? ' class="num"' : '') + '>' + v + '</' + tag + '>'; };
@@ -839,6 +839,7 @@ function viewAdmin() {
     (S.pinRequired ? '<button data-act="logout">' + ic('sliders', 18) + 'ออกจากโหมดแอดมิน</button>' : '') + '</div></aside>';
   var acts = '';
   if (S.asub === 'cars') acts = (S.cars.length && S.cars.length <= 8 ? '<button class="ghost" data-act="carcsv">ส่งออก CSV</button>' : '') + '<button data-act="newcar">+ เพิ่มรถคันใหม่</button>';
+  if (S.asub === 'overview' || S.asub === 'open') acts = '<span class="live noprint" title="ข้อมูลอัปเดตเองเมื่อมีการเปลี่ยนแปลง"><i></i>อัปเดตอัตโนมัติ · ล่าสุด <b id="liveT">' + liveStamp() + '</b></span>';
   if (S.asub === 'drivers') acts = '<button data-act="newdrv">+ เพิ่มคนขับ</button>';
   if (S.asub === 'qr' && S.cars.length) acts = '<button class="ghost" data-act="print">พิมพ์ QR ทั้งหมด</button>';
   if (S.asub === 'report') acts = '<input type="month" id="rMonth" aria-label="เดือน" value="' + esc(S.rmonth || today().slice(0, 7)) + '"><button data-act="runreport">ดูรายงาน</button>';
@@ -872,20 +873,21 @@ function admOverview() {
     (nTodo ? 'วันนี้มี ' + nTodo + ' เรื่องที่ต้องดูแล' : 'ทุกอย่างเรียบร้อยดี') + '</b><span>รถว่างพร้อมใช้ ' + free + ' จาก ' + S.cars.length + ' คัน' + (S.open.length ? ' · กำลังถูกเบิก ' + S.open.length + ' คัน' : '') + '</span></div>' +
     '<div class="hero-a"><button data-act="newcar">' + ic('car', 17) + 'เพิ่มรถคันใหม่</button><button class="glass" data-act="asub" data-s="qr">' + ic('qr', 17) + 'พิมพ์ QR</button><button class="glass" data-act="asub" data-s="report">' + ic('chart', 17) + 'รายงานเดือนนี้</button></div></div>' +
     '<div class="kpis">' +
-    kpi('รถที่ใช้งาน', S.cars.length, 'คัน', 'ok', 'car') +
-    kpi('ถูกเบิกอยู่', S.open.length, od.length ? 'ค้างเกิน 24 ชม. ' + od.length + ' คัน' : 'ไม่มีรถค้างเกิน 24 ชม.', od.length ? 'bad' : 'info', 'clock') +
-    kpi('ใกล้ครบกำหนด 30 วัน', S.alerts.length, expd ? 'เลยกำหนดแล้ว ' + expd + ' รายการ' : 'พ.ร.บ. ภาษี ประกัน เช็คระยะ', expd ? 'bad' : S.alerts.length ? 'warn' : 'ok', 'shield') +
-    kpi('ใบขับขี่หมดอายุ', lic === null ? '…' : lic.length, 'คน', lic && lic.length ? 'bad' : 'ok', 'info') + '</div>';
+    kpi('รถที่ใช้งาน', S.cars.length, 'คัน', 'ok', 'car', 'cars') +
+    kpi('ถูกเบิกอยู่', S.open.length, od.length ? 'ค้างเกิน 24 ชม. ' + od.length + ' คัน' : 'ไม่มีรถค้างเกิน 24 ชม.', od.length ? 'bad' : 'info', 'clock', 'busy') +
+    kpi('ใกล้ครบกำหนด 30 วัน', S.alerts.length, expd ? 'เลยกำหนดแล้ว ' + expd + ' รายการ' : 'พ.ร.บ. ภาษี ประกัน เช็คระยะ', expd ? 'bad' : S.alerts.length ? 'warn' : 'ok', 'shield', 'due') +
+    kpi('ใบขับขี่หมดอายุ', lic === null ? '…' : lic.length, 'คน', lic && lic.length ? 'bad' : 'ok', 'info', 'lic') + '</div>';
   var todo = [];
   od.forEach(function (t) { todo.push(['bad', esc(t.plate) + ' ยังไม่คืนรถ · ' + esc(t.name) + ' · ' + overdue(t.ts), 'open']); });
-  S.alerts.forEach(function (a) { todo.push([a.expired ? 'bad' : '', esc(a.plate) + ' · ' + esc(a.what) + (a.expired ? ' เลยกำหนด ' : ' ครบกำหนด ') + thDate(a.date), 'cars']); });
+  S.alerts.forEach(function (a) { todo.push([a.expired ? 'bad' : '', esc(a.plate) + ' · ' + esc(a.what) + (a.expired ? ' เลยกำหนด ' : ' ครบกำหนด ') + thDate(a.date), 'cars', a.plate]); });
   (lic || []).forEach(function (d) { todo.push(['bad', 'ใบขับขี่ของ ' + esc(d.name) + ' หมดอายุ ' + thDate(d.licenseExp), 'drivers']); });
   h += '<div class="split2"><div class="card"><h2>ต้องจัดการ (' + todo.length + ')</h2>' + (todo.length ? todo.map(function (x) {
     var icn = { open: 'clock', cars: 'shield', drivers: 'info' }[x[2]] || 'info';
-    return '<button class="todo ' + (x[0] || 'warn') + '" data-act="asub" data-s="' + x[2] + '"><i class="tdot">' + ic(icn, 16) + '</i><span class="tt">' + x[1] + '</span><span class="tgo" aria-hidden="true">›</span></button>';
+    var car = x[3] ? carByPlate(x[3]) : null;
+    return '<button class="todo ' + (x[0] || 'warn') + '" ' + (car ? 'data-act="opentl" data-id="' + esc(car.id) + '"' : 'data-act="asub" data-s="' + x[2] + '"') + '><i class="tdot">' + ic(icn, 16) + '</i><span class="tt">' + x[1] + '</span><span class="tgo" aria-hidden="true">›</span></button>';
   }).join('') : '<div class="mute">ไม่มีรายการที่ต้องจัดการ</div>') + '</div>';
   h += '<div class="stack">' + tripChart() + '<div class="card flush"><h2>รถที่ถูกเบิกอยู่ (' + S.open.length + ')</h2>' + (S.open.length ? dt(['ทะเบียน', 'ผู้เบิก', 'เวลาเบิก', 'ไปที่ไหน'],
-    S.open.map(function (t) { return ['<b>' + esc(t.plate) + '</b>', esc(t.name) + (overdue(t.ts) ? ' <span class="chip">' + overdue(t.ts) + '</span>' : ''), thTime(t.ts), esc(t.purpose)]; }))
+    S.open.map(function (t) { return [carLink(t.plate), esc(t.name) + (overdue(t.ts) ? ' <span class="chip">' + overdue(t.ts) + '</span>' : ''), thTime(t.ts), esc(t.purpose)]; }))
     : '<div class="mute" style="padding:0 12px 10px">ไม่มีรถถูกเบิก</div>') + '</div></div></div>';
   h += '<div class="card flush"><h2>การใช้รถล่าสุด</h2>' + (S.usage.length ? dt(['เวลาเบิก', 'ทะเบียน', 'ผู้ใช้', 'ไปที่ไหน', 'ระยะทาง'],
     S.usage.map(function (u) {
@@ -895,6 +897,9 @@ function admOverview() {
   return h;
 }
 
+function carByPlate(plate) { return S.cars.filter(function (c) { return c.plate === plate; })[0]; }
+// ทะเบียนที่กดแล้วเปิดรายละเอียดรถ (ไทม์ไลน์) ในหน้าจัดการรถ
+function carLink(plate) { var c = carByPlate(plate); return c ? '<a href="#" class="carlink" data-act="opentl" data-id="' + esc(c.id) + '"><b>' + esc(plate) + '</b></a>' : '<b>' + esc(plate) + '</b>'; }
 function svcInfo(car) {
   var sv = lastService(car.plate); if (!sv) return null;
   var nd = daysLeft(sv.nextDate), left = sv.nextOdo !== '' && car.lastOdo !== '' ? Number(sv.nextOdo) - Number(car.lastOdo) : null;
@@ -935,13 +940,14 @@ function carRows() {
   }[f.sort] || function (c) { return c.plate; };
   return list.sort(function (a, b) { var x = key(a), y = key(b); return (x > y ? 1 : x < y ? -1 : 0) * f.dir; });
 }
-function carCards() {
+function carCards(list) {
+  list = list || S.cars;
   var tile = function (label, d) {
     var n = daysLeft(d), st = n === null ? 'na' : n < 0 ? 'bad' : n <= 30 ? 'warn' : 'ok';
     var big = n === null ? 'ไม่ระบุ' : n < 0 ? 'เกิน ' + (-n) + ' วัน' : n + ' วัน';
     return '<div class="due-tile ' + st + '"><span class="dl">' + label + '</span><b>' + big + '</b><small>' + (d ? thDate(d) : '-') + '</small></div>';
   };
-  return '<div class="ccards">' + S.cars.map(function (c) {
+  return '<div class="ccards">' + list.map(function (c) {
     var t = openTripOf(c.plate), si = svcInfo(c), worst = carHealth(c);
     var svc = !si ? '<span class="chip na">ยังไม่มีข้อมูล</span>' :
       '<span class="chip ' + si.cls + '">' + (si.left !== null ? (si.left < 0 ? 'เกิน ' + km(-si.left) : 'อีก ' + km(si.left)) + ' กม.' : '') + (si.left !== null && si.nd !== null ? ' · ' : '') + (si.nd !== null ? (si.nd < 0 ? 'เกิน ' + (-si.nd) : 'อีก ' + si.nd) + ' วัน' : '') + '</span>';
@@ -960,7 +966,9 @@ function carCards() {
 function admCars() {
   if (!S.cars.length) return withDrawer(emptyState('car', 'ยังไม่มีรถในระบบ', 'กด "+ เพิ่มรถคันใหม่" ด้านบนเพื่อเริ่ม หรือถ่ายรูปสำเนาทะเบียนให้ระบบกรอกข้อมูลให้ได้'));
   if (S.cars.length <= 8) {
-    var left = '<div>' + carCards();
+    var fOn = S.cf && S.cf.st && S.cf.st !== 'all', shown = fOn ? carRows() : S.cars;
+    var bar = fOn ? '<div class="fbar noprint"><span>กรอง: <b>' + esc((CAR_FILTERS.filter(function (x) { return x[0] === S.cf.st; })[0] || [0, ''])[1]) + '</b> · พบ ' + shown.length + ' จาก ' + S.cars.length + ' คัน</span><button class="small ghost" data-act="cfst" data-s="all">ล้างตัวกรอง</button></div>' : '';
+    var left = '<div>' + bar + (shown.length ? carCards(shown) : '<div class="card mute" style="padding:18px">ไม่มีรถตามตัวกรองนี้</div>');
     if (S.removed.length) left += '<div class="card flush" style="margin-top:18px"><h2>รถที่นำออกแล้ว</h2>' + dt(['ทะเบียน', 'ยี่ห้อ/รุ่น', ''], S.removed.map(function (c) {
       return ['<b>' + esc(c.plate) + '</b>', esc(c.model), '<div class="acts"><button class="small ghost" data-act="restorecar" data-id="' + esc(c.id) + '">นำกลับมาใช้</button></div>'];
     })) + '</div>';
@@ -1359,13 +1367,16 @@ function bindForms() {
     S.cf.q = cq.value; var pos = cq.selectionStart; render();
     var n = $('#cfq'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) {} }
   });
+  document.querySelectorAll('[role=button][data-act]').forEach(function (el) {
+    el.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); } });
+  });
   var dq = $('#dq'); if (dq) dq.addEventListener('input', function () {
     S.df.q = dq.value; var pos = dq.selectionStart; render();
     var n = $('#dq'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) {} }
   });
   var pc = $('#pickCar'); if (pc) pc.addEventListener('change', function () { S.plate = pc.value; render(); });
   document.querySelectorAll('[data-act]').forEach(function (b) {
-    b.addEventListener('click', function () {
+    b.addEventListener('click', function (e) {
       var a = b.dataset.act;
       if (a === 'sub') openSheet(b.dataset.s);
       else if (a === 'closesheet') closeSheet();
@@ -1381,6 +1392,8 @@ function bindForms() {
       else if (a === 'editdrv') { S.drvEdit = b.dataset.n; S.drvForm = true; render(); focusDrvForm(); }
       else if (a === 'drvactive') setDriverActive(b.dataset.n, b.dataset.v);
       else if (a === 'dfst') { S.df.st = b.dataset.s; render(); }
+      else if (a === 'kpigo') { kpiGo(b.dataset.k); }
+      else if (a === 'opentl') { e.preventDefault(); S.asub = 'cars'; S.tl = b.dataset.id; S.tlf = 'all'; S.carForm = false; S.edit = ''; S.drvForm = false; render(); window.scrollTo(0, 0); }
       else if (a === 'print') window.print();
       else if (a === 'uselast') { var fo = b.closest('form'); fo.elements['odoStart'].value = b.dataset.v; fo.elements['odoStart'].dispatchEvent(new Event('input', { bubbles: true })); updateSteps(true); }
       else if (a === 'install' && FS.prompt) { FS.prompt.prompt(); FS.prompt.userChoice.then(function () { FS.prompt = null; render(); }); }
@@ -1566,8 +1579,57 @@ function drawQr() {
 }
 
 // โหลดข้อมูลดิบ แล้วคำนวณสถานะรถ เลขไมล์ล่าสุด แจ้งเตือน และรายการล่าสุดบนหน้าเว็บ
+// การ์ดสรุปในหน้าภาพรวมกดแล้วไปดูรายละเอียด: รถทั้งหมด → จัดการรถ · ถูกเบิกอยู่ → ค้างเบิก · ใกล้ครบกำหนด → จัดการรถ (กรอง) · ใบขับขี่หมดอายุ → คนขับ (กรอง)
+function kpiGo(k) {
+  S.carForm = false; S.edit = ''; S.tl = ''; S.drvForm = false; S.drvEdit = '';
+  S.cf = S.cf || { st: 'all', vt: '', q: '', sort: 'plate', dir: 1 }; S.df = S.df || { st: 'all', q: '' };
+  if (k === 'cars') { S.asub = 'cars'; S.cf.st = 'all'; }
+  else if (k === 'busy') { S.asub = 'open'; }
+  else if (k === 'due') { S.asub = 'cars'; S.cf.st = 'due'; }
+  else if (k === 'lic') { S.asub = 'drivers'; S.df.st = 'bad'; S.df.q = ''; S.dlist = null; }
+  else return;
+  render(); window.scrollTo(0, 0);
+}
+
+/* ---------- อัปเดตอัตโนมัติ (หน้าแอดมิน: ภาพรวม / ค้างเบิก) ----------
+   ถามเลขเวอร์ชันข้อมูลจาก Apps Script ทุก 15 วินาที (คำขอเบามาก) ถ้าเลขเปลี่ยนจึงโหลดข้อมูลใหม่แล้ววาดหน้าใหม่
+   ถ้า Apps Script ยังเป็นรุ่นเก่า (ไม่มีคำสั่ง dataVer) จะโหลดเต็มทุก 60 วินาทีแทน และโหลดเต็มทุก 5 นาทีเสมอ (กรณีแก้ Sheet ด้วยมือ)
+   ไม่ทำงานเมื่อแท็บถูกซ่อน, เมื่อเปิดหน้าอื่นที่มีฟอร์ม, หรือมีกล่องยืนยันเปิดอยู่ */
+var LIVE = { busy: false, last: 0, noVer: false, at: 0 };
+function liveStamp() { var d = new Date(); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2); }
+async function liveTick() {
+  if (!ADMIN_MODE || document.hidden || LIVE.busy || S.busy) return;
+  if (S.asub !== 'overview' && S.asub !== 'open') return;
+  if (S.pinRequired && !S.pin) return;
+  if ($('#modal') && $('#modal').style.display === 'block') return;
+  LIVE.busy = true;
+  try {
+    var changed = false, now = Date.now();
+    if (!LIVE.noVer) {
+      try { var r = await call('dataVer'); changed = String(r && r.ver) !== String(S.ver); }
+      catch (e) { if (/ไม่รู้จักคำสั่ง/.test(e.message)) LIVE.noVer = true; else throw e; }
+    }
+    if (LIVE.noVer) changed = now - LIVE.last >= 60000;
+    if (changed || now - LIVE.last >= 300000) {
+      await load();
+      try { S.dlist = await call('listDrivers', { pin: S.pin }); } catch (e) { /* ใช้รายชื่อเดิมต่อ */ }
+      if (S.asub === 'overview' || S.asub === 'open') render();
+      LIVE.last = Date.now();
+    }
+    var t = $('#liveT'); if (t) t.textContent = liveStamp();
+  } catch (e) { var tt = $('#liveT'); if (tt) tt.textContent = 'เชื่อมต่อไม่ได้ กำลังลองใหม่'; }
+  LIVE.busy = false;
+}
+function startLive() {
+  if (!ADMIN_MODE) return;
+  LIVE.last = Date.now();
+  setInterval(liveTick, 15000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) liveTick(); });
+  window.addEventListener('focus', liveTick);
+}
 async function load() {
   var d = await call('data');
+  S.ver = String(d.ver == null ? '' : d.ver);
   S.company = (d.settings && d.settings.company) || ''; S.logo = (d.settings && d.settings.logo) || '';
   S.pinRequired = !!d.pinRequired; if (!S.pinRequired) S.pin = '';
   S.types = d.expenseTypes; S.mtypes = d.maintTypes;
@@ -1624,7 +1686,7 @@ document.querySelectorAll('nav button').forEach(function (b) {
 });
 load().then(function () {
   var hit = ADMIN_MODE ? null : S.cars.filter(function (c) { return (INITIAL_CAR && c.id === INITIAL_CAR) || (!INITIAL_CAR && INITIAL_PLATE && c.plate === INITIAL_PLATE); })[0];
-  if (ADMIN_MODE) {}
+  if (ADMIN_MODE) { startLive(); }
   else if (hit) {
     S.plate = hit.plate; S.locked = hit.id; S.tab = 'car'; S.sub = '';
     // เปิดเต็มจอเองตอนโหลดไม่ได้ (เบราว์เซอร์บังคับให้ผู้ใช้แตะก่อน) จึงบอกให้แตะ 1 ครั้ง
