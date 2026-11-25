@@ -514,7 +514,7 @@ const DEFAULT_COMPANY = 'Sirikul Accounting';
 
 function settings_() {
   const pr = PropertiesService.getScriptProperties();
-  return { company: pr.getProperty('COMPANY_NAME') || DEFAULT_COMPANY, logo: logoData_() };
+  return { company: pr.getProperty('COMPANY_NAME') || DEFAULT_COMPANY, logo: logoData_(), themeMode: pr.getProperty('THEME_MODE') || '' }; // themeMode: '' = ตามวันที่, off = ปิด, หรือรหัสเทศกาล
 }
 
 function logoData_() {
@@ -539,6 +539,11 @@ function saveSettings_(p) {
     const c = str_(p.company, 60);
     if (!c) throw new Error('กรุณากรอกชื่อบริษัท');
     pr.setProperty('COMPANY_NAME', c);
+  }
+  if (p.themeMode !== undefined) {
+    const t = String(p.themeMode || '');
+    if (t !== '' && !/^[a-z]{2,12}$/.test(t)) throw new Error('ธีมไม่ถูกต้อง');
+    if (t) pr.setProperty('THEME_MODE', t); else pr.deleteProperty('THEME_MODE');
   }
   const oldId = pr.getProperty('LOGO_ID');
   const trashOld = function () { if (oldId) { try { DriveApp.getFileById(oldId).setTrashed(true); } catch (e) { /* ไฟล์เดิมอาจถูกลบแล้ว */ } } };

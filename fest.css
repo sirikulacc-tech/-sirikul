@@ -1,0 +1,194 @@
+/* ===== ธีมเทศกาล (ใช้คู่กับ fest.js) =====
+   ภาพทั้งหมดวาดเป็น SVG/CSS (ไม่มีไฟล์รูป) แต่ละเทศกาลมีภาษาภาพของตัวเอง สลับตามวันที่อัตโนมัติ
+   ธีมโหมดมืดดูได้เหมือนกัน เพราะแบนเนอร์มีพื้นของตัวเอง เอฟเฟกต์ปิดได้และปิดเองเมื่อผู้ใช้ตั้งค่าลดการเคลื่อนไหว */
+
+/* ---------- โครงร่วม ---------- */
+.fb { position:relative; display:flex; align-items:center; gap:16px; min-height:136px; padding:16px 22px 16px 20px; margin:0 0 14px; border-radius:22px; overflow:hidden; isolation:isolate; color:#fff; box-shadow:0 14px 30px -18px rgba(0,0,0,.6); }
+.fb-sm { min-height:86px; padding:10px 14px; gap:12px; border-radius:18px; margin:0; }
+.fb-art { position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+.fb-art .d { position:absolute; display:block; pointer-events:none; }
+.fb-logo { position:relative; flex:none; width:84px; height:84px; z-index:2; margin-left:6px; }
+.fb-sm .fb-logo { width:58px; height:58px; margin-left:4px; }
+.fb-logoin { position:absolute; inset:0; z-index:1; display:grid; place-items:center; border-radius:50%; background:#fff; overflow:hidden; box-shadow:0 5px 14px rgba(0,0,0,.38); }
+.fb-logoin img { width:84%; height:84%; object-fit:contain; display:block; }
+.fb-s { font:800 36px/1 'Kanit',sans-serif; color:#047857; }
+.fb-acc { position:absolute; left:-25%; top:-25%; width:150%; height:150%; overflow:visible; pointer-events:none; }
+.fb-acc.back { z-index:0; } .fb-acc.front { z-index:2; }
+.fb-word { position:relative; z-index:2; display:flex; flex-direction:column; min-width:0; line-height:1; }
+.fb-word b { font-size:clamp(30px, 8.4vw, 44px); font-weight:700; white-space:nowrap; }
+.fb-word i { font-style:normal; font-size:clamp(14px, 3.6vw, 18px); white-space:nowrap; }
+.fb-sm .fb-word b { font-size:27px; } .fb-sm .fb-word i { font-size:12.5px; }
+.fb svg { overflow:visible; }
+
+/* ---------- 💦 สงกรานต์: ลายเสื้อดอก + ตัวอักษรบับเบิล + ปืนฉีดน้ำ ---------- */
+.fb-songkran { background:linear-gradient(120deg,#00b4d8,#48cae4 55%,#ffd166); }
+.fb-songkran::before { content:""; position:absolute; inset:0; z-index:0; opacity:.34; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='84' height='84'%3E%3Cg fill='%23ff5d73'%3E%3Ccircle cx='20' cy='13' r='6'/%3E%3Ccircle cx='28' cy='19' r='6'/%3E%3Ccircle cx='25' cy='28' r='6'/%3E%3Ccircle cx='15' cy='28' r='6'/%3E%3Ccircle cx='12' cy='19' r='6'/%3E%3C/g%3E%3Ccircle cx='20' cy='22' r='4' fill='%23ffd166'/%3E%3Cg fill='%23fff'%3E%3Ccircle cx='62' cy='55' r='5'/%3E%3Ccircle cx='69' cy='60' r='5'/%3E%3Ccircle cx='66' cy='68' r='5'/%3E%3Ccircle cx='58' cy='68' r='5'/%3E%3Ccircle cx='55' cy='60' r='5'/%3E%3C/g%3E%3Ccircle cx='62' cy='62' r='3.3' fill='%23ff9f1c'/%3E%3Cpath d='M44 10q8 4 12 14q-10-2-12-14zM8 60q10-2 18 6q-10 4-18-6z' fill='%232dc77a'/%3E%3C/svg%3E"); background-size:84px 84px; }
+.fb-songkran .fb-word b { font-family:'Rubik Bubbles','Fredoka',sans-serif; font-weight:400; color:#fff; letter-spacing:1px; -webkit-text-stroke:2px #0077b6; paint-order:stroke fill; text-shadow:0 4px 0 #0077b6; }
+.fb-songkran .fb-word i { font-family:'Fredoka','Kanit',sans-serif; font-weight:700; color:#06506b; background:#fff; padding:4px 11px; border-radius:99px; align-self:flex-start; margin-top:9px; letter-spacing:.6px; transform:rotate(-2deg); box-shadow:0 3px 0 rgba(0,119,182,.4); }
+.fb-songkran .gun { right:6px; bottom:-8px; width:200px; height:auto; }
+.fb-songkran .gun .stream { animation:skdash 1s linear infinite; }
+@keyframes skdash { to { stroke-dashoffset:-56; } }
+.fb-songkran .drops { right:0; top:0; width:200px; height:100%; }
+.fb-songkran .drop { animation:skdrop 2.6s ease-in infinite; }
+@keyframes skdrop { 0% { opacity:0; transform:translateY(-16px); } 30% { opacity:.95; } 100% { opacity:0; transform:translateY(34px); } }
+
+/* ---------- 🏮 ลอยกระทง: คืนหน้าเพ็ญ โลโก้ลอยบนกระทงดอกบัว ---------- */
+.fb-loy { background:radial-gradient(120% 150% at 88% 0%, #4b2f8f 0%, #1d1f5c 45%, #0b1030 100%); }
+.fb-loy .fb-word b { font-family:'Pacifico',cursive; font-weight:400; font-size:clamp(30px, 8vw, 42px); color:#ffe9a8; text-shadow:0 0 10px #ffb703, 0 0 28px rgba(255,183,3,.55); }
+.fb-loy .fb-word i { font-family:'Pacifico',cursive; color:#ffd9ff; opacity:.88; letter-spacing:.6px; margin-top:4px; }
+.fb-loy .sky { right:0; top:0; height:100%; width:auto; }
+.fb-loy .lan { animation:loylan 9s linear infinite; }
+@keyframes loylan { 0% { transform:translateY(46px); opacity:0; } 14% { opacity:1; } 100% { transform:translateY(-150px); opacity:0; } }
+.fb-loy .tw { animation:loytw 2.8s ease-in-out infinite; }
+@keyframes loytw { 0%,100% { opacity:.25; } 50% { opacity:1; } }
+.fb-loy .flame { transform-box:fill-box; transform-origin:50% 100%; animation:loyfl .55s ease-in-out infinite alternate; }
+@keyframes loyfl { from { transform:scale(1,1); } to { transform:scale(.82,1.18); } }
+.fb-loy .wave { left:0; right:0; bottom:0; height:20px; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='20'%3E%3Cpath d='M0 8q12.5-9 25 0t25 0' stroke='%239ad8ff' stroke-width='2.5' fill='none'/%3E%3Cpath d='M0 15q12.5-8 25 0t25 0' stroke='%236fb8ff' stroke-width='2' fill='none' opacity='.6'/%3E%3C/svg%3E"); background-repeat:repeat-x; background-size:50px 20px; animation:loywv 3.2s linear infinite; opacity:.8; }
+@keyframes loywv { to { background-position-x:50px; } }
+.fb-loy .fb-logo { animation:loybob 3.6s ease-in-out infinite; }
+@keyframes loybob { 0%,100% { transform:translateY(0) rotate(-1.2deg); } 50% { transform:translateY(-4px) rotate(1.2deg); } }
+
+/* ---------- 🎆 ปีใหม่: ป้ายนีออนกะพริบ พลุแตก ---------- */
+.fb-newyear { background:radial-gradient(90% 140% at 20% 0%, #2a0f47 0%, #12081f 55%, #07050d 100%); }
+.fb-newyear .fb-word b { font-family:'Monoton',sans-serif; font-weight:400; font-size:clamp(28px, 7.6vw, 40px); color:#ff8ad4; text-shadow:0 0 6px #ff2d95, 0 0 18px #ff2d95, 0 0 42px #ff2d95; animation:nyneon 3.6s infinite; }
+@keyframes nyneon { 0%,18%,22%,25%,53%,57%,100% { opacity:1; } 20%,24%,55% { opacity:.4; } }
+.fb-newyear .fb-word i { font-family:'Kanit',sans-serif; font-weight:600; color:#a6fbff; text-shadow:0 0 6px #35f2ff, 0 0 16px #35f2ff; letter-spacing:7px; text-transform:uppercase; font-size:12.5px; margin-top:9px; }
+.fb-newyear .fws { right:0; top:0; height:100%; width:auto; }
+.fb-newyear .fw { opacity:0; animation:nyfw 3s ease-out infinite; }
+@keyframes nyfw { 0% { transform:scale(.1); opacity:0; } 14% { opacity:1; } 68% { opacity:1; } 100% { transform:scale(1.18); opacity:0; } }
+.fb-newyear .tw { animation:loytw 1.6s ease-in-out infinite; }
+.fb-year { position:absolute; right:16px; bottom:8px; z-index:2; font-family:'Monoton',sans-serif; font-size:24px; color:#ffe27a; text-shadow:0 0 8px #ffb703, 0 0 20px #ffb703; letter-spacing:2px; }
+.fb-sm .fb-year { font-size:16px; right:10px; bottom:4px; }
+
+/* ---------- 🧧 ตรุษจีน: โลโก้ในซองอั่งเปา โคมแดงแกว่ง ตรา 福 ---------- */
+.fb-cny { background:linear-gradient(120deg,#8e0c14,#c1121f 55%,#a30d17); padding-left:30px; box-shadow:inset 0 0 0 3px #ffcf5a, inset 0 0 0 6px #8e0c14, inset 0 0 0 7.5px #ffcf5a, 0 14px 30px -18px rgba(0,0,0,.6); }
+.fb-cny .fb-word b { font-family:'Cinzel Decorative',serif; font-weight:700; font-size:clamp(26px, 7vw, 36px); letter-spacing:1px; background:linear-gradient(180deg,#fff4b8,#ffcf5a 55%,#e0a526); -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(0 2px 0 #6f0910); }
+.fb-cny .fb-word i { font-family:'Cinzel Decorative',serif; font-weight:700; color:#ffcf5a; letter-spacing:5px; font-size:13px; margin-top:8px; }
+.fb-cny .lant { top:-6px; width:42px; height:auto; transform-origin:50% 0; animation:cnysw 3.4s ease-in-out infinite alternate; }
+.fb-cny .lant.l1 { right:92px; } .fb-cny .lant.l2 { right:30px; width:36px; animation-delay:-1.4s; }
+@keyframes cnysw { from { transform:rotate(-7deg); } to { transform:rotate(7deg); } }
+.fb-cny .cloud { left:0; bottom:6px; width:100%; height:30px; opacity:.9; }
+.fb-fu { position:absolute; right:150px; bottom:14px; z-index:2; width:44px; height:44px; display:grid; place-items:center; transform:rotate(45deg); background:#d90d1a; border:2.5px solid #ffcf5a; border-radius:6px; }
+.fb-fu i { font-style:normal; transform:rotate(-45deg); font-family:'Ma Shan Zheng',serif; font-size:26px; line-height:1; color:#ffcf5a; }
+.fb-sm .fb-fu { right:100px; bottom:8px; width:30px; height:30px; } .fb-sm .fb-fu i { font-size:18px; }
+
+/* ---------- 🎃 ฮาโลวีน: ตัวอักษรเมือกหยด แมงมุมห้อย ค้างคาว ---------- */
+.fb-halloween { background:radial-gradient(90% 130% at 80% 30%, #4d1a70 0%, #230a38 52%, #0d0214 100%); }
+.fb-halloween .fb-word b { font-family:'Creepster',cursive; font-weight:400; font-size:clamp(32px, 9vw, 48px); color:#ff7a1a; letter-spacing:3px; text-shadow:0 3px 0 #5a1d00, 0 0 18px rgba(255,122,26,.5); }
+.fb-halloween .fb-word i { font-family:'Creepster',cursive; color:#9be564; letter-spacing:6px; font-size:clamp(15px, 4vw, 20px); margin-top:2px; text-shadow:0 0 10px rgba(155,229,100,.55); }
+.fb-halloween .fb-word .drips { width:100%; height:32px; margin-top:3px; overflow:visible; }
+.fb-halloween .dr { transform-box:fill-box; transform-origin:50% 0; animation:hwdrip 3.4s ease-in-out infinite; }
+@keyframes hwdrip { 0%,100% { transform:scaleY(.65); } 50% { transform:scaleY(1.2); } }
+.fb-halloween .moon { right:0; top:0; height:100%; width:auto; }
+.fb-halloween .web { left:0; top:0; width:74px; height:74px; }
+.fb-halloween .spider { left:38%; top:0; width:28px; height:auto; animation:hwspi 4.2s ease-in-out infinite; }
+@keyframes hwspi { 0%,100% { transform:translateY(-16px); } 50% { transform:translateY(6px); } }
+.fb-halloween .bat { width:34px; height:auto; animation:hwbat 9s linear infinite, hwflap .28s ease-in-out infinite alternate; }
+.fb-halloween .bat.b2 { width:24px; animation-duration:13s, .22s; animation-delay:-5s, 0s; }
+@keyframes hwbat { from { left:-10%; } to { left:106%; } }
+@keyframes hwflap { from { transform:scaleY(1); } to { transform:scaleY(.55); } }
+.fb-halloween .ghost { right:22%; bottom:12%; width:32px; height:auto; opacity:.9; animation:hwgh 5s ease-in-out infinite alternate; }
+@keyframes hwgh { from { transform:translateY(0) rotate(-6deg); } to { transform:translateY(-9px) rotate(6deg); } }
+
+/* ---------- 🎄 คริสต์มาส: ผ้าถักสเวตเตอร์ ชื่อบริษัทเป็นแพทช์ปักด้าย ---------- */
+.fb-xmas { background-color:#b01223; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='32'%3E%3Cg fill='none' stroke='%23f4efe0' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' opacity='.9'%3E%3Cpath d='M0 6l7 6l7-6l7 6l7-6l7 6l7-6l7 6'/%3E%3Cpath d='M0 26l7-6l7 6l7-6l7 6l7-6l7 6l7-6l7 6'/%3E%3Cpath d='M28 11l5 5l-5 5l-5-5z'/%3E%3Cpath d='M28 8v-3M28 24v3M20 16h-3M36 16h3'/%3E%3C/g%3E%3Ccircle cx='7' cy='16' r='1.6' fill='%23f4efe0'/%3E%3Ccircle cx='49' cy='16' r='1.6' fill='%23f4efe0'/%3E%3C/svg%3E"), repeating-linear-gradient(90deg, rgba(0,0,0,.17) 0 2px, transparent 2px 6px); background-size:56px 32px, auto; background-position:center 38px, 0 0; background-repeat:repeat-x, repeat; padding-top:24px; padding-bottom:22px; }
+.fb-xmas::before, .fb-xmas::after { content:""; position:absolute; left:0; right:0; height:12px; z-index:1; background:repeating-linear-gradient(90deg,#f6f0de 0 13px,#e3d8ba 13px 15px); box-shadow:0 2px 0 rgba(0,0,0,.18); }
+.fb-xmas::before { top:0; } .fb-xmas::after { bottom:0; }
+.fb-xmas .fb-word { background:#f6f0de; padding:9px 18px 11px; border-radius:12px; transform:rotate(-2deg); border:2px dashed #b01223; outline:4px solid #f6f0de; box-shadow:0 8px 14px -6px rgba(0,0,0,.5); }
+.fb-xmas .fb-word b { font-family:'Mountains of Christmas',cursive; font-size:clamp(28px, 7.4vw, 38px); color:#b01223; letter-spacing:1px; }
+.fb-xmas .fb-word i { font-family:'Mountains of Christmas',cursive; font-weight:700; color:#1f7a3f; font-size:clamp(14px, 3.6vw, 19px); margin-top:3px; letter-spacing:1px; }
+.fb-xmas .ball { top:6px; width:24px; height:auto; transform-origin:50% 0; animation:xmsw 3.2s ease-in-out infinite alternate; z-index:2; }
+.fb-xmas .ball.k1 { right:15%; } .fb-xmas .ball.k2 { right:9%; animation-delay:-1.2s; margin-top:10px; } .fb-xmas .ball.k3 { right:21%; animation-delay:-2.2s; margin-top:4px; }
+@keyframes xmsw { from { transform:rotate(-9deg); } to { transform:rotate(9deg); } }
+.fb-xmas .pine { right:0; bottom:8px; width:112px; height:auto; }
+
+/* ---------- 💌 วาเลนไทน์: ซองจดหมายรัก ตราผนึกขี้ผึ้ง ปีกนางฟ้า ลูกศรคิวปิด ---------- */
+.fb-valentine { background:linear-gradient(135deg,#ffe1e9,#ffb8cb 55%,#ff8fab); color:#7a1030; }
+.fb-valentine .fb-word b { font-family:'Sacramento',cursive; font-weight:400; font-size:clamp(46px, 12vw, 62px); color:#fff; text-shadow:0 2px 0 #c9184a, 0 0 18px rgba(201,24,74,.35); line-height:.88; }
+.fb-valentine .fb-word i { font-family:'Sacramento',cursive; font-size:clamp(24px, 6.4vw, 32px); color:#9b1d3a; margin-top:-2px; }
+.fb-valentine .hb { transform-box:fill-box; transform-origin:center; animation:vlbeat 1.7s ease-in-out infinite; }
+@keyframes vlbeat { 0%,100% { transform:scale(1); } 40% { transform:scale(1.25); } }
+.fb-valentine .wing { transform-box:fill-box; transform-origin:100% 60%; animation:vlwl 1.9s ease-in-out infinite alternate; }
+.fb-valentine .wing.r { transform-origin:0 60%; animation-name:vlwr; }
+@keyframes vlwl { from { transform:rotate(-8deg); } to { transform:rotate(6deg); } }
+@keyframes vlwr { from { transform:rotate(8deg); } to { transform:rotate(-6deg); } }
+.fb-valentine .fb-logo { margin-left:16px; }
+
+/* ---------- 🧮 เทศกาลยื่นภาษี: สมุดบัญชี วงปากกาแดง เครื่องคิดเลข ตราประทับ PAID ---------- */
+.fb-tax { color:#1d4e89; background:#fbf7e4 repeating-linear-gradient(0deg, transparent 0 25px, #bfe0c8 25px 26px); border:1px solid #d9d2b0; }
+.fb-tax::before { content:""; position:absolute; top:0; bottom:0; left:122px; width:2px; background:#e8828a; z-index:0; opacity:.8; }
+.fb-sm.fb-tax::before { left:84px; }
+.fb-tax .fb-word { padding:6px 10px 8px; }
+.fb-tax .fb-word b { font-family:'Caveat','Kanit',cursive; font-weight:700; font-size:clamp(38px, 10vw, 54px); color:#1d4e89; line-height:.9; }
+.fb-tax .fb-word i { font-family:'Caveat','Kanit',cursive; font-weight:700; font-size:clamp(20px, 5.4vw, 28px); color:#2b3a55; margin-top:3px; }
+.fb-tax .scrib { position:absolute; left:-2px; top:-4px; width:calc(100% + 4px); height:62%; }
+.fb-tax .under { position:absolute; left:6px; bottom:0; width:calc(100% - 12px); height:10px; }
+.fb-tax .draw { stroke-dasharray:1; stroke-dashoffset:1; animation:txdraw 6s ease-in-out infinite; }
+.fb-tax .draw.d2 { animation-delay:.6s; }
+@keyframes txdraw { 0% { stroke-dasharray:900; stroke-dashoffset:900; } 28%,86% { stroke-dasharray:900; stroke-dashoffset:0; } 100% { stroke-dasharray:900; stroke-dashoffset:-900; } }
+.fb-tax .desk { right:0; top:0; height:100%; width:auto; }
+.fb-sm.fb-tax .fb-word .scrib { display:block; }
+
+/* ---------- แถบหัวหน้าคนขับเปลี่ยนสีตามเทศกาล ---------- */
+:root[data-fest="songkran"] { --hdr:linear-gradient(120deg,#0096c7,#48cae4 55%,#ffd166); }
+:root[data-fest="loy"] { --hdr:linear-gradient(120deg,#0b1030,#27256a 55%,#5b2a86); }
+:root[data-fest="newyear"] { --hdr:linear-gradient(120deg,#0a0714,#2b0b45 55%,#8a1f64); }
+:root[data-fest="cny"] { --hdr:linear-gradient(120deg,#8e0c14,#c1121f 55%,#e09f3e); }
+:root[data-fest="halloween"] { --hdr:linear-gradient(120deg,#1a0526,#3a0f55 55%,#d9480f); }
+:root[data-fest="xmas"] { --hdr:linear-gradient(120deg,#7a0c18,#b01223 55%,#1b6b3a); }
+:root[data-fest="valentine"] { --hdr:linear-gradient(120deg,#c9184a,#ff4d6d 55%,#ffb3c1); }
+:root[data-fest="tax"] { --hdr:linear-gradient(120deg,#1d4e89,#2c7a7b 55%,#8bb174); }
+
+/* ---------- เอฟเฟกต์ลอยทั่วจอ ---------- */
+#fx { position:fixed; inset:0; z-index:4; pointer-events:none; overflow:hidden; }
+#fx .p { position:absolute; left:calc(var(--x) * 1%); font-style:normal; font-size:calc(var(--s) * 1px); line-height:1; will-change:transform; animation-duration:calc(var(--d) * 1s); animation-delay:calc(var(--l) * -1s); animation-iteration-count:infinite; animation-timing-function:linear; opacity:.9; }
+#fx .p.fall { top:-6%; animation-name:fxfall; }
+#fx .p.rise { top:104%; animation-name:fxrise; opacity:0; }
+#fx .p.fly { top:calc(var(--y) * 1%); left:-8%; animation-name:fxfly; }
+@keyframes fxfall { from { transform:translate3d(0,0,0) rotate(0deg); } to { transform:translate3d(calc(var(--w) * 1vw), 112vh, 0) rotate(calc(var(--r) * 1deg)); } }
+@keyframes fxrise { 0% { transform:translate3d(0,0,0); opacity:0; } 10% { opacity:.85; } 100% { transform:translate3d(calc(var(--w) * 1vw), -112vh, 0) rotate(calc(var(--r) * .3deg)); opacity:0; } }
+@keyframes fxfly { from { transform:translate3d(0,0,0); } to { transform:translate3d(118vw, calc(var(--w) * 2vh), 0); } }
+#fx .p.conf:empty { width:8px; height:12px; border-radius:2px; background:hsl(var(--h) 90% 60%); }
+#fx .p.snow { color:#fff; text-shadow:0 0 6px rgba(255,255,255,.75); }
+#fx .p.ink { color:rgba(29,78,137,.5); font-weight:800; }
+[data-theme="dark"] #fx .p.ink { color:rgba(150,190,255,.55); }
+
+/* ---------- แกลเลอรีเลือกธีมในหน้า "ตั้งค่า" ---------- */
+.thmgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:14px; margin-top:12px; }
+.thm { display:flex; flex-direction:column; gap:8px; width:100%; margin:0; padding:8px; border-radius:22px; border:2px solid var(--line); background:var(--card); color:var(--ink); text-align:left; cursor:pointer; box-shadow:none; transition:transform .15s, border-color .15s; }
+.thm:hover { transform:translateY(-2px); }
+.thm.on { border-color:var(--pri); box-shadow:0 0 0 3px color-mix(in srgb, var(--pri) 25%, transparent); }
+.thm .fb { margin:0; }
+.thm-n { display:flex; flex-direction:column; gap:1px; padding:0 4px 2px; }
+.thm-n b { font-size:15px; } .thm-n small { color:var(--mute); font-weight:500; }
+.thmbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:10px; }
+.thmbar button { width:auto; margin:0; }
+
+/* ---------- จอแคบ / ลดการเคลื่อนไหว ---------- */
+@media (max-width:520px) {
+  .fb { padding-right:14px; gap:12px; }
+  .fb-songkran .gun, .fb-tax .desk, .fb-xmas .pine, .fb-halloween .ghost, .fb-loy .sky, .fb-newyear .fb-year, .fb-cny .cloud { display:none; }
+  .fb-cny .lant.l1 { display:none; } .fb-cny .fb-fu { display:none; }
+  .fb-tax::before { left:104px; }
+  .fb-songkran .drops, .fb-newyear .fws, .fb-valentine .hearts, .fb-halloween .moon { opacity:.55; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #fx { display:none; }
+  .fb *, .fb { animation:none !important; }
+  .fb-tax .draw { stroke-dasharray:none; stroke-dashoffset:0; }
+  .fb-newyear .fw { opacity:.9; }
+}
+
+/* ปุ่มเปิด/ปิดเอฟเฟกต์ลอย (มุมขวาบนของแบนเนอร์) */
+.fb-fx { position:absolute; top:8px; right:8px; z-index:4; width:30px; height:30px; margin:0; padding:0; border-radius:50%; border:0; background:rgba(0,0,0,.28); color:#fff; font-size:15px; line-height:1; cursor:pointer; box-shadow:none; backdrop-filter:blur(4px); }
+.fb-fx.off { opacity:.55; filter:grayscale(1); }
+.fb-tax .fb-fx, .fb-valentine .fb-fx { background:rgba(0,0,0,.18); }
+
+/* หมวก/ของที่ยื่นเหนือโลโก้ต้องไม่ถูกตัดขอบ */
+.fb-newyear .fb-logo, .fb-xmas .fb-logo, .fb-halloween .fb-logo, .fb-valentine .fb-logo { margin-top:16px; }
+.fb-cny .fb-logo { margin-right:26px; }
+@media (max-width:520px) {
+  .fb-halloween .moon { display:none; }
+  .fb-valentine .hearts { opacity:.4; }
+  .fb-cny .fb-logo { margin-right:18px; }
+}

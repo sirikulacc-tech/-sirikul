@@ -399,7 +399,7 @@ function soonest(c) {
   return best;
 }
 function viewHome() {
-  var h = '<div class="hello">' + (S.logo ? '<div class="hello-logo">' + logoImg() + '</div>' : '') + '<div><span class="co">' + esc(S.company) + '</span><b>สวัสดี' + (S.name ? ' คุณ' + esc(S.name) : '') + '</b><span>' + (poolCars().length ? 'เลือกรถที่ต้องการ หรือสแกน QR ที่รถ' : 'ยังไม่มีรถในระบบ') + '</span></div></div>';
+  var h = festBanner('lg') + '<div class="hello">' + (S.logo ? '<div class="hello-logo">' + logoImg() + '</div>' : '') + '<div><span class="co">' + esc(S.company) + '</span><b>สวัสดี' + (S.name ? ' คุณ' + esc(S.name) : '') + '</b><span>' + (poolCars().length ? 'เลือกรถที่ต้องการ หรือสแกน QR ที่รถ' : 'ยังไม่มีรถในระบบ') + '</span></div></div>';
   h += installCard();
   if (poolCars().length) {
     h += '<div class="tiles" style="margin-bottom:14px">' + poolCars().map(function (c) {
@@ -528,7 +528,7 @@ function viewCar() {
     return '<option value="' + esc(c.plate) + '"' + (c.plate === car.plate ? ' selected' : '') + '>เปลี่ยนรถ: ' + esc(c.plate) + ' ' + esc(c.model) + '</option>';
   }).join('') + '</select>';
   if (S.locked && !FS.supported) h += installCard(); // iPhone เข้าเต็มจอจากเว็บไม่ได้ แนะนำให้ติดตั้งเป็นแอปแทน
-  h += '<div class="foot">' + (S.logo ? '<div class="foot-logo">' + logoImg() + '</div>' : '') + '<b>' + esc(S.company) + '</b><span>ระบบรถส่วนกลาง</span></div>';
+  h += festBanner('sm') || ('<div class="foot">' + (S.logo ? '<div class="foot-logo">' + logoImg() + '</div>' : '') + '<b>' + esc(S.company) + '</b><span>ระบบรถส่วนกลาง</span></div>');
   return h;
 }
 function mRow(k, emo, title, sub, primary) {
@@ -954,7 +954,7 @@ function viewAdminMobile() {
       (cars.length ? cars.map(function (c) { return mobRow('mobgo', S.mobPick === 'pol' ? '🛡️' : vIcon(c.vtype), esc(c.plate) + (c.model ? ' · ' + esc(c.model) : ''), mobCarSub(c, S.mobPick), ' data-id="' + esc(c.id) + '"'); }).join('') : '<div class="card mute">ยังไม่มีรถในระบบ กดกลับแล้วเลือก "เพิ่มรถใหม่"</div>') + '</div></div>';
     return h;
   }
-  h += '<div class="mob-hero">' + (S.logo ? '<div class="mh-logo">' + logoImg() + '</div>' : '') + '<div><b>แอดมิน · เมนูถ่ายเอกสาร</b><span>ถ่ายรูปเอกสาร ระบบอ่านข้อมูลให้ ตรวจแล้วกดบันทึก</span></div></div>' +
+  h += festBanner('sm') + '<div class="mob-hero">' + (S.logo ? '<div class="mh-logo">' + logoImg() + '</div>' : '') + '<div><b>แอดมิน · เมนูถ่ายเอกสาร</b><span>ถ่ายรูปเอกสาร ระบบอ่านข้อมูลให้ ตรวจแล้วกดบันทึก</span></div></div>' +
     (S.pinRequired ? '' : '<div class="pinwarn">' + ic('shield', 16) + '<span><b>ยังไม่เปิดรหัสแอดมิน</b> ใครสแกน QR ก็เข้าหน้านี้ได้</span></div>') +
     '<div class="mlist">' +
     mobRow('mobnew', '📷', 'เพิ่มรถใหม่', 'ถ่ายสำเนาทะเบียน ระบบกรอกข้อมูลรถให้', '', true) +
@@ -993,7 +993,7 @@ function showPhoneQr() {
 }
 
 function viewAdmin() {
-  if (S.pinRequired && !S.pin) return '<div class="adm-gate">' + (S.logo ? '<div class="gate-logo">' + logoImg() + '</div>' : '') + '<form class="card" id="fPin"><h2>โหมดแอดมิน</h2><div class="mute" style="font-size:14px">ใส่ PIN แอดมินเพื่อแก้ข้อมูลรถ อัปโหลดสำเนาทะเบียน และพิมพ์ QR (การเบิก/คืนรถทั่วไปไม่ต้องใช้ PIN)</div>' +
+  if (S.pinRequired && !S.pin) return '<div class="adm-gate">' + festBanner('sm') + (S.logo ? '<div class="gate-logo">' + logoImg() + '</div>' : '') + '<form class="card" id="fPin"><h2>โหมดแอดมิน</h2><div class="mute" style="font-size:14px">ใส่ PIN แอดมินเพื่อแก้ข้อมูลรถ อัปโหลดสำเนาทะเบียน และพิมพ์ QR (การเบิก/คืนรถทั่วไปไม่ต้องใช้ PIN)</div>' +
       '<label>PIN แอดมิน</label><input name="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" required>' +
       '<button type="submit">เข้าโหมดแอดมิน</button></form>' + '</div>';
   if (isMobileAdmin()) return viewAdminMobile();
@@ -1038,7 +1038,7 @@ function admOverview() {
   var lic = S.dlist ? S.dlist.filter(function (d) { var n = licDays(d); return d.active !== 'N' && n !== null && n < 0; }) : null;
   var poolN = poolCars().length, poolOpen = S.open.filter(function (t) { var c = carByPlate(t.plate); return c && bookable(c); }).length, free = poolN - poolOpen, nTodo = S.alerts.length + od.length + (lic ? lic.length : 0) + (modeUnsetCount() ? 1 : 0);
   var hr = new Date().getHours(), greet = hr < 12 ? 'สวัสดีตอนเช้า' : hr < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น';
-  var h = '<div class="hero"><div class="hero-t"><small>' + greet + ' ' + esc(S.company) + '</small><b>' +
+  var h = festBanner('lg') + '<div class="hero"><div class="hero-t"><small>' + greet + ' ' + esc(S.company) + '</small><b>' +
     (nTodo ? 'วันนี้มี ' + nTodo + ' เรื่องที่ต้องดูแล' : 'ทุกอย่างเรียบร้อยดี') + '</b><span>รถส่วนกลางว่างพร้อมใช้ ' + free + ' จาก ' + poolN + ' คัน' + (S.open.length ? ' · กำลังถูกเบิก ' + S.open.length + ' คัน' : '') + (poolN < S.cars.length ? ' · ไม่เปิดให้เบิก ' + (S.cars.length - poolN) + ' คัน' : '') + '</span></div>' +
     '<div class="hero-a"><button data-act="newcar">' + ic('car', 17) + 'เพิ่มรถคันใหม่</button><button class="glass" data-act="asub" data-s="qr">' + ic('qr', 17) + 'พิมพ์ QR</button><button class="glass" data-act="phoneqr">' + ic('phone', 17) + 'เปิดบนมือถือ</button><button class="glass" data-act="asub" data-s="report">' + ic('chart', 17) + 'รายงานเดือนนี้</button></div></div>' +
     '<div class="kpis">' +
@@ -1320,7 +1320,19 @@ function carForm() {
     '<button type="button" class="ghost" data-act="closecar">ยกเลิก</button></form>';
 }
 
-function admSettings() {
+function festBanner(size) { return window.FEST ? FEST.banner(size) : ''; }
+// ธีมเทศกาล: เลือกอัตโนมัติ/ปิด/เลือกเอง พร้อมแกลเลอรีตัวอย่างทุกเทศกาล (กดเพื่อดูตัวอย่างทันที แล้วกดบันทึกเพื่อใช้กับทุกเครื่อง)
+function themeCard() {
+  if (!window.FEST) return '';
+  var sel = S.thmSel === undefined ? (S.themeMode || '') : S.thmSel;
+  var cur = FEST.pick(new Date()), curName = cur ? FEST.by[cur].emoji + ' ' + FEST.by[cur].name : 'ตอนนี้ไม่มีเทศกาล (ใช้หน้าตาปกติ)';
+  var chip = function (id, label) { return '<button type="button" class="small' + (sel === id ? '' : ' ghost') + '" data-act="thmpick" data-id="' + id + '">' + label + '</button>'; };
+  return '<div class="card" style="margin-top:18px"><h2>ธีมเทศกาล</h2><div class="mute" style="font-size:14px">แบนเนอร์ดูเดิลที่เล่นกับโลโก้และชื่อบริษัท เปลี่ยนตามเทศกาลอัตโนมัติ (ตอนนี้ตามวันที่ = <b>' + curName + '</b>) กดเลือกเพื่อดูตัวอย่างทันที แล้วกด "บันทึก" เพื่อใช้กับทุกเครื่อง</div>' +
+    '<div class="thmbar">' + chip('', 'อัตโนมัติตามวันที่') + chip('off', 'ปิดธีมเทศกาล') + '<button type="button" class="small" data-act="thmsave">บันทึก</button><button type="button" class="small ghost" data-act="fxtoggle">เอฟเฟกต์ลอย: ' + (FEST.fxOff() ? 'ปิด' : 'เปิด') + ' (เฉพาะเครื่องนี้)</button></div>' +
+    FEST.gallery(sel) + '<div class="mute" style="font-size:13px;margin-top:10px">ดูตัวอย่างบนหน้าคนขับ: เติม <b>?theme=รหัส</b> ท้ายลิงก์ เช่น ?theme=songkran (รหัส: ' + FEST.list.map(function (t) { return t.id; }).join(' · ') + ') ปิด: ?theme=off</div></div>';
+}
+function admSettings() { return admSettingsMain() + themeCard(); }
+function admSettingsMain() {
   return '<div class="split2"><form class="card" id="fSettings"><h2>โลโก้บริษัท</h2>' +
     '<div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap">' +
     '<div class="logo-prev" id="logoPreview">' + (S.logo ? logoImg() : 'ยังไม่มีโลโก้') + '</div>' +
@@ -1783,6 +1795,9 @@ function bindForms() {
       else if (a === 'dfst') { S.df.st = b.dataset.s; render(); }
       else if (a === 'kpigo') { kpiGo(b.dataset.k); }
       else if (a === 'phoneqr') showPhoneQr();
+      else if (a === 'fxtoggle') { e.stopPropagation(); FEST.setFx(!FEST.fxOff()); render(); }
+      else if (a === 'thmpick') { S.thmSel = b.dataset.id; S.themeMode = S.thmSel; FEST.apply(); render(); }
+      else if (a === 'thmsave') saveTheme(b);
       else if (a === 'modepanel') { S.asub = 'cars'; S.modePanel = true; S.carForm = false; S.edit = ''; S.tl = ''; render(); window.scrollTo(0, 0); }
       else if (a === 'modeclose') { S.modePanel = false; render(); }
       else if (a === 'modesave') saveModes(b);
@@ -1848,6 +1863,15 @@ async function setDriverActive(name, active) {
     toast(active === 'N' ? 'ปิดใช้งาน ' + name + ' แล้ว' : 'เปิดใช้งาน ' + name + ' แล้ว', 'ok');
     S.dlist = null; await load(); render();
   } catch (e) { toast(e.message, 'err'); }
+}
+async function saveTheme(btn) {
+  var sel = S.thmSel === undefined ? (S.themeMode || '') : S.thmSel, txt = btn.textContent; btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+  try {
+    var r = await call('saveSettings', { themeMode: sel, pin: S.pin });
+    if (r && r.themeMode === undefined) toast('Apps Script ยังเป็นรุ่นเก่า บันทึกธีมไม่ได้ (วางโค้ด Code.gs ใหม่ก่อน)', 'err');
+    else { S.thmSel = undefined; toast('บันทึกธีมแล้ว ทุกเครื่องจะเปลี่ยนตาม', 'ok'); }
+  } catch (e) { toast(e.message, 'err'); }
+  btn.disabled = false; btn.textContent = txt;
 }
 async function saveModes(btn) {
   var modes = [].map.call(document.querySelectorAll('.modsel'), function (sel) { return { id: sel.dataset.mid, useMode: sel.value }; });
@@ -2052,6 +2076,7 @@ async function load() {
   var d = await call('data');
   S.ver = String(d.ver == null ? '' : d.ver);
   S.company = (d.settings && d.settings.company) || ''; S.logo = (d.settings && d.settings.logo) || '';
+  S.themeMode = (d.settings && d.settings.themeMode) || ''; if (window.FEST) FEST.apply();
   S.pinRequired = !!d.pinRequired; if (!S.pinRequired) S.pin = '';
   S.types = d.expenseTypes; S.mtypes = d.maintTypes;
   S.allUsage = d.usage; S.maint = d.maintenance;
@@ -2096,6 +2121,7 @@ $('#themeBtn').addEventListener('click', function (e) {
   setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark', true);
 });
 initFullscreen();
+if (window.FEST) FEST.apply();
 S.name = sget('localStorage', 'driverName');
 try { S.profiles = JSON.parse(sget('localStorage', 'driverProfiles') || '{}') || {}; } catch (e) { S.profiles = {}; }
 S.pin = sget('sessionStorage', 'adminPin');
