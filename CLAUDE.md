@@ -3,7 +3,7 @@
 ระบบเบิก-คืนรถส่วนกลางของ Sirikul Accounting ตอบผู้ใช้เป็นภาษาไทย
 
 ## โครงสร้าง
-- หน้าเว็บ (รากรีโพ): `index.html`, `app.css`, `app.js`, `fest.css`, `fest.js` (+ `manifest.webmanifest`, `sw.js`, `icons/`) ใช้ JavaScript ล้วน ไม่มีขั้นตอน build และเปิดผ่าน GitHub Pages
+- หน้าเว็บ (รากรีโพ): `index.html`, `app.css`, `app.js`, `fest.css`, `fest.js` (+ `manifest.webmanifest`, `sw.js`, `icons/`, `.nojekyll` ให้ Pages ข้ามขั้น Jekyll) ใช้ JavaScript ล้วน ไม่มีขั้นตอน build และเปิดผ่าน GitHub Pages
 - ส่วนหลังบ้าน: `รถส่วนกลางศิริกุล/Code.gs` และ `appsscript.json` (Google Apps Script) ใช้ Google Sheets + Drive เป็นที่เก็บข้อมูล
 - คู่มือ: `รถส่วนกลางศิริกุล/README.md`
 - หน้าคนขับเปิดจาก QR (`?car=รหัสรถ`) เน้นมือถือ · หน้าแอดมิน (`?admin=1`) เน้นคอมพิวเตอร์ แต่จอแคบ (≤ 820px) จะแสดงเมนูแอดมินแบบย่อสำหรับถ่ายเอกสาร (`isMobileAdmin()` / `viewAdminMobile()`) และหน้าแอดมินบนคอมมีปุ่มแสดง QR เปิดบนมือถือ (`showPhoneQr()`)
