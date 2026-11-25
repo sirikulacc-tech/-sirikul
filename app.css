@@ -904,3 +904,5 @@ button, .chip, .fchip, .cs-st, .hchip { font-weight:600; }
 @media (max-width:640px) { .cc-due { grid-template-columns:1fr 1fr 1fr; } .dcards { grid-template-columns:1fr; } }
 .dcard .dpill { margin-top:5px; } .dcard .dpill .spill { max-width:100%; }
 .dcard .cc-top { align-items:center; }
+
+.lockcar { display:flex; align-items:center; gap:10px; padding:8px 0 4px; font-weight:600; }

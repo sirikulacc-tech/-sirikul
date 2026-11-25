@@ -103,7 +103,11 @@ function nameField(label) {
   return '<label>' + label + '</label><input name="name" list="drivers" maxlength="60" required autocomplete="name" value="' + esc(S.name) + '" placeholder="พิมพ์หรือเลือกชื่อ">' +
     '<datalist id="drivers">' + S.drivers.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>';
 }
-function curCar() { return S.cars.filter(function (c) { return c.plate === S.plate; })[0] || S.cars[0]; }
+// สแกน QR ของรถคันไหน จะล็อกอยู่ที่คันนั้น (S.locked = รหัสรถ) ไม่มีเมนูสลับไปคันอื่น เปิดลิงก์ปกติที่ไม่มี ?car= ยังเลือกรถได้
+function curCar() {
+  if (S.locked) { var lc = S.cars.filter(function (c) { return c.id === S.locked; })[0]; if (lc) return lc; }
+  return S.cars.filter(function (c) { return c.plate === S.plate; })[0] || S.cars[0];
+}
 
 /* ย่อรูปบนมือถือก่อนอัปโหลด */
 function shrink(file) { return shrinkTo(file, 1800, 0.85); }
@@ -309,6 +313,12 @@ function hexpRow(label, d, sub) {
 /* ---------- เฟรมหลัก ---------- */
 function render() {
   var h = '';
+  if (!ADMIN_MODE && S.locked) {
+    var lc = curCar();
+    if (!lc || lc.id !== S.locked) S.locked = ''; // รถคันนี้ถูกนำออก: กลับไปใช้แบบเลือกรถได้
+    else { S.plate = lc.plate; if (S.tab === 'home') S.tab = 'car'; }
+  }
+  var hb = document.querySelector('nav button[data-t=home]'); if (hb) hb.classList.toggle('hide', !!S.locked);
   document.body.classList.toggle('admin', !!ADMIN_MODE);
   $('#nav').classList.toggle('hide', !!ADMIN_MODE || !S.cars);
   if (ADMIN_MODE) h = viewAdmin();
@@ -468,7 +478,7 @@ function viewCar() {
     mRow('info', '📋', 'ข้อมูลรถ', 'รายละเอียดรถ ภาษี พ.ร.บ. ประกัน สำเนาทะเบียน') +
     mRow('history', '🕘', 'ประวัติการใช้งาน', 'ใครใช้ เมื่อไหร่ ไปไหน') +
     mRow('maint', '🔧', 'ประวัติซ่อมบำรุง', 'งานซ่อมและเช็คระยะ') + '</div>';
-  h += '<select id="pickCar" class="pick" aria-label="เปลี่ยนรถ">' + S.cars.map(function (c) {
+  if (!S.locked) h += '<select id="pickCar" class="pick" aria-label="เปลี่ยนรถ">' + S.cars.map(function (c) {
     return '<option value="' + esc(c.plate) + '"' + (c.plate === car.plate ? ' selected' : '') + '>เปลี่ยนรถ: ' + esc(c.plate) + ' ' + esc(c.model) + '</option>';
   }).join('') + '</select>';
   h += '<div class="foot">' + (S.logo ? '<div class="foot-logo">' + logoImg() + '</div>' : '') + '<b>' + esc(S.company) + '</b><span>ระบบรถส่วนกลาง</span></div>';
@@ -722,7 +732,8 @@ function carOptions() {
 function viewExpense() {
   if (!S.cars.length) return '<div class="card">ยังไม่มีรถในระบบ ให้แอดมินเพิ่มในแท็บ "จัดการ"</div>';
   return '<form class="card" id="fExpense"><h2>บันทึกค่าใช้จ่าย</h2><div class="mute" style="font-size:14px">ค่าซ่อมบำรุงให้บันทึกที่หน้ารถ เมนู "ซ่อมบำรุง"</div>' +
-    '<label>ทะเบียนรถ</label><select name="plate">' + carOptions() + '</select>' +
+    (S.locked ? (function () { var c = curCar(); return '<input type="hidden" name="plate" value="' + esc(c.plate) + '"><label>ทะเบียนรถ</label><div class="lockcar">' + plateHtml(c, 'sm') + '<span>' + esc(c.model || '') + '</span></div>'; })()
+      : '<label>ทะเบียนรถ</label><select name="plate">' + carOptions() + '</select>') +
     '<label>วันที่</label><input name="date" type="date" value="' + today() + '" required>' +
     '<label>ประเภท</label><select name="type">' + S.types.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('') + '</select>' +
     '<label>จำนวนเงิน (บาท)</label><input name="amount" type="number" inputmode="decimal" min="0.01" step="0.01" required>' +
@@ -1546,7 +1557,7 @@ document.querySelectorAll('nav button').forEach(function (b) {
 load().then(function () {
   var hit = ADMIN_MODE ? null : S.cars.filter(function (c) { return (INITIAL_CAR && c.id === INITIAL_CAR) || (!INITIAL_CAR && INITIAL_PLATE && c.plate === INITIAL_PLATE); })[0];
   if (ADMIN_MODE) {}
-  else if (hit) { S.plate = hit.plate; S.tab = 'car'; S.sub = ''; }
+  else if (hit) { S.plate = hit.plate; S.locked = hit.id; S.tab = 'car'; S.sub = ''; }
   else if (INITIAL_CAR || INITIAL_PLATE) toast('ไม่พบรถคันนี้ในระบบ (อาจถูกนำออกแล้ว) เลือกรถจากหน้าแรกได้', 'err');
   render();
 }).catch(function (e) {
