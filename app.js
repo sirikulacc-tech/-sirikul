@@ -942,8 +942,7 @@ function fuelInner(car) {
   var rs = recentStations(), st = fuelStats(car.plate);
   return '<div class="fb-h">⛽ รายละเอียดน้ำมัน</div>' +
     (st.kmpl !== null ? '<div class="fb-stat">รถคันนี้กิน <b>' + f1(st.kmpl) + '</b> กม./ลิตร (เฉลี่ย)' + (st.last !== null ? ' · ครั้งล่าสุด ' + f1(st.last) : '') + '</div>' : '') +
-    '<label>ชนิดน้ำมัน</label><input type="hidden" name="fuelType" value="' + esc(def) + '">' +
-    '<div class="qchips" data-field="fuelType">' + FUEL_TYPES.map(function (t) { return '<button type="button" class="qchip' + (t === def ? ' on' : '') + '" data-v="' + esc(t) + '">' + esc(t) + '</button>'; }).join('') + '</div>' +
+    '<label>ชนิดน้ำมัน</label><select name="fuelType">' + FUEL_TYPES.map(function (t) { return '<option' + (t === def ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('') + '</select>' +
     '<div class="fb-grid"><div><label>ราคาต่อลิตร (บาท) <span class="req">*</span></label><input name="pricePerL" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="' + (lp ? 'ครั้งก่อน ' + f2(lp) : 'เช่น 38.45') + '"></div>' +
     '<div><label>จำนวนลิตร</label><input name="liters" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="คำนวณให้"></div></div>' +
     '<div class="fb-calc mute" id="fbCalc">กรอกจำนวนเงินกับราคาต่อลิตร ระบบจะคำนวณจำนวนลิตรให้ (แก้เองได้ถ้าตู้จ่ายแสดงลิตรต่างออกไป)</div>' +
