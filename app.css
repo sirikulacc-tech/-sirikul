@@ -1030,7 +1030,6 @@ header.carhead .hx .hx-co:active { background:rgba(255,255,255,.22); }
 .fb-calc b { color:var(--ink); }
 .fuelbox .chk { display:flex; align-items:center; gap:10px; font-weight:600; margin-top:12px; }
 .fuelbox .chk input { width:20px; height:20px; flex:none; accent-color:var(--pri); }
-.nearbtn { margin-top:8px; width:100%; }
 .fuelbox .qchips { margin-top:8px; }
 .fuelbox .qchip small { opacity:.7; font-weight:500; margin-left:4px; }
 .fuelsub { font-size:13.5px; color:var(--pri); font-weight:600; }

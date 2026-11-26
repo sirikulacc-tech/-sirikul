@@ -951,9 +951,7 @@ function fuelInner(car) {
     '<label class="chk"><input type="checkbox" name="fullTankChk" checked> เติมเต็มถัง <span class="mute">(ติ๊กออกถ้าเติมไม่เต็มถัง)</span></label>' +
     '<label>ปั๊มน้ำมัน</label>' +
     (rs.length ? '<div class="qchips" data-field="station" id="stRecent">' + rs.map(function (v) { return '<button type="button" class="qchip" data-v="' + esc(v) + '">' + esc(v) + '</button>'; }).join('') + '</div>' : '') +
-    '<input name="station" maxlength="80" placeholder="พิมพ์ชื่อปั๊ม หรือกดหาปั๊มใกล้ฉัน">' +
-    '<button type="button" class="ghost nearbtn" id="fbNear">📍 หาปั๊มใกล้ฉัน</button>' +
-    '<div class="qchips" data-field="station" id="stNear"></div><div class="mute" id="stMsg" style="font-size:13px"></div>';
+    '<input name="station" maxlength="80" placeholder="พิมพ์ชื่อปั๊ม เช่น PTT สาขาสีลม">';
 }
 function viewExpense() {
   if (!S.cars.length) return '<div class="card">ยังไม่มีรถในระบบ ให้แอดมินเพิ่มในแท็บ "จัดการ"</div>';
@@ -969,7 +967,7 @@ function viewExpense() {
     nameField('ผู้บันทึก') + imageField('แนบรูปใบเสร็จ') + '<button type="submit">บันทึก</button></form>';
 }
 
-// ผูกพฤติกรรมของกล่องน้ำมัน: แสดงเมื่อเลือกประเภท "น้ำมัน", คำนวณลิตร/ราคาต่อลิตร, ปุ่มหาปั๊มใกล้ฉัน
+// ผูกพฤติกรรมของกล่องน้ำมัน: แสดงเมื่อเลือกประเภท "น้ำมัน", คำนวณลิตร/ราคาต่อลิตร, เลือกปั๊มที่เคยเติม
 function bindExpense() {
   var f = $('#fExpense'); if (!f) return;
   var box = $('#fuelBox'), typeSel = f.elements['type'], driver = 'price';
@@ -987,10 +985,9 @@ function bindExpense() {
     var P = f.elements['pricePerL'], L = f.elements['liters'];
     P.addEventListener('input', function () { calc('price'); }); L.addEventListener('input', function () { calc('liters'); });
     var u = $('#fbUseOdo'); if (u) u.addEventListener('click', function () { f.elements['odo'].value = u.dataset.v; });
-    var nb = $('#fbNear'); if (nb) nb.addEventListener('click', findStations);
     // เลือกปั๊มจากปุ่มลัด แล้วทำเครื่องหมายเฉพาะปุ่มที่เลือก
-    ['stRecent', 'stNear'].forEach(function (id) { var g = $('#' + id); if (g) g.addEventListener('click', function (e) { var c = e.target.closest('.qchip'); if (!c) return; document.querySelectorAll('#stRecent .qchip, #stNear .qchip').forEach(function (x) { x.classList.toggle('on', x === c); }); }); });
-    f.elements['station'].addEventListener('input', function () { document.querySelectorAll('#stRecent .qchip, #stNear .qchip').forEach(function (x) { x.classList.toggle('on', x.dataset.v === f.elements['station'].value); }); });
+    var rg = $('#stRecent'); if (rg) rg.addEventListener('click', function (e) { var c = e.target.closest('.qchip'); if (!c) return; rg.querySelectorAll('.qchip').forEach(function (x) { x.classList.toggle('on', x === c); }); });
+    f.elements['station'].addEventListener('input', function () { document.querySelectorAll('#stRecent .qchip').forEach(function (x) { x.classList.toggle('on', x.dataset.v === f.elements['station'].value); }); });
     document.querySelectorAll('#fuelBox .qchips').forEach(function (g) {
       g.addEventListener('click', function (e) {
         var c = e.target.closest('.qchip'); if (!c) return; var inp = f.elements[g.dataset.field]; if (!inp) return;
@@ -1011,52 +1008,6 @@ function bindExpense() {
   });
   bindBox(); sync();
 }
-// ค้นหาปั๊มน้ำมันใกล้ตำแหน่งปัจจุบัน จาก OpenStreetMap (Overpass) ส่งเฉพาะพิกัดตอนที่กดปุ่มเท่านั้น ไม่เก็บตำแหน่ง
-function distM(a, b, c, d) {
-  var R = 6371000, r = Math.PI / 180, dLa = (c - a) * r, dLo = (d - b) * r;
-  var x = Math.sin(dLa / 2) * Math.sin(dLa / 2) + Math.cos(a * r) * Math.cos(c * r) * Math.sin(dLo / 2) * Math.sin(dLo / 2);
-  return 2 * R * Math.asin(Math.sqrt(x));
-}
-async function overpassFuel(lat, lon, rad) {
-  var q = '[out:json][timeout:15];nwr(around:' + rad + ',' + lat + ',' + lon + ')[amenity=fuel];out center tags 80;';
-  var urls = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'], err;
-  for (var i = 0; i < urls.length; i++) {
-    try {
-      var ac = new AbortController(), tm = setTimeout(function () { ac.abort(); }, 14000);
-      var r = await fetch(urls[i], { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: ac.signal });
-      clearTimeout(tm);
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return (await r.json()).elements || [];
-    } catch (e) { err = e; }
-  }
-  throw err || new Error('ค้นหาไม่ได้');
-}
-async function findStations() {
-  var msg = $('#stMsg'), near = $('#stNear'), btn = $('#fbNear');
-  if (!navigator.geolocation) { msg.textContent = 'เบราว์เซอร์นี้ไม่รองรับการระบุตำแหน่ง พิมพ์ชื่อปั๊มเองได้เลย'; return; }
-  btn.disabled = true; msg.textContent = 'กำลังหาตำแหน่งของคุณ...'; near.innerHTML = '';
-  try {
-    var pos = await new Promise(function (res, rej) { navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }); });
-    var lat = pos.coords.latitude, lon = pos.coords.longitude;
-    msg.textContent = 'กำลังค้นหาปั๊มใกล้เคียง...';
-    var els = await overpassFuel(lat, lon, 4000), seen = {};
-    var list = els.map(function (e) {
-      var t = e.tags || {}, nm = (t['name:th'] || t.name || t.brand || t.operator || '').trim();
-      var la = e.lat != null ? e.lat : e.center && e.center.lat, lo = e.lon != null ? e.lon : e.center && e.center.lon;
-      return nm && la != null ? { name: nm, d: distM(lat, lon, la, lo) } : null;
-    }).filter(Boolean).sort(function (a, b) { return a.d - b.d; }).filter(function (x) { var k = x.name + Math.round(x.d / 50); if (seen[k]) return false; seen[k] = 1; return true; }).slice(0, 8);
-    if (!list.length) { msg.textContent = 'ไม่พบปั๊มในรัศมี 4 กม. พิมพ์ชื่อปั๊มเองได้เลย'; }
-    else {
-      near.innerHTML = list.map(function (x) { return '<button type="button" class="qchip" data-v="' + esc(x.name) + '">' + esc(x.name) + ' <small>' + (x.d < 1000 ? Math.round(x.d / 10) * 10 + ' ม.' : (x.d / 1000).toFixed(1) + ' กม.') + '</small></button>'; }).join('');
-      msg.textContent = 'ปั๊มใกล้คุณ ' + list.length + ' แห่ง (ข้อมูลจาก OpenStreetMap) แตะเพื่อเลือก';
-    }
-  } catch (e) {
-    msg.textContent = e && e.code === 1 ? 'ยังไม่ได้อนุญาตตำแหน่ง กรุณาอนุญาตในเบราว์เซอร์ แล้วกดอีกครั้ง หรือพิมพ์ชื่อปั๊มเอง'
-      : e && e.code === 3 ? 'หาตำแหน่งไม่ทันเวลา ลองใหม่อีกครั้ง หรือพิมพ์ชื่อปั๊มเอง' : 'ค้นหาปั๊มไม่ได้ในตอนนี้ (อินเทอร์เน็ตหรือบริการแผนที่ขัดข้อง) พิมพ์ชื่อปั๊มเองได้เลย';
-  }
-  btn.disabled = false;
-}
-
 /* ---------- จัดการรถ (ผู้จัดการ/แอดมิน) ---------- */
 /* ===================== หน้าแอดมิน (คอมพิวเตอร์) ===================== */
 var ADMIN_PAGES = [
