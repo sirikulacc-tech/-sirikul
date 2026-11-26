@@ -437,6 +437,7 @@ function viewHome() {
   }).join('') : '<div class="mute">ยังไม่มีรายการ</div>') + '</div>';
   h += '<div class="card"><h2>ค่าใช้จ่ายล่าสุด</h2>' + (S.expenses.length ? S.expenses.map(function (e) {
     return '<div class="row"><b>' + esc(e.plate) + '</b> · ' + esc(e.type) + ' · ' + baht(e.amount) + ' บาท<br>' +
+      (fuelLine(e) ? '<span class="fuelsub">' + fuelLine(e) + '</span><br>' : '') +
       '<span class="mute">' + thDate(e.date) + ' · ' + esc(e.name) + (e.note ? ' · ' + esc(e.note) : '') + '</span>' + links(e.images) + '</div>';
   }).join('') : '<div class="mute">ยังไม่มีรายการ</div>') + '</div>';
   return h;
@@ -847,7 +848,7 @@ function viewInfo(car) {
     '<div class="card info-main"><h2>ข้อมูลรถ</h2>' + kv('ทะเบียน', car.plate) + kv('จังหวัด', car.province) + kv('ยี่ห้อ/รุ่น', car.model) + kv('ปี', car.year) +
     kv('สี', car.color) + kv('เชื้อเพลิง', car.fuel) + kv('เลขตัวถัง', car.vin) + kv('เลขเครื่อง', car.engineNo) +
     kv('เลขไมล์ล่าสุด', car.lastOdo === '' ? '' : Number(car.lastOdo).toLocaleString('th-TH') + ' กม.') + '</div>' +
-    '<div class="card"><h2>วันหมดอายุ</h2>' + exp('พ.ร.บ.', car.actExp) + exp('ภาษีรถ', car.taxExp) + exp('ประกันภัย', car.insExp) + '</div>' + policyCard(car);
+    '<div class="card"><h2>วันหมดอายุ</h2>' + exp('พ.ร.บ.', car.actExp) + exp('ภาษีรถ', car.taxExp) + exp('ประกันภัย', car.insExp) + '</div>' + fuelCard(car) + policyCard(car);
 }
 
 /* ---------- สำเนาทะเบียน ---------- */
@@ -884,16 +885,177 @@ async function showPolicy() {
 function carOptions() {
   return S.cars.map(function (c) { return '<option value="' + esc(c.plate) + '"' + (c.plate === S.plate ? ' selected' : '') + '>' + esc(c.plate) + ' ' + esc(c.model) + '</option>'; }).join('');
 }
+/* ---------- น้ำมัน: ชนิด ราคาต่อลิตร ปั๊ม และอัตราสิ้นเปลือง (กม./ลิตร) ---------- */
+var FUEL_TYPES = ['แก๊สโซฮอล์ 95', 'แก๊สโซฮอล์ 91', 'แก๊สโซฮอล์ E20', 'แก๊สโซฮอล์ E85', 'เบนซิน 95', 'ดีเซล', 'ดีเซล B7', 'ดีเซลพรีเมียม', 'LPG', 'NGV', 'อื่นๆ'];
+function f1(n) { return Number(n).toLocaleString('th-TH', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
+function f2(n) { return Number(n).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function guessFuel(txt) {
+  txt = String(txt || '');
+  if (/ดีเซล|diesel/i.test(txt)) return 'ดีเซล';
+  if (/lpg/i.test(txt)) return 'LPG'; if (/ngv/i.test(txt)) return 'NGV';
+  if (/เบนซิน|แก๊สโซฮอล|gasohol|gasoline/i.test(txt)) return 'แก๊สโซฮอล์ 95';
+  return '';
+}
+function fuelRows(plate) {
+  return (S.allExp || []).filter(function (e) { return e.plate === plate && e.type === 'น้ำมัน' && Number(e.liters) > 0; })
+    .sort(function (a, b) { return a.date === b.date ? (Number(a.odo) || 0) - (Number(b.odo) || 0) : (a.date < b.date ? -1 : 1); });
+}
+// วิธีเติมเต็มถัง: ระยะทางระหว่างการเติมเต็มถัง 2 ครั้ง ÷ ลิตรที่เติมทั้งหมดหลังครั้งแรกจนถึงครั้งหลัง (รวมการเติมไม่เต็มถังระหว่างทาง)
+function fuelStats(plate) {
+  var rows = fuelRows(plate), segs = [], byId = {}, prev = null, pend = 0, pendAmt = 0, tl = 0, ta = 0;
+  rows.forEach(function (e) {
+    var L = Number(e.liters), A = Number(e.amount) || 0, o = e.odo === '' || e.odo == null ? null : Number(e.odo);
+    tl += L; ta += A;
+    var full = e.fullTank !== 'N' && o !== null;
+    if (prev === null) { if (full) { prev = o; pend = 0; pendAmt = 0; } return; }
+    pend += L; pendAmt += A;
+    if (!full) return;
+    if (o > prev) { var sg = { id: e.id, dist: o - prev, liters: pend, amount: pendAmt, kmpl: (o - prev) / pend }; segs.push(sg); byId[e.id] = sg; }
+    prev = o; pend = 0; pendAmt = 0;
+  });
+  var d = segs.reduce(function (t, g) { t.dist += g.dist; t.l += g.liters; t.a += g.amount; return t; }, { dist: 0, l: 0, a: 0 });
+  return { count: rows.length, totalL: tl, avgPrice: tl > 0 ? ta / tl : null, segs: segs, byId: byId,
+    kmpl: d.l > 0 ? d.dist / d.l : null, last: segs.length ? segs[segs.length - 1].kmpl : null, costKm: d.dist > 0 ? d.a / d.dist : null };
+}
+function fuelLine(e) {
+  if (e.type !== 'น้ำมัน' || !(Number(e.liters) > 0)) return '';
+  return [e.fuelType ? esc(e.fuelType) : '', f2(e.liters) + ' ลิตร', e.pricePerL !== '' && e.pricePerL != null ? f2(e.pricePerL) + ' บาท/ลิตร' : '', e.station ? '⛽ ' + esc(e.station) : ''].filter(Boolean).join(' · ');
+}
+function fuelCard(car) {
+  var st = fuelStats(car.plate);
+  if (!st.count) return '<div class="card fuelcard"><h2>⛽ การกินน้ำมัน</h2><div class="mute" style="font-size:14px">ยังไม่มีข้อมูล เมื่อบันทึกค่าน้ำมัน (ใส่ราคาต่อลิตร เลขไมล์ และเติมเต็มถัง) ระบบจะคำนวณ กม./ลิตร ให้</div></div>';
+  var kv = function (k, v) { return '<div class="kv"><span>' + k + '</span><span>' + v + '</span></div>'; };
+  return '<div class="card fuelcard"><h2>⛽ การกินน้ำมัน</h2>' +
+    (st.kmpl !== null ? '<div class="fuelbig"><b>' + f1(st.kmpl) + '</b><span>กม./ลิตร (เฉลี่ย)</span></div>' : '<div class="mute" style="font-size:14px;margin-bottom:6px">ต้องเติมเต็มถังพร้อมเลขไมล์อย่างน้อย 2 ครั้ง จึงจะคำนวณ กม./ลิตร ได้</div>') +
+    (st.last !== null ? kv('ครั้งล่าสุด', f1(st.last) + ' กม./ลิตร') : '') +
+    (st.costKm !== null ? kv('ค่าน้ำมันต่อ กม.', f2(st.costKm) + ' บาท') : '') +
+    (st.avgPrice !== null ? kv('ราคาเฉลี่ย', f2(st.avgPrice) + ' บาท/ลิตร') : '') +
+    kv('เติมแล้ว', st.count + ' ครั้ง · ' + f1(st.totalL) + ' ลิตร') + '</div>';
+}
+function recentStations() {
+  var cnt = {}; (S.allExp || []).forEach(function (e) { if (e.type === 'น้ำมัน' && e.station) cnt[e.station] = (cnt[e.station] || 0) + 1; });
+  return Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; }).slice(0, 4);
+}
+function fuelInner(car) {
+  var rows = fuelRows(car.plate), last = rows[rows.length - 1];
+  var def = (last && last.fuelType) || guessFuel(car.fuel), lp = last && last.pricePerL !== '' ? Number(last.pricePerL) : 0;
+  var rs = recentStations(), st = fuelStats(car.plate);
+  return '<div class="fb-h">⛽ รายละเอียดน้ำมัน</div>' +
+    (st.kmpl !== null ? '<div class="fb-stat">รถคันนี้กิน <b>' + f1(st.kmpl) + '</b> กม./ลิตร (เฉลี่ย)' + (st.last !== null ? ' · ครั้งล่าสุด ' + f1(st.last) : '') + '</div>' : '') +
+    '<label>ชนิดน้ำมัน</label><input type="hidden" name="fuelType" value="' + esc(def) + '">' +
+    '<div class="qchips" data-field="fuelType">' + FUEL_TYPES.map(function (t) { return '<button type="button" class="qchip' + (t === def ? ' on' : '') + '" data-v="' + esc(t) + '">' + esc(t) + '</button>'; }).join('') + '</div>' +
+    '<div class="fb-grid"><div><label>ราคาต่อลิตร (บาท) <span class="req">*</span></label><input name="pricePerL" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="' + (lp ? 'ครั้งก่อน ' + f2(lp) : 'เช่น 38.45') + '"></div>' +
+    '<div><label>จำนวนลิตร</label><input name="liters" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="คำนวณให้"></div></div>' +
+    '<div class="fb-calc mute" id="fbCalc">กรอกจำนวนเงินกับราคาต่อลิตร ระบบจะคำนวณจำนวนลิตรให้ (แก้เองได้ถ้าตู้จ่ายแสดงลิตรต่างออกไป)</div>' +
+    '<label>เลขไมล์ตอนเติม (กม.) <span class="mute" style="font-weight:400">ใช้คำนวณ กม./ลิตร</span></label><input name="odo" type="number" inputmode="numeric" min="0" step="1" placeholder="ดูจากหน้าปัดรถ">' +
+    (car.lastOdo !== '' ? '<button type="button" class="usebtn" id="fbUseOdo" data-v="' + esc(car.lastOdo) + '">ใช้เลขไมล์ล่าสุด (' + km(car.lastOdo) + ')</button>' : '') +
+    '<label class="chk"><input type="checkbox" name="fullTankChk" checked> เติมเต็มถัง <span class="mute">(ติ๊กออกถ้าเติมไม่เต็มถัง)</span></label>' +
+    '<label>ปั๊มน้ำมัน</label>' +
+    (rs.length ? '<div class="qchips" data-field="station" id="stRecent">' + rs.map(function (v) { return '<button type="button" class="qchip" data-v="' + esc(v) + '">' + esc(v) + '</button>'; }).join('') + '</div>' : '') +
+    '<input name="station" maxlength="80" placeholder="พิมพ์ชื่อปั๊ม หรือกดหาปั๊มใกล้ฉัน">' +
+    '<button type="button" class="ghost nearbtn" id="fbNear">📍 หาปั๊มใกล้ฉัน</button>' +
+    '<div class="qchips" data-field="station" id="stNear"></div><div class="mute" id="stMsg" style="font-size:13px"></div>';
+}
 function viewExpense() {
   if (!S.cars.length) return '<div class="card">ยังไม่มีรถในระบบ ให้แอดมินเพิ่มในแท็บ "จัดการ"</div>';
+  var car = curCar();
   return '<form class="card" id="fExpense"><h2>บันทึกค่าใช้จ่าย</h2><div class="mute" style="font-size:14px">ค่าซ่อมบำรุงให้บันทึกที่หน้ารถ เมนู "ซ่อมบำรุง"</div>' +
     (S.locked ? (function () { var c = curCar(); return '<input type="hidden" name="plate" value="' + esc(c.plate) + '"><label>ทะเบียนรถ</label><div class="lockcar">' + plateHtml(c, 'sm') + '<span>' + esc(c.model || '') + '</span></div>'; })()
       : '<label>ทะเบียนรถ</label><select name="plate">' + carOptions() + '</select>') +
     '<label>วันที่</label><input name="date" type="date" value="' + today() + '" required>' +
     '<label>ประเภท</label><select name="type">' + S.types.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('') + '</select>' +
     '<label>จำนวนเงิน (บาท)</label><input name="amount" type="number" inputmode="decimal" min="0.01" step="0.01" required>' +
+    '<div id="fuelBox" class="fuelbox hide">' + fuelInner(car) + '</div>' +
     '<label>หมายเหตุ</label><input name="note" maxlength="300">' +
     nameField('ผู้บันทึก') + imageField('แนบรูปใบเสร็จ') + '<button type="submit">บันทึก</button></form>';
+}
+
+// ผูกพฤติกรรมของกล่องน้ำมัน: แสดงเมื่อเลือกประเภท "น้ำมัน", คำนวณลิตร/ราคาต่อลิตร, ปุ่มหาปั๊มใกล้ฉัน
+function bindExpense() {
+  var f = $('#fExpense'); if (!f) return;
+  var box = $('#fuelBox'), typeSel = f.elements['type'], driver = 'price';
+  function isFuel() { return typeSel.value === 'น้ำมัน'; }
+  function calc(src) {
+    var A = Number(f.elements['amount'].value), P = f.elements['pricePerL'], L = f.elements['liters'], out = $('#fbCalc');
+    if (src === 'price') driver = 'price'; else if (src === 'liters') driver = 'liters';
+    if (A > 0 && driver === 'price' && Number(P.value) > 0) L.value = (A / Number(P.value)).toFixed(2);
+    else if (A > 0 && driver === 'liters' && Number(L.value) > 0) P.value = (A / Number(L.value)).toFixed(2);
+    if (!out) return;
+    var pv = Number(P.value), lv = Number(L.value);
+    out.innerHTML = A > 0 && pv > 0 && lv > 0 ? '≈ <b>' + f2(lv) + '</b> ลิตร · <b>' + f2(pv) + '</b> บาท/ลิตร' + (pv < 10 || pv > 100 ? ' <span class="cd-bad">ราคาดูผิดปกติ</span>' : '') : 'กรอกจำนวนเงินกับราคาต่อลิตร ระบบจะคำนวณจำนวนลิตรให้ (แก้เองได้ถ้าตู้จ่ายแสดงลิตรต่างออกไป)';
+  }
+  function bindBox() {
+    var P = f.elements['pricePerL'], L = f.elements['liters'];
+    P.addEventListener('input', function () { calc('price'); }); L.addEventListener('input', function () { calc('liters'); });
+    var u = $('#fbUseOdo'); if (u) u.addEventListener('click', function () { f.elements['odo'].value = u.dataset.v; });
+    var nb = $('#fbNear'); if (nb) nb.addEventListener('click', findStations);
+    // เลือกปั๊มจากปุ่มลัด แล้วทำเครื่องหมายเฉพาะปุ่มที่เลือก
+    ['stRecent', 'stNear'].forEach(function (id) { var g = $('#' + id); if (g) g.addEventListener('click', function (e) { var c = e.target.closest('.qchip'); if (!c) return; document.querySelectorAll('#stRecent .qchip, #stNear .qchip').forEach(function (x) { x.classList.toggle('on', x === c); }); }); });
+    f.elements['station'].addEventListener('input', function () { document.querySelectorAll('#stRecent .qchip, #stNear .qchip').forEach(function (x) { x.classList.toggle('on', x.dataset.v === f.elements['station'].value); }); });
+    document.querySelectorAll('#fuelBox .qchips').forEach(function (g) {
+      g.addEventListener('click', function (e) {
+        var c = e.target.closest('.qchip'); if (!c) return; var inp = f.elements[g.dataset.field]; if (!inp) return;
+        inp.value = c.dataset.v; g.querySelectorAll('.qchip').forEach(function (x) { x.classList.toggle('on', x === c); });
+      });
+    });
+  }
+  function sync() {
+    var on = isFuel(); box.classList.toggle('hide', !on);
+    f.elements['pricePerL'].required = on;
+  }
+  typeSel.addEventListener('change', sync);
+  f.elements['amount'].addEventListener('input', function () { calc(); });
+  var ps = f.querySelector('select[name=plate]');
+  if (ps) ps.addEventListener('change', function () {
+    var c = S.cars.filter(function (x) { return x.plate === ps.value; })[0]; if (!c) return;
+    S.plate = c.plate; box.innerHTML = fuelInner(c); bindBox(); sync();
+  });
+  bindBox(); sync();
+}
+// ค้นหาปั๊มน้ำมันใกล้ตำแหน่งปัจจุบัน จาก OpenStreetMap (Overpass) ส่งเฉพาะพิกัดตอนที่กดปุ่มเท่านั้น ไม่เก็บตำแหน่ง
+function distM(a, b, c, d) {
+  var R = 6371000, r = Math.PI / 180, dLa = (c - a) * r, dLo = (d - b) * r;
+  var x = Math.sin(dLa / 2) * Math.sin(dLa / 2) + Math.cos(a * r) * Math.cos(c * r) * Math.sin(dLo / 2) * Math.sin(dLo / 2);
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+async function overpassFuel(lat, lon, rad) {
+  var q = '[out:json][timeout:15];nwr(around:' + rad + ',' + lat + ',' + lon + ')[amenity=fuel];out center tags 80;';
+  var urls = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'], err;
+  for (var i = 0; i < urls.length; i++) {
+    try {
+      var ac = new AbortController(), tm = setTimeout(function () { ac.abort(); }, 14000);
+      var r = await fetch(urls[i], { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: ac.signal });
+      clearTimeout(tm);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return (await r.json()).elements || [];
+    } catch (e) { err = e; }
+  }
+  throw err || new Error('ค้นหาไม่ได้');
+}
+async function findStations() {
+  var msg = $('#stMsg'), near = $('#stNear'), btn = $('#fbNear');
+  if (!navigator.geolocation) { msg.textContent = 'เบราว์เซอร์นี้ไม่รองรับการระบุตำแหน่ง พิมพ์ชื่อปั๊มเองได้เลย'; return; }
+  btn.disabled = true; msg.textContent = 'กำลังหาตำแหน่งของคุณ...'; near.innerHTML = '';
+  try {
+    var pos = await new Promise(function (res, rej) { navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }); });
+    var lat = pos.coords.latitude, lon = pos.coords.longitude;
+    msg.textContent = 'กำลังค้นหาปั๊มใกล้เคียง...';
+    var els = await overpassFuel(lat, lon, 4000), seen = {};
+    var list = els.map(function (e) {
+      var t = e.tags || {}, nm = (t['name:th'] || t.name || t.brand || t.operator || '').trim();
+      var la = e.lat != null ? e.lat : e.center && e.center.lat, lo = e.lon != null ? e.lon : e.center && e.center.lon;
+      return nm && la != null ? { name: nm, d: distM(lat, lon, la, lo) } : null;
+    }).filter(Boolean).sort(function (a, b) { return a.d - b.d; }).filter(function (x) { var k = x.name + Math.round(x.d / 50); if (seen[k]) return false; seen[k] = 1; return true; }).slice(0, 8);
+    if (!list.length) { msg.textContent = 'ไม่พบปั๊มในรัศมี 4 กม. พิมพ์ชื่อปั๊มเองได้เลย'; }
+    else {
+      near.innerHTML = list.map(function (x) { return '<button type="button" class="qchip" data-v="' + esc(x.name) + '">' + esc(x.name) + ' <small>' + (x.d < 1000 ? Math.round(x.d / 10) * 10 + ' ม.' : (x.d / 1000).toFixed(1) + ' กม.') + '</small></button>'; }).join('');
+      msg.textContent = 'ปั๊มใกล้คุณ ' + list.length + ' แห่ง (ข้อมูลจาก OpenStreetMap) แตะเพื่อเลือก';
+    }
+  } catch (e) {
+    msg.textContent = e && e.code === 1 ? 'ยังไม่ได้อนุญาตตำแหน่ง กรุณาอนุญาตในเบราว์เซอร์ แล้วกดอีกครั้ง หรือพิมพ์ชื่อปั๊มเอง'
+      : e && e.code === 3 ? 'หาตำแหน่งไม่ทันเวลา ลองใหม่อีกครั้ง หรือพิมพ์ชื่อปั๊มเอง' : 'ค้นหาปั๊มไม่ได้ในตอนนี้ (อินเทอร์เน็ตหรือบริการแผนที่ขัดข้อง) พิมพ์ชื่อปั๊มเองได้เลย';
+  }
+  btn.disabled = false;
 }
 
 /* ---------- จัดการรถ (ผู้จัดการ/แอดมิน) ---------- */
@@ -1142,7 +1304,8 @@ function carCards(list) {
       '<div class="cc-name"><span class="vic">' + vIcon(c.vtype) + '</span><div class="cc-nm"><b>' + esc(c.model || 'ไม่ระบุรุ่น') + '</b><div class="sub">' + esc([c.vtype, c.year, c.color].filter(Boolean).join(' · ')) + '</div></div>' +
       '<button type="button" class="tlbtn" data-act="timeline" data-id="' + esc(c.id) + '">' + ic('clock', 16) + 'ไทม์ไลน์</button></div>' +
       '<div class="cc-stats"><div class="cc-stat"><span>เลขไมล์ล่าสุด</span><b>' + (c.lastOdo === '' ? '-' : km(c.lastOdo) + ' <small>กม.</small>') + '</b></div>' +
-      '<div class="cc-stat"><span>' + ic('wrench', 14) + ' เช็คระยะถัดไป</span>' + svc + '</div></div>' +
+      '<div class="cc-stat"><span>' + ic('wrench', 14) + ' เช็คระยะถัดไป</span>' + svc + '</div>' +
+      (function () { var fs = fuelStats(c.plate); return '<div class="cc-stat cc-fuel"><span>⛽ อัตราสิ้นเปลือง</span>' + (fs.kmpl !== null ? '<b>' + f1(fs.kmpl) + ' <small>กม./ลิตร</small></b>' : '<span class="chip na">' + (fs.count ? 'รอข้อมูลเพิ่ม' : 'ยังไม่มีข้อมูล') + '</span>') + '</div>'; })() + '</div>' +
       '<div class="cc-due">' + tile('พ.ร.บ.', c.actExp) + tile('ภาษี', c.taxExp) + tile('ประกัน', c.insExp) + '</div>' +
       (c.insurer || c.insClass || c.insPolicyNo ? '<div class="cc-ins">' + ic('shield', 14) + '<span>' + esc([c.insurer, c.insClass, c.insPolicyNo ? 'เลขที่ ' + c.insPolicyNo : ''].filter(Boolean).join(' · ')) + '</span></div>' : '') +
       (c.regDocId ? '' : '<div class="nodoc-note">' + ic('info', 14) + 'ยังไม่มีสำเนาทะเบียน</div>') +
@@ -1215,7 +1378,9 @@ function tlEvents(c) {
   });
   (S.allExp || []).forEach(function (x) {
     if (x.plate !== c.plate) return;
-    ev.push({ k: 'ex', at: String(x.date), title: esc(x.type || 'ค่าใช้จ่าย') + ' · ' + baht(x.amount) + ' บาท', sub: esc(x.note || ''), meta: x.name ? 'บันทึกโดย ' + esc(x.name) : '' });
+    var fl = fuelLine(x), sg = fuelStats(c.plate).byId[x.id];
+    ev.push({ k: 'ex', at: String(x.date), title: esc(x.type || 'ค่าใช้จ่าย') + ' · ' + baht(x.amount) + ' บาท', sub: [fl, esc(x.note || '')].filter(Boolean).join('<br>'),
+      meta: [x.name ? 'บันทึกโดย ' + esc(x.name) : '', sg ? '<span class="chip free">' + f1(sg.kmpl) + ' กม./ลิตร</span>' : '', x.odo !== '' && x.odo != null ? 'ไมล์ ' + km(x.odo) : ''].filter(Boolean).join(' · ') });
   });
   [['actExp', 'พ.ร.บ.'], ['taxExp', 'ภาษีรถ'], ['insExp', 'ประกันภัย']].forEach(function (z) {
     var d = c[z[0]]; if (!d) return; var n = daysLeft(d);
@@ -1575,6 +1740,7 @@ function admDrivers() {
 /* ---------- ฟอร์มและปุ่ม ---------- */
 var pendingImages = [], pendingReg = null, pendingPolicy = null, pendingLogo = '';
 function bindForms() {
+  bindExpense();
   pendingImages = []; pendingReg = null; pendingPolicy = null;
   var inp = $('#imgs');
   if (inp) inp.addEventListener('change', async function () {
@@ -1686,7 +1852,17 @@ function bindForms() {
   hook('#fMaint', 'addMaintenance', function (d) {
     return { name: d.name, plate: S.plate, date: d.date, type: d.type, detail: d.detail, odo: d.odo, shop: d.shop, cost: d.cost, nextDate: d.nextDate, nextOdo: d.nextOdo, images: pendingImages };
   }, 'บันทึกประวัติซ่อมบำรุงแล้ว', function () { S.hist = {}; S.tab = 'car'; S.sub = 'maint'; S.mopen = false; S.mdef = ''; });
-  hook('#fExpense', 'addExpense', function (d) { return { name: d.name, plate: d.plate, date: d.date, type: d.type, amount: d.amount, note: d.note, images: pendingImages }; }, null, after('home'));
+  hook('#fExpense', 'addExpense', function (d) {
+    var o = { name: d.name, plate: d.plate, date: d.date, type: d.type, amount: d.amount, note: d.note, images: pendingImages };
+    if (d.type === 'น้ำมัน') { o.fuelType = d.fuelType; o.pricePerL = d.pricePerL; o.liters = d.liters; o.station = d.station; o.odo = d.odo; o.fullTank = d.fullTankChk ? 'Y' : 'N'; }
+    return o;
+  }, null, after('home'), function (d) {
+    if (d.type !== 'น้ำมัน') return '';
+    var c = S.cars.filter(function (x) { return x.plate === d.plate; })[0], w = [];
+    if (d.odo !== '' && c && c.lastOdo !== '' && Number(d.odo) < Number(c.lastOdo)) w.push('เลขไมล์ที่กรอก (' + km(d.odo) + ') น้อยกว่าไมล์ล่าสุดของรถ (' + km(c.lastOdo) + ')');
+    var pr = Number(d.pricePerL); if (pr && (pr < 10 || pr > 100)) w.push('ราคาต่อลิตร ' + f2(pr) + ' บาท ดูผิดปกติ');
+    return w.length ? w.join('\n') + '\nกรุณาตรวจสอบอีกครั้ง' : '';
+  });
   var fnd = $('#fNewDriver');
   if (fnd) fnd.elements['licenseExp'].addEventListener('change', function () { $('#regLicNote').innerHTML = licNote(fnd.elements['licenseExp'].value); });
   hook('#fNewDriver', 'registerDriver', function (d) { return { name: d.name, phone: d.phone, licenseExp: d.licenseExp }; },
@@ -1961,7 +2137,7 @@ async function exportReport(btn) {
         return [u.ts, u.plate, u.name, u.purpose, u.dest || '', u.odoStart, u.odoEnd, u.odoEnd !== '' ? Number(u.odoEnd) - Number(u.odoStart) : '', u.returnTs, u.returnName,
           u.status === 'open' ? 'ยังไม่คืน' : u.status === 'cancelled' ? 'ยกเลิก' : 'คืนแล้ว'];
       })));
-    add('ค่าใช้จ่าย', [['วันที่', 'ทะเบียน', 'ประเภท', 'จำนวนเงิน', 'หมายเหตุ', 'ผู้บันทึก']].concat(d.expenses.map(function (e) { return [e.date, e.plate, e.type, Number(e.amount) || 0, e.note, e.name]; })));
+    add('ค่าใช้จ่าย', [['วันที่', 'ทะเบียน', 'ประเภท', 'จำนวนเงิน', 'ชนิดน้ำมัน', 'ราคาต่อลิตร', 'ลิตร', 'ปั๊ม', 'เลขไมล์ตอนเติม', 'หมายเหตุ', 'ผู้บันทึก']].concat(d.expenses.map(function (e) { return [e.date, e.plate, e.type, Number(e.amount) || 0, e.fuelType || '', e.pricePerL === '' || e.pricePerL == null ? '' : Number(e.pricePerL), e.liters === '' || e.liters == null ? '' : Number(e.liters), e.station || '', e.odo === '' || e.odo == null ? '' : Number(e.odo), e.note, e.name]; })));
     add('ซ่อมบำรุง', [['วันที่', 'ทะเบียน', 'ประเภท', 'รายละเอียด', 'อู่/ร้าน', 'เลขไมล์', 'ค่าใช้จ่าย', 'ผู้บันทึก']].concat(d.maint.map(function (m) { return [m.date, m.plate, m.type, m.detail, m.shop, m.odo, m.cost, m.name]; })));
     var out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     var url = URL.createObjectURL(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));

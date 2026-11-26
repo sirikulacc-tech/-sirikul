@@ -1017,3 +1017,27 @@ header.carhead .hx .hx-co span { flex:1; min-width:0; overflow:hidden; text-over
 header.carhead .hx .hx-co i { font-style:normal; font-size:15px; line-height:1; opacity:.85; }
 header.carhead .hx .hx-co:active { background:rgba(255,255,255,.22); }
 .polcard.inmodal { margin:6px 0 0; padding:0; border:0; box-shadow:none; background:transparent; }
+
+/* ===== น้ำมัน: ชนิด ราคาต่อลิตร ปั๊มใกล้เคียง อัตราสิ้นเปลือง ===== */
+.fuelbox { margin:14px 0 4px; padding:14px; border-radius:16px; background:var(--pri-soft); border:1px solid color-mix(in srgb, var(--pri) 22%, transparent); }
+.fuelbox.hide { display:none; }
+.fuelbox label { margin-top:10px; }
+.fb-h { font-family:var(--f-head); font-weight:600; font-size:15.5px; color:var(--pri); }
+.fb-stat { margin-top:6px; padding:8px 12px; border-radius:11px; background:var(--card); font-size:14px; }
+.fb-stat b { font-size:17px; color:var(--ok); }
+.fb-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.fb-calc { margin-top:8px; font-size:13.5px; padding:8px 12px; border-radius:11px; background:var(--card); }
+.fb-calc b { color:var(--ink); }
+.fuelbox .chk { display:flex; align-items:center; gap:10px; font-weight:600; margin-top:12px; }
+.fuelbox .chk input { width:20px; height:20px; flex:none; accent-color:var(--pri); }
+.nearbtn { margin-top:8px; width:100%; }
+.fuelbox .qchips { margin-top:8px; }
+.fuelbox .qchip small { opacity:.7; font-weight:500; margin-left:4px; }
+.fuelsub { font-size:13.5px; color:var(--pri); font-weight:600; }
+.fuelbig { display:flex; align-items:baseline; gap:8px; margin:2px 0 10px; }
+.fuelbig b { font-family:var(--f-head); font-size:38px; font-weight:600; color:var(--ok); line-height:1; }
+.fuelbig span { color:var(--mute); }
+.cc-stats { grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); }
+.cc-fuel b { color:var(--ok); }
+.fuelbox .qchip { background:var(--card); }
+.fuelbox .qchip.on { background:var(--pri); color:var(--on-pri); }

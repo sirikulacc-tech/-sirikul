@@ -18,6 +18,7 @@ const MAINT_TYPES = ['เปลี่ยนน้ำมันเครื่อ�
 const MAX_DOC_BYTES = 6 * 1024 * 1024;
 // ค่าซ่อมบำรุงบันทึกที่เมนูซ่อมบำรุง ไม่ซ้ำกับค่าใช้จ่ายทั่วไป
 const PLATE_COLORS = ['black', 'green', 'blue', 'red']; // ขาว-ดำ / ขาว-เขียว / ขาว-น้ำเงิน / ป้ายแดง
+const FUEL_TYPES = ['แก๊สโซฮอล์ 95', 'แก๊สโซฮอล์ 91', 'แก๊สโซฮอล์ E20', 'แก๊สโซฮอล์ E85', 'เบนซิน 95', 'ดีเซล', 'ดีเซล B7', 'ดีเซลพรีเมียม', 'LPG', 'NGV', 'อื่นๆ'];
 const EXPENSE_TYPES = ['น้ำมัน', 'ล้างรถ', 'ทางด่วน/ที่จอด', 'ภาษี/พ.ร.บ.', 'ประกัน', 'อื่นๆ'];
 
 // ชื่อแท็บ + คอลัมน์ (key ใช้ในโค้ด, h คือหัวตารางที่เห็นใน Sheet)
@@ -48,7 +49,8 @@ const SCHEMA = {
     title: 'ค่าใช้จ่าย',
     cols: [
       ['id', 'รหัส'], ['date', 'วันที่'], ['plate', 'ทะเบียน'], ['type', 'ประเภท'], ['amount', 'จำนวนเงิน'],
-      ['note', 'หมายเหตุ'], ['images', 'ลิงก์รูป'], ['email', 'อีเมลผู้บันทึก'], ['name', 'ชื่อผู้บันทึก']
+      ['note', 'หมายเหตุ'], ['images', 'ลิงก์รูป'], ['email', 'อีเมลผู้บันทึก'], ['name', 'ชื่อผู้บันทึก'],
+      ['fuelType', 'ชนิดน้ำมัน'], ['pricePerL', 'ราคาต่อลิตร'], ['liters', 'จำนวนลิตร'], ['station', 'ปั๊มน้ำมัน'], ['odo', 'เลขไมล์ตอนเติม'], ['fullTank', 'เติมเต็มถัง (Y/N)']
     ],
     textCols: ['date']
   },
@@ -393,11 +395,26 @@ function addExpense_(p) {
   const amount = num_(p.amount, 'จำนวนเงิน');
   if (amount <= 0) throw new Error('จำนวนเงินต้องมากกว่า 0');
   const date = dateStr_(p.date);
+  // รายละเอียดน้ำมัน (ใช้คำนวณอัตราสิ้นเปลือง กม./ลิตร) เก็บเฉพาะเมื่อประเภทเป็น "น้ำมัน"
+  const fuel = { fuelType: '', pricePerL: '', liters: '', station: '', odo: '', fullTank: '' };
+  if (p.type === 'น้ำมัน') {
+    fuel.fuelType = FUEL_TYPES.indexOf(p.fuelType) >= 0 ? p.fuelType : '';
+    const price = p.pricePerL === '' || p.pricePerL == null ? 0 : num_(p.pricePerL, 'ราคาต่อลิตร');
+    let liters = p.liters === '' || p.liters == null ? 0 : num_(p.liters, 'จำนวนลิตร');
+    if (price < 0 || liters < 0) throw new Error('ราคาต่อลิตรและจำนวนลิตรต้องไม่ติดลบ');
+    if (price > 0 && liters === 0) liters = amount / price;
+    fuel.pricePerL = price > 0 ? Math.round(price * 100) / 100 : (liters > 0 ? Math.round(amount / liters * 100) / 100 : '');
+    fuel.liters = liters > 0 ? Math.round(liters * 100) / 100 : '';
+    fuel.station = str_(p.station, 80);
+    if (p.odo !== '' && p.odo != null) { const o = num_(p.odo, 'เลขไมล์ตอนเติม'); if (o < 0) throw new Error('เลขไมล์ต้องไม่ติดลบ'); fuel.odo = o; }
+    fuel.fullTank = p.fullTank === 'N' ? 'N' : 'Y';
+  }
   const links = saveImages_(p.images, car.plate, 'ค่าใช้จ่าย');
   return lock_(function () {
     const row = {
       id: Utilities.getUuid(), date: date, plate: car.plate, type: p.type, amount: amount,
-      note: str_(p.note, 300), images: links.join('\n'), email: '', name: name
+      note: str_(p.note, 300), images: links.join('\n'), email: '', name: name,
+      fuelType: fuel.fuelType, pricePerL: fuel.pricePerL, liters: fuel.liters, station: fuel.station, odo: fuel.odo, fullTank: fuel.fullTank
     };
     appendRow_('expenses', row);
     return { id: row.id };
